@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint backend
+        run: pnpm --filter backend lint
+      - name: Lint web
+        run: pnpm --filter web lint
+      - name: Typecheck backend
+        run: pnpm --filter backend typecheck
+      - name: Typecheck web
+        run: pnpm --filter web typecheck
+      - name: Typecheck shared-types
+        run: pnpm --filter @pos/shared-types typecheck
+      - name: Typecheck validation
+        run: pnpm --filter @pos/validation typecheck
+
+  test-backend:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run backend unit tests
+        run: pnpm --filter backend test -- --passWithNoTests
+
+  test-web:
+    name: Web Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run web unit tests
+        run: pnpm --filter web test -- --passWithNoTests
+
+  test-validation:
+    name: Validation Package Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run validation package tests
+        run: pnpm --filter @pos/validation test
+
+  flutter-analyze:
+    name: Flutter Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Get Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+      - name: Analyze Flutter code
+        working-directory: apps/mobile
+        run: flutter analyze
+      - name: Run Flutter tests
+        working-directory: apps/mobile
+        run: flutter test

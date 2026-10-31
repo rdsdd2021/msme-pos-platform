@@ -1,0 +1,21 @@
+{
+  "name": "msme-pos-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @pos/backend migration:run",
+    "db:revert": "pnpm --filter @pos/backend migration:revert",
+    "db:seed": "pnpm --filter @pos/backend seed:run"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

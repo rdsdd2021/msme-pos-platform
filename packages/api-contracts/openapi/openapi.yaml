@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: MSME POS Platform API
+  description: REST API for the MSME POS and business management platform
+  version: 1.0.0
+  contact:
+    name: Platform Team
+servers:
+  - url: /api/v1
+    description: API v1
+
+tags:
+  - name: health
+    description: Health check endpoints
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Liveness check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      tags:
+        - health
+      summary: Readiness check (includes DB connectivity)
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - version
+        - uptime
+      properties:
+        status:
+          type: string
+          enum: [ok, error, degraded]
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000Z'
+        version:
+          type: string
+          example: '0.1.0'
+        uptime:
+          type: integer
+          description: Uptime in seconds
+          example: 3600
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            database: ok
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: SERVICE_UNAVAILABLE
+        message:
+          type: string
+          example: Database unavailable
+        request_id:
+          type: string
+          format: uuid
+        details:
+          type: object
+          additionalProperties: true

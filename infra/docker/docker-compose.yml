@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pos_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pos_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-pos_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_dev_only}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pos_user} -d ${POSTGRES_DB:-pos_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pos_network
+
+  backend:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile.dev
+    container_name: pos_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pos_user}:${POSTGRES_PASSWORD:-changeme_dev_only}@postgres:5432/${POSTGRES_DB:-pos_platform}
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret_dev_only_min_32_chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-changeme_refresh_secret_dev_only_min_32_chars}
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ../../apps/backend:/app
+      - /app/node_modules
+    networks:
+      - pos_network
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile.dev
+    container_name: pos_web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - pos_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  pos_network:
+    driver: bridge
