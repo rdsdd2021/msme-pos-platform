@@ -1,0 +1,615 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/models/product.dart';
+import '../../core/models/customer.dart';
+import '../../core/providers/cart_provider.dart';
+import '../../core/providers/catalog_provider.dart';
+import '../../core/services/offline_billing_service.dart';
+
+class MobilePosScreen extends ConsumerStatefulWidget {
+  const MobilePosScreen({super.key});
+
+  @override
+  ConsumerState<MobilePosScreen> createState() => _MobilePosScreenState();
+}
+
+class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  final List<Customer> _sampleCustomers = const [
+    Customer(
+      id: 'c-1',
+      name: 'Ramesh Sharma',
+      phone: '+919876543210',
+      creditLimitPaisa: 500000,
+      currentBalancePaisa: 125000,
+    ),
+    Customer(
+      id: 'c-2',
+      name: 'Pooja Verma',
+      phone: '+919876543211',
+      creditLimitPaisa: 300000,
+      currentBalancePaisa: 42000,
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _showCheckoutSheet(BuildContext context, CartState cart) {
+    if (cart.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return _CheckoutBottomSheet(
+          cart: cart,
+          customers: _sampleCustomers,
+          onComplete: (paymentMethod, customerName) async {
+            Navigator.pop(ctx);
+            final result = await OfflineBillingService.processSale(
+              items: cart.items,
+              paymentMethod: paymentMethod,
+              customerName: customerName,
+            );
+
+            // Deduct stock in catalog
+            for (final item in cart.items) {
+              ref.read(catalogProvider.notifier).deductStock(item.product.id, item.quantity);
+            }
+
+            // Clear Cart
+            ref.read(cartProvider.notifier).clearCart();
+
+            if (!mounted) return;
+            _showReceiptDialog(result);
+          },
+        );
+      },
+    );
+  }
+
+  void _showReceiptDialog(OfflineSaleResult result) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 28),
+              SizedBox(width: 8),
+              Text('Sale Complete!'),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Bill No: ${result.invoiceNumber}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('Tender: ${result.paymentMethod.toUpperCase()}'),
+                  Text(
+                    'Amount Paid: ₹${result.totalRupees.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                  ),
+                  const Divider(height: 24),
+                  const Text('58mm Thermal Receipt Preview:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Text(
+                      result.receiptText,
+                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('New Sale (Done)'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('ESC/POS Command sent to Bluetooth Printer'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.print),
+              label: const Text('Print Receipt'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final catalogState = ref.watch(catalogProvider);
+    final cartState = ref.watch(cartProvider);
+
+    final categories = ['All', 'Groceries', 'Dairy', 'Snacks'];
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Kirana Supermart', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'Andheri West (BR-001) | Cashier: Suresh',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+            ),
+          ],
+        ),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade600),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_done, size: 14, color: Colors.greenAccent),
+                SizedBox(width: 4),
+                Text('Offline Ready', style: TextStyle(fontSize: 11, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Barcode & Search Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) => ref.read(catalogProvider.notifier).updateSearch(val),
+                    decoration: InputDecoration(
+                      hintText: 'Scan Barcode / Search Product...',
+                      prefixIcon: const Icon(Icons.search),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: () {
+                    // Simulate scanning Atta Barcode
+                    _searchController.text = '890103000001';
+                    ref.read(catalogProvider.notifier).updateSearch('890103000001');
+                  },
+                  icon: const Icon(Icons.qr_code_scanner),
+                  tooltip: 'Scan Barcode',
+                  style: IconButton.styleFrom(backgroundColor: const Color(0xFF0F172A)),
+                ),
+              ],
+            ),
+          ),
+
+          // Category Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: categories.map((cat) {
+                final isSelected = catalogState.selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    onSelected: (_) => ref.read(catalogProvider.notifier).selectCategory(cat),
+                    selectedColor: const Color(0xFF10B981),
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          // Product Grid
+          Expanded(
+            child: catalogState.filteredProducts.isEmpty
+                ? const Center(child: Text('No products match search.'))
+                : GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.35,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: catalogState.filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final p = catalogState.filteredProducts[index];
+                      return _ProductCard(
+                        product: p,
+                        onTap: () {
+                          ref.read(cartProvider.notifier).addProduct(p);
+                        },
+                      );
+                    },
+                  ),
+          ),
+
+          // Bottom Cart Bar
+          _BottomCartBar(
+            cart: cartState,
+            onCheckout: () => _showCheckoutSheet(context, cartState),
+            onClear: () => ref.read(cartProvider.notifier).clearCart(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductCard extends StatelessWidget {
+  final Product product;
+  final VoidCallback onTap;
+
+  const _ProductCard({required this.product, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Ink(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  Text(
+                    '${product.sku} | ${product.unit}',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0F172A)),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: product.isLowStock ? Colors.red.shade50 : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${product.currentStock.toInt()} ${product.isLowStock ? "⚠️" : "left"}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: product.isLowStock ? Colors.red.shade700 : Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomCartBar extends StatelessWidget {
+  final CartState cart;
+  final VoidCallback onCheckout;
+  final VoidCallback onClear;
+
+  const _BottomCartBar({
+    required this.cart,
+    required this.onCheckout,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (cart.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        color: Colors.grey.shade100,
+        child: const Center(
+          child: Text('Cart is empty. Tap items to add.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${cart.totalItemsCount} items | Tax: ₹${cart.taxRupees.toStringAsFixed(2)}',
+                  style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                ),
+                Text(
+                  '₹${cart.grandTotalRupees.toStringAsFixed(2)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Spacer(),
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              tooltip: 'Clear Cart',
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: onCheckout,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('PAY / BILL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckoutBottomSheet extends StatefulWidget {
+  final CartState cart;
+  final List<Customer> customers;
+  final Function(String paymentMethod, String? customerName) onComplete;
+
+  const _CheckoutBottomSheet({
+    required this.cart,
+    required this.customers,
+    required this.onComplete,
+  });
+
+  @override
+  State<_CheckoutBottomSheet> createState() => _CheckoutBottomSheetState();
+}
+
+class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
+  String _selectedMethod = 'cash';
+  Customer? _selectedCustomer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Collect Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Total: ₹${widget.cart.grandTotalRupees.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Select Tender:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _TenderButton(
+                label: 'Cash',
+                icon: Icons.payments,
+                isSelected: _selectedMethod == 'cash',
+                onTap: () => setState(() => _selectedMethod = 'cash'),
+              ),
+              const SizedBox(width: 8),
+              _TenderButton(
+                label: 'UPI QR',
+                icon: Icons.qr_code,
+                isSelected: _selectedMethod == 'upi',
+                onTap: () => setState(() => _selectedMethod = 'upi'),
+              ),
+              const SizedBox(width: 8),
+              _TenderButton(
+                label: 'Card',
+                icon: Icons.credit_card,
+                isSelected: _selectedMethod == 'card',
+                onTap: () => setState(() => _selectedMethod = 'card'),
+              ),
+              const SizedBox(width: 8),
+              _TenderButton(
+                label: 'Khata',
+                icon: Icons.book,
+                isSelected: _selectedMethod == 'credit',
+                onTap: () => setState(() => _selectedMethod = 'credit'),
+              ),
+            ],
+          ),
+
+          if (_selectedMethod == 'credit') ...[
+            const SizedBox(height: 16),
+            const Text('Select Khata Customer:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<Customer>(
+              initialValue: _selectedCustomer,
+              hint: const Text('Choose customer account'),
+              items: widget.customers.map((c) {
+                return DropdownMenuItem(
+                  value: c,
+                  child: Text('${c.name} (${c.phone}) - Due: ₹${c.currentBalanceRupees.toStringAsFixed(1)}'),
+                );
+              }).toList(),
+              onChanged: (val) => setState(() => _selectedCustomer = val),
+              decoration: InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () {
+                if (_selectedMethod == 'credit' && _selectedCustomer == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please select a customer for Khata credit')),
+                  );
+                  return;
+                }
+                widget.onComplete(_selectedMethod, _selectedCustomer?.name);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('CONFIRM PAYMENT & SAVE INVOICE', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TenderButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TenderButton({
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : Colors.black87, size: 20),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black87,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

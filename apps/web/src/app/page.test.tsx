@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import HomePage from './page';
 
-describe('Web POS Checkout Page', () => {
-  it('renders Kirana POS billing title and search bar', () => {
+describe('Web POS Checkout Page & Admin Dashboard', () => {
+  it('renders Kirana POS billing title and search bar in cashier mode', () => {
     render(<HomePage />);
     expect(screen.getByText('Kirana POS Billing')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Scan Barcode \/ Enter SKU/i)).toBeInTheDocument();
@@ -30,5 +30,28 @@ describe('Web POS Checkout Page', () => {
 
     expect(screen.getByText(/Sale completed via CASH/i)).toBeInTheDocument();
     expect(screen.getByText(/Cart is empty/i)).toBeInTheDocument();
+  });
+
+  it('switches to Store Owner & Admin mode and displays analytics and inventory', () => {
+    render(<HomePage />);
+    const adminModeBtn = screen.getByTestId('mode-admin-btn');
+    fireEvent.click(adminModeBtn);
+
+    // Store Owner portal header should appear
+    expect(screen.getByText(/Store Owner Portal/i)).toBeInTheDocument();
+    expect(screen.getByText(/Gross Sales/i)).toBeInTheDocument();
+    expect(screen.getByText(/GST Tax Breakdown/i)).toBeInTheDocument();
+
+    // Switch to Inventory tab
+    const inventoryTab = screen.getByTestId('tab-inventory');
+    fireEvent.click(inventoryTab);
+    expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
+    expect(screen.getByText('Aashirvaad Shudh Chakki Atta 5kg')).toBeInTheDocument();
+
+    // Switch to Khata tab
+    const khataTab = screen.getByTestId('tab-khata');
+    fireEvent.click(khataTab);
+    expect(screen.getByTestId('khata-table')).toBeInTheDocument();
+    expect(screen.getByText('Ramesh Sharma')).toBeInTheDocument();
   });
 });

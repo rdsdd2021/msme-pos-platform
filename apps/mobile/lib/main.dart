@@ -1,63 +1,80 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/pos/pos_screen.dart';
+import 'features/owner/owner_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const ProviderScope(
-      child: PosApp(),
+      child: KiranaPosApp(),
     ),
   );
 }
 
-class PosApp extends ConsumerWidget {
-  const PosApp({super.key});
+class KiranaPosApp extends StatelessWidget {
+  const KiranaPosApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'POS Platform',
+      title: 'Kirana POS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1565C0)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF10B981), // Emerald Kirana green
+          primary: const Color(0xFF10B981),
+          surface: Colors.white,
+        ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
       ),
-      home: const InitialisingScreen(),
+      home: const MainNavigationShell(),
     );
   }
 }
 
-class InitialisingScreen extends StatelessWidget {
-  const InitialisingScreen({super.key});
+class MainNavigationShell extends StatefulWidget {
+  const MainNavigationShell({super.key});
+
+  @override
+  State<MainNavigationShell> createState() => _MainNavigationShellState();
+}
+
+class _MainNavigationShellState extends State<MainNavigationShell> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = const [
+    MobilePosScreen(),
+    MobileOwnerScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.point_of_sale,
-              size: 72,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'POS Platform',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Development environment initialised',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
-            ),
-          ],
-        ),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.point_of_sale_outlined),
+            selectedIcon: Icon(Icons.point_of_sale, color: Color(0xFF10B981)),
+            label: 'Kirana POS',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.storefront_outlined),
+            selectedIcon: Icon(Icons.storefront, color: Color(0xFF10B981)),
+            label: 'Store Owner',
+          ),
+        ],
       ),
     );
   }

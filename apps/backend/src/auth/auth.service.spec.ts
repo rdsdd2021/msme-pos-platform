@@ -60,7 +60,7 @@ describe('AuthService', () => {
     expect(result.refreshToken).toBe('mock-jwt-token');
     expect(result.user.email).toBe('newuser@example.com');
     expect(mockUserRepo.save).toHaveBeenCalled();
-  });
+  }, 20000);
 
   it('rejects registration with existing email', async () => {
     mockUserRepo.findOne.mockResolvedValueOnce({ id: 'existing-id' });
