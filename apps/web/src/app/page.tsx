@@ -30,6 +30,7 @@ export default function HomePage() {
         setViewMode('superadmin');
       } else if (isCashier() && !isOwner() && !isBranchManager()) {
         setViewMode('pos');
+        setActiveAdminTab('invoices');
       }
     }
   }, [user, isCashier, isOwner, isBranchManager, isSuperAdmin, activeTenant]);

@@ -69,8 +69,12 @@ export function AppHeader({
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink
-                onClick={() => setViewMode('admin')}
-                className="text-slate-500 hover:text-slate-900 font-medium"
+                onClick={() => {
+                  if (isOwner() || isBranchManager()) {
+                    setViewMode('admin');
+                  }
+                }}
+                className={isOwner() || isBranchManager() ? "text-slate-500 hover:text-slate-900 font-medium cursor-pointer" : "text-slate-500 font-medium cursor-default"}
               >
                 {activeTenant?.tenantName || 'Kirana Supermart'}
               </BreadcrumbLink>

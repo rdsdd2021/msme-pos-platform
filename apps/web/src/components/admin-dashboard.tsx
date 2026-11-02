@@ -78,9 +78,85 @@ export default function AdminDashboard({
   inventorySubTab: controlledSubTab,
   onInventorySubTabChange,
 }: AdminDashboardProps = {}) {
-  const { activeTenant, activeBranch, branches, isOwner, isBranchManager, isAccountant } = useAuthStore();
+  const {
+    activeTenant,
+    activeBranch,
+    branches,
+    isOwner,
+    isBranchManager,
+    isAccountant,
+    isCashier,
+    isInventoryStaff,
+    hasPermission,
+  } = useAuthStore();
 
-  const [internalActiveTab, setInternalActiveTab] = useState<AdminTab>('inventory');
+  // Strict Role-Based Tab Permissions
+  const canAccessInventory = isOwner() || isBranchManager() || isInventoryStaff();
+  const canAccessInvoices = isOwner() || isBranchManager() || isCashier() || isAccountant();
+  const canAccessAnalytics = isOwner() || isBranchManager();
+  const canAccessGst = isOwner() || isBranchManager() || isAccountant();
+  const canAccessKhata = isOwner() || isBranchManager() || isAccountant();
+  const canAccessShifts = isOwner() || isBranchManager() || isAccountant();
+  const canAccessDevices = isOwner() || isBranchManager();
+  const canAccessBranches = isOwner();
+  const canAccessSubscription = isOwner();
+
+  const canAccessTab = useCallback(
+    (tab: AdminTab): boolean => {
+      switch (tab) {
+        case 'inventory':
+          return canAccessInventory;
+        case 'invoices':
+          return canAccessInvoices;
+        case 'analytics':
+          return canAccessAnalytics;
+        case 'gst':
+          return canAccessGst;
+        case 'khata':
+          return canAccessKhata;
+        case 'shifts':
+          return canAccessShifts;
+        case 'devices':
+          return canAccessDevices;
+        case 'branches':
+          return canAccessBranches;
+        case 'subscription':
+          return canAccessSubscription;
+        default:
+          return false;
+      }
+    },
+    [
+      canAccessInventory,
+      canAccessInvoices,
+      canAccessAnalytics,
+      canAccessGst,
+      canAccessKhata,
+      canAccessShifts,
+      canAccessDevices,
+      canAccessBranches,
+      canAccessSubscription,
+    ],
+  );
+
+  const accessibleTabsCount = [
+    canAccessInventory,
+    canAccessInvoices,
+    canAccessAnalytics,
+    canAccessGst,
+    canAccessKhata,
+    canAccessShifts,
+    canAccessDevices,
+    canAccessBranches,
+    canAccessSubscription,
+  ].filter(Boolean).length;
+
+  const [internalActiveTab, setInternalActiveTab] = useState<AdminTab>(() => {
+    if (controlledActiveTab) return controlledActiveTab;
+    if (canAccessInventory) return 'inventory';
+    if (canAccessInvoices) return 'invoices';
+    return 'invoices';
+  });
   const [internalInventorySubTab, setInternalInventorySubTab] = useState<InventorySubTab>('products');
 
   const activeTab = controlledActiveTab ?? internalActiveTab;
@@ -88,6 +164,17 @@ export default function AdminDashboard({
     setInternalActiveTab(tab);
     onTabChange?.(tab);
   };
+
+  // Redirect if currently on a restricted tab
+  useEffect(() => {
+    if (!canAccessTab(activeTab)) {
+      if (canAccessInvoices) {
+        setActiveTab('invoices');
+      } else if (canAccessInventory) {
+        setActiveTab('inventory');
+      }
+    }
+  }, [activeTab, canAccessTab, canAccessInvoices, canAccessInventory]);
 
   const inventorySubTab = controlledSubTab ?? internalInventorySubTab;
   const setInventorySubTab = (subTab: InventorySubTab) => {
@@ -443,41 +530,49 @@ export default function AdminDashboard({
     const today = new Date().toISOString().split('T')[0];
 
     try {
-      // 1. Products, Stock, Categories, Units, Suppliers & Purchase Orders
-      const [productList, balanceList, catList, unitList, supplierList, poList] = await Promise.all([
-        apiClient.getProducts(tenantId).catch(() => [] as Product[]),
-        branchId ? apiClient.getStockBalances(tenantId, branchId).catch(() => [] as StockBalance[]) : Promise.resolve([] as StockBalance[]),
-        apiClient.getCategories(tenantId).catch(() => [] as Category[]),
-        apiClient.getUnits(tenantId).catch(() => [] as Unit[]),
-        apiClient.getSuppliers(tenantId).catch(() => [] as Supplier[]),
-        apiClient.getPurchaseOrders(tenantId, branchId ? { branchId } : undefined).catch(() => [] as PurchaseOrder[]),
-      ]);
-      setProducts(productList);
-      setCategories(catList);
-      setUnits(unitList);
-      setSuppliers(supplierList);
-      setPurchaseOrders(poList);
+      // 1. Products, Stock, Categories, Units, Suppliers & Purchase Orders (Only if permitted)
+      if (canAccessInventory) {
+        const [productList, balanceList, catList, unitList, supplierList, poList] = await Promise.all([
+          apiClient.getProducts(tenantId).catch(() => [] as Product[]),
+          branchId ? apiClient.getStockBalances(tenantId, branchId).catch(() => [] as StockBalance[]) : Promise.resolve([] as StockBalance[]),
+          apiClient.getCategories(tenantId).catch(() => [] as Category[]),
+          apiClient.getUnits(tenantId).catch(() => [] as Unit[]),
+          apiClient.getSuppliers(tenantId).catch(() => [] as Supplier[]),
+          apiClient.getPurchaseOrders(tenantId, branchId ? { branchId } : undefined).catch(() => [] as PurchaseOrder[]),
+        ]);
+        setProducts(productList);
+        setCategories(catList);
+        setUnits(unitList);
+        setSuppliers(supplierList);
+        setPurchaseOrders(poList);
 
-      const sMap = new Map<string, string>();
-      balanceList.forEach((b) => sMap.set(b.productId, b.quantityOnHand));
-      setStockMap(sMap);
+        const sMap = new Map<string, string>();
+        balanceList.forEach((b) => sMap.set(b.productId, b.quantityOnHand));
+        setStockMap(sMap);
+      }
 
       // 2. Customers, Branches & Invoices
-      const [customerList, branchList, invoiceList] = await Promise.all([
-        apiClient.getCustomers(tenantId).catch(() => [] as Customer[]),
-        apiClient.getBranches(tenantId).catch(() => [] as Branch[]),
-        typeof apiClient.getInvoices === 'function' ? apiClient.getInvoices(tenantId, branchId).catch(() => [] as Invoice[]) : Promise.resolve([] as Invoice[]),
-      ]);
-      setCustomers(customerList);
+      if (canAccessKhata || canAccessInvoices) {
+        const customerList = await apiClient.getCustomers(tenantId).catch(() => [] as Customer[]);
+        setCustomers(customerList);
+      }
+
+      const branchList = await apiClient.getBranches(tenantId).catch(() => [] as Branch[]);
       setBranchesList(branchList);
-      setInvoices(invoiceList);
 
-      // 3. Shifts
-      const shiftList = await apiClient.getShifts(tenantId, branchId).catch(() => [] as CashierShift[]);
-      setShifts(shiftList);
+      if (canAccessInvoices) {
+        const invoiceList = typeof apiClient.getInvoices === 'function' ? await apiClient.getInvoices(tenantId, branchId).catch(() => [] as Invoice[]) : [];
+        setInvoices(invoiceList);
+      }
 
-      // 4. Daily Sales Analytics
-      if (branchId) {
+      // 3. Shifts (Only if permitted)
+      if (canAccessShifts) {
+        const shiftList = await apiClient.getShifts(tenantId, branchId).catch(() => [] as CashierShift[]);
+        setShifts(shiftList);
+      }
+
+      // 4. Daily Sales Analytics (Only if permitted)
+      if (canAccessAnalytics && branchId) {
         try {
           const reportData = await apiClient.getDailySalesReport(tenantId, branchId, today);
           setReport(reportData);
@@ -493,12 +588,12 @@ export default function AdminDashboard({
       }
 
       // 5. Commercial Devices & Subscription (if permitted)
-      if (isOwner() || isBranchManager()) {
+      if (canAccessDevices) {
         const devList = await apiClient.getDevices(tenantId).catch(() => [] as Device[]);
         setDevices(devList);
       }
 
-      if (isOwner()) {
+      if (canAccessSubscription) {
         const subData = await apiClient.getSubscription(tenantId).catch(() => null);
         setSubscription(subData);
       }
@@ -507,7 +602,17 @@ export default function AdminDashboard({
     } finally {
       setLoading(false);
     }
-  }, [activeTenant, activeBranch, isOwner, isBranchManager]);
+  }, [
+    activeTenant,
+    activeBranch,
+    canAccessInventory,
+    canAccessKhata,
+    canAccessInvoices,
+    canAccessShifts,
+    canAccessAnalytics,
+    canAccessDevices,
+    canAccessSubscription,
+  ]);
 
   useEffect(() => {
     fetchAllData();
@@ -1447,25 +1552,32 @@ export default function AdminDashboard({
 
         {/* Right Header Actions */}
         <div className="flex items-center gap-2">
-          {/* Quick Jump Dropdown for Test Automation and Power Users */}
-          <div className="relative inline-block">
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value as AdminTab)}
-              data-testid="admin-workspace-select"
-              className="bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none cursor-pointer shadow-2xs"
-            >
-              <option value="inventory">📦 Products & Inventory</option>
-              <option value="invoices">🧾 Bills & Invoices</option>
-              <option value="analytics">📊 Executive Analytics</option>
-              <option value="gst">📑 GST Returns</option>
-              <option value="khata">👥 Customer Khata</option>
-              <option value="shifts">⏱️ Cashier Shifts</option>
-              <option value="devices">📱 POS Devices</option>
-              <option value="branches">🏢 Branches & GSTIN</option>
-              {isOwner() && <option value="subscription">💳 Subscription Plan</option>}
-            </select>
-          </div>
+          {/* Quick Jump Dropdown filtered strictly by user role permissions */}
+          {accessibleTabsCount > 1 ? (
+            <div className="relative inline-block">
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as AdminTab)}
+                data-testid="admin-workspace-select"
+                className="bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none cursor-pointer shadow-2xs"
+              >
+                {canAccessInventory && <option value="inventory">📦 Products &amp; Inventory</option>}
+                {canAccessInvoices && <option value="invoices">🧾 Bills &amp; Invoices</option>}
+                {canAccessAnalytics && <option value="analytics">📊 Executive Analytics</option>}
+                {canAccessGst && <option value="gst">📑 GST Returns</option>}
+                {canAccessKhata && <option value="khata">👥 Customer Khata</option>}
+                {canAccessShifts && <option value="shifts">⏱️ Cashier Shifts</option>}
+                {canAccessDevices && <option value="devices">📱 POS Devices</option>}
+                {canAccessBranches && <option value="branches">🏢 Branches &amp; GSTIN</option>}
+                {canAccessSubscription && <option value="subscription">💳 Subscription Plan</option>}
+              </select>
+            </div>
+          ) : (
+            <div className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
+              {activeTab === 'invoices' && '🧾 Bills & Invoices Register'}
+              {activeTab === 'inventory' && '📦 Products & Catalog Hub'}
+            </div>
+          )}
 
           <button
             onClick={fetchAllData}
@@ -1509,7 +1621,30 @@ export default function AdminDashboard({
 
         {!loading && (
           <>
-            {/* 0. Bills & Invoices Register Tab */}
+            {!canAccessTab(activeTab) ? (
+              <div className="p-8 text-center bg-white rounded-2xl border border-rose-200 mt-6 max-w-lg mx-auto shadow-sm">
+                <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-xl">
+                  🔒
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Access Restricted</h3>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  Your current account role does not have authorization to view this administrative module.
+                  This workspace requires <strong>Store Owner</strong> or <strong>Branch Manager</strong> permissions.
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  {canAccessInvoices && (
+                    <button
+                      onClick={() => setActiveTab('invoices')}
+                      className="px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
+                    >
+                      Go to Bills &amp; Invoices
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* 0. Bills & Invoices Register Tab */}
             {activeTab === 'invoices' && (
               <InvoicesListView
                 invoices={invoices}
@@ -1833,6 +1968,8 @@ export default function AdminDashboard({
                 onRefresh={fetchAllData}
                 onEditBranch={handleOpenEditBranch}
               />
+            )}
+              </>
             )}
           </>
         )}
