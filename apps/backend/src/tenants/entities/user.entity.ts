@@ -44,6 +44,9 @@ export class UserEntity {
   @Column({ name: 'refresh_token_hash', type: 'varchar', length: 255, nullable: true })
   refreshTokenHash!: string | null;
 
+  @Column({ name: 'is_super_admin', type: 'boolean', default: false })
+  isSuperAdmin!: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

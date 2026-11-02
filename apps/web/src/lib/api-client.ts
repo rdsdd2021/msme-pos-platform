@@ -22,6 +22,7 @@ export interface UserSummary {
   id: string;
   email: string;
   fullName: string;
+  isSuperAdmin?: boolean;
 }
 
 export interface TenantMembershipInfo {
@@ -40,6 +41,7 @@ export interface UserProfile {
   email: string;
   fullName: string;
   phone: string | null;
+  isSuperAdmin?: boolean;
   memberships: TenantMembershipInfo[];
 }
 
@@ -1502,6 +1504,142 @@ class ApiClient {
       body: JSON.stringify(dto),
     });
   }
+
+  // Platform Super Admin
+  async getPlatformMetrics(): Promise<PlatformMetrics> {
+    return this.request<PlatformMetrics>('/platform-admin/metrics');
+  }
+
+  async getPlatformTenants(): Promise<PlatformTenant[]> {
+    return this.request<PlatformTenant[]>('/platform-admin/tenants');
+  }
+
+  async createPlatformTenant(dto: {
+    legalName: string;
+    displayName: string;
+    businessType?: string;
+    ownerEmail: string;
+    ownerName: string;
+    ownerPassword: string;
+    planCode?: string;
+  }): Promise<any> {
+    return this.request('/platform-admin/tenants', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async updatePlatformTenantStatus(id: string, status: string): Promise<any> {
+    return this.request(`/platform-admin/tenants/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getPlatformPlans(): Promise<PlatformPlan[]> {
+    return this.request<PlatformPlan[]>('/platform-admin/plans');
+  }
+
+  async updatePlatformSubscription(dto: {
+    tenantId: string;
+    planCode: string;
+    status: string;
+    maxBranches: number;
+    maxDevices: number;
+    maxUsers: number;
+  }): Promise<any> {
+    return this.request('/platform-admin/subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async getPlatformDevices(): Promise<PlatformDevice[]> {
+    return this.request<PlatformDevice[]>('/platform-admin/devices');
+  }
+
+  async revokePlatformDevice(id: string, reason: string): Promise<any> {
+    return this.request(`/platform-admin/devices/${id}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async getPlatformAudit(limit = 50, offset = 0): Promise<{ total: number; limit: number; offset: number; data: PlatformAuditLog[] }> {
+    return this.request(`/platform-admin/audit?limit=${limit}&offset=${offset}`);
+  }
+}
+
+export interface PlatformMetrics {
+  tenants: { total: number; active: number; suspended: number };
+  branches: { total: number };
+  devices: { total: number; active: number; revoked: number };
+  transactions: { totalInvoices: number; totalSalesVolume: string };
+  platformVersion: string;
+  systemStatus: string;
+}
+
+export interface PlatformTenant {
+  id: string;
+  legalName: string;
+  displayName: string;
+  businessType: string;
+  status: string;
+  currency: string;
+  timezone: string;
+  createdAt: string;
+  branchCount: number;
+  userCount: number;
+  deviceCount: number;
+  subscription: {
+    planCode: string;
+    status: string;
+    maxBranches: number;
+    maxDevices: number;
+    maxUsers: number;
+    currentPeriodEnd: string | null;
+  } | null;
+}
+
+export interface PlatformPlan {
+  planCode: string;
+  name: string;
+  priceMonthly: number;
+  priceYearly: number;
+  currency: string;
+  maxBranches: number;
+  maxDevices: number;
+  maxUsers: number;
+  features: string[];
+}
+
+export interface PlatformDevice {
+  id: string;
+  deviceIdentifier: string;
+  deviceName: string;
+  platform: string;
+  appVersion: string | null;
+  status: string;
+  lastSeenAt: string | null;
+  revokedAt: string | null;
+  revocationReason: string | null;
+  createdAt: string;
+  tenantName: string;
+  tenantId: string;
+  branchName: string;
+  branchCode: string;
+}
+
+export interface PlatformAuditLog {
+  id: string;
+  tenantId: string;
+  userId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  details: Record<string, unknown> | null;
+  ipAddress: string | null;
+  createdAt: string;
 }
 
 export const apiClient = new ApiClient();

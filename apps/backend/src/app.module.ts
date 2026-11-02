@@ -11,6 +11,7 @@ import { HardwareModule } from './hardware/hardware.module';
 import { SyncModule } from './sync/sync.module';
 import { OperationsModule } from './operations/operations.module';
 import { CommercialModule } from './commercial/commercial.module';
+import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { getDatabaseConfig } from './database/database.config';
 
 @Module({
@@ -38,6 +39,7 @@ import { getDatabaseConfig } from './database/database.config';
     SyncModule,
     OperationsModule,
     CommercialModule,
+    PlatformAdminModule,
   ],
 })
 export class AppModule {}

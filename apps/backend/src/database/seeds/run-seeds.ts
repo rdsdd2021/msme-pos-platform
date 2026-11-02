@@ -83,6 +83,25 @@ export async function runSeeds() {
 
     console.log('2. Seeding Users & Memberships...');
     const passwordHash = await bcrypt.hash('Password@123', 12);
+    const superAdminPasswordHash = await bcrypt.hash('SuperAdmin@123', 12);
+
+    // Platform Super Admin
+    let superAdmin = await userRepo.findOne({ where: { email: 'superadmin@pos.assistt.in' } });
+    if (!superAdmin) {
+      superAdmin = userRepo.create({
+        email: 'superadmin@pos.assistt.in',
+        passwordHash: superAdminPasswordHash,
+        fullName: 'Platform Super Administrator',
+        phone: '+919999999999',
+        status: UserStatus.ACTIVE,
+        isSuperAdmin: true,
+      });
+      await userRepo.save(superAdmin);
+      console.log(`Created Super Admin User: ${superAdmin.id}`);
+    } else if (!superAdmin.isSuperAdmin) {
+      superAdmin.isSuperAdmin = true;
+      await userRepo.save(superAdmin);
+    }
 
     let adminUser = await userRepo.findOne({ where: { email: 'admin@kirana.dev' } });
     if (!adminUser) {

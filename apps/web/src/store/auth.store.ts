@@ -19,6 +19,7 @@ interface AuthState {
   clearError: () => void;
 
   // Role & Permission Checks
+  isSuperAdmin: () => boolean;
   isOwner: () => boolean;
   isBranchManager: () => boolean;
   isCashier: () => boolean;
@@ -42,6 +43,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const profile = await apiClient.getProfile();
 
       if (!profile.memberships || profile.memberships.length === 0) {
+        if (profile.isSuperAdmin) {
+          apiClient.setActiveContext(null, null);
+          set({
+            user: profile,
+            activeTenant: null,
+            branches: [],
+            activeBranch: null,
+            status: 'authenticated',
+            error: null,
+          });
+          return;
+        }
         throw new Error('User has no active store memberships');
       }
 
@@ -112,6 +125,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const profile = await apiClient.getProfile();
       if (!profile.memberships || profile.memberships.length === 0) {
+        if (profile.isSuperAdmin) {
+          apiClient.setActiveContext(null, null);
+          set({
+            user: profile,
+            activeTenant: null,
+            branches: [],
+            activeBranch: null,
+            status: 'authenticated',
+            error: null,
+          });
+          return;
+        }
         set({ status: 'unauthenticated', user: null });
         return;
       }
@@ -199,6 +224,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  isSuperAdmin: () => {
+    return !!get().user?.isSuperAdmin;
+  },
 
   isOwner: () => {
     const active = get().activeTenant;

@@ -12,6 +12,7 @@ export class AuthResponseDto {
     id: string;
     email: string;
     fullName: string;
+    isSuperAdmin?: boolean;
   };
 }
 
@@ -53,6 +54,9 @@ export class UserProfileDto {
 
   @ApiProperty({ nullable: true })
   phone!: string | null;
+
+  @ApiProperty({ default: false })
+  isSuperAdmin!: boolean;
 
   @ApiProperty({ type: [MembershipSummaryDto] })
   memberships!: MembershipSummaryDto[];

@@ -2,6 +2,7 @@
  * Canonical Business Roles for Indian MSME Retail
  */
 export enum Role {
+  SUPER_ADMIN = 'super_admin',
   OWNER = 'owner',
   BRANCH_MANAGER = 'branch_manager',
   CASHIER = 'cashier',
@@ -13,6 +14,12 @@ export enum Role {
  * Granular Permission Keys as defined in docs/14-ROLE-PERMISSION-MATRIX.md
  */
 export enum Permission {
+  // Platform Super Admin
+  PLATFORM_TENANT_MANAGE = 'platform:tenant:manage',
+  PLATFORM_PLAN_MANAGE = 'platform:plan:manage',
+  PLATFORM_DEVICE_MANAGE = 'platform:device:manage',
+  PLATFORM_AUDIT_READ = 'platform:audit:read',
+
   // Tenancy & Organization
   TENANT_READ = 'tenant:read',
   TENANT_UPDATE = 'tenant:update',
@@ -66,7 +73,8 @@ export enum Permission {
  * Static Role-to-Permissions Mapping Table
  */
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  [Role.OWNER]: Object.values(Permission),
+  [Role.SUPER_ADMIN]: Object.values(Permission),
+  [Role.OWNER]: Object.values(Permission).filter((p) => !p.startsWith('platform:')),
 
   [Role.BRANCH_MANAGER]: [
     Permission.TENANT_READ,

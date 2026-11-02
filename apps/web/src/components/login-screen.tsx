@@ -38,6 +38,13 @@ export default function LoginScreen() {
     clearError();
   };
 
+  const handleFillSuperAdmin = () => {
+    setEmail('superadmin@pos.assistt.in');
+    setPassword('SuperAdmin@123');
+    setValidationError(null);
+    clearError();
+  };
+
   const isLoading = status === 'loading';
 
   return (
@@ -165,6 +172,24 @@ export default function LoginScreen() {
                 <div className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">cashier@kirana.dev</div>
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={handleFillSuperAdmin}
+              data-testid="demo-superadmin-btn"
+              className="mt-2 w-full p-2.5 text-left bg-purple-50/70 hover:bg-purple-100/80 border border-purple-200/80 rounded-xl text-xs transition cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-purple-700">
+                  <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
+                  <span>Platform Super Admin</span>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-200/70 text-purple-800">
+                  Platform
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">superadmin@pos.assistt.in</div>
+            </button>
           </div>
         </div>
 

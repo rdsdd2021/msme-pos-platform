@@ -17,6 +17,7 @@ import { UserStatus, Role, getPermissionsForRoles } from '@pos/shared-types';
 export interface JwtPayload {
   sub: string;
   email: string;
+  isSuperAdmin?: boolean;
 }
 
 const SALT_ROUNDS = 12;
@@ -114,6 +115,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       phone: user.phone,
+      isSuperAdmin: !!user.isSuperAdmin,
       memberships: (user.memberships || []).map((m) => {
         const rawRoles = m.roles && m.roles.length > 0 ? m.roles : [m.role as Role];
         const roles = rawRoles.map((r) => r as Role);
@@ -134,7 +136,7 @@ export class AuthService {
   }
 
   private async generateTokens(user: UserEntity): Promise<AuthResponseDto> {
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const payload: JwtPayload = { sub: user.id, email: user.email, isSuperAdmin: !!user.isSuperAdmin };
     const accessSecret = this.configService.get<string>(
       'JWT_SECRET',
       'changeme_jwt_secret_dev_only_min_32_chars_xxxx',
@@ -167,6 +169,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        isSuperAdmin: !!user.isSuperAdmin,
       },
     };
   }

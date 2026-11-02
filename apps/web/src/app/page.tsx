@@ -5,13 +5,14 @@ import { useAuthStore } from '@/store/auth.store';
 import PosCheckoutScreen from '@/components/pos-checkout';
 import AdminDashboard, { AdminTab, InventorySubTab } from '@/components/admin-dashboard';
 import LoginScreen from '@/components/login-screen';
+import SuperAdminPortal from '@/components/super-admin-portal';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { CommandMenu } from '@/components/layout/command-menu';
 
 export default function HomePage() {
-  const { user, status, checkAuth, isOwner, isBranchManager, isCashier } = useAuthStore();
-  const [viewMode, setViewMode] = useState<'pos' | 'admin'>('pos');
+  const { user, status, checkAuth, isOwner, isBranchManager, isCashier, isSuperAdmin, activeTenant } = useAuthStore();
+  const [viewMode, setViewMode] = useState<'pos' | 'admin' | 'superadmin'>('pos');
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('inventory');
   const [activeInventorySubTab, setActiveInventorySubTab] = useState<InventorySubTab>('products');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -25,11 +26,13 @@ export default function HomePage() {
   // Adjust default view mode based on role
   useEffect(() => {
     if (user) {
-      if (isCashier() && !isOwner() && !isBranchManager()) {
+      if (isSuperAdmin() && !activeTenant) {
+        setViewMode('superadmin');
+      } else if (isCashier() && !isOwner() && !isBranchManager()) {
         setViewMode('pos');
       }
     }
-  }, [user, isCashier, isOwner, isBranchManager]);
+  }, [user, isCashier, isOwner, isBranchManager, isSuperAdmin, activeTenant]);
 
   // Loading session state
   if (status === 'loading' && !user) {
@@ -46,12 +49,17 @@ export default function HomePage() {
     return <LoginScreen />;
   }
 
+  // Super Admin Portal Mode
+  if (isSuperAdmin() && (viewMode === 'superadmin' || !activeTenant)) {
+    return <SuperAdminPortal />;
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-100" data-testid="pos-app-root">
       {/* Modern Collapsible Role-Based Sidebar */}
       <AppSidebar
-        viewMode={viewMode}
-        setViewMode={setViewMode}
+        viewMode={viewMode === 'superadmin' ? 'admin' : viewMode}
+        setViewMode={(m) => setViewMode(m)}
         activeAdminTab={activeAdminTab}
         setActiveAdminTab={(tab) => {
           setActiveAdminTab(tab);
@@ -68,8 +76,8 @@ export default function HomePage() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Modern App Header with Breadcrumb, Branch status & Command trigger */}
         <AppHeader
-          viewMode={viewMode}
-          setViewMode={setViewMode}
+          viewMode={viewMode === 'superadmin' ? 'admin' : viewMode}
+          setViewMode={(m) => setViewMode(m)}
           activeAdminTab={activeAdminTab}
           onOpenCommand={() => setCommandOpen(true)}
         />
