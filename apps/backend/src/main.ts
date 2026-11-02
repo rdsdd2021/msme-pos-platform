@@ -14,15 +14,25 @@ async function bootstrap(): Promise<void> {
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3001);
-  const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:3000');
+  const rawCorsOrigin = configService.get<string>('CORS_ORIGIN', 'https://pos.assistt.in');
+  const allowedOrigins: boolean | string | string[] =
+    rawCorsOrigin === '*'
+      ? true
+      : rawCorsOrigin.includes(',')
+        ? rawCorsOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+        : rawCorsOrigin;
 
   // Security
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use(compression());
 
   // CORS
   app.enableCors({
-    origin: corsOrigin,
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });

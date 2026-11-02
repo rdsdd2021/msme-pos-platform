@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pos_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pos_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pos_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-pos_platform}
+    ports:
+      # Bound strictly to loopback interface on dev machine (Rule 16)
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos_admin -d pos_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pos_dev_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile.dev
+    container_name: pos_backend_dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-pos_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pos_secure_password}
+      POSTGRES_DB: ${POSTGRES_DB:-pos_platform}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_change_in_production}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_jwt_refresh_secret}
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pos_dev_network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    container_name: pos_web_dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - pos_dev_network
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  pos_dev_network:
+    driver: bridge
+

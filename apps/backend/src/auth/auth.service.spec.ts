@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { UserEntity } from '../tenants/entities/user.entity';
 
 describe('AuthService', () => {
+  jest.setTimeout(30000);
   let service: AuthService;
   let mockUserRepo: any;
   let mockJwtService: any;

@@ -43,6 +43,9 @@ export class BranchEntity {
   @Column({ name: 'gst_registration_id', type: 'uuid', nullable: true })
   gstRegistrationId!: string | null;
 
+  @Column({ type: 'varchar', length: 15, nullable: true })
+  gstin!: string | null;
+
   @Column({ type: 'varchar', length: 64, default: 'Asia/Kolkata' })
   timezone!: string;
 

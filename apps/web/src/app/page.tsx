@@ -1,59 +1,104 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuthStore } from '@/store/auth.store';
 import PosCheckoutScreen from '@/components/pos-checkout';
-import AdminDashboard from '@/components/admin-dashboard';
+import AdminDashboard, { AdminTab, InventorySubTab } from '@/components/admin-dashboard';
+import LoginScreen from '@/components/login-screen';
+import { AppSidebar } from '@/components/layout/app-sidebar';
+import { AppHeader } from '@/components/layout/app-header';
+import { CommandMenu } from '@/components/layout/command-menu';
 
 export default function HomePage() {
+  const { user, status, checkAuth, isOwner, isBranchManager, isCashier } = useAuthStore();
   const [viewMode, setViewMode] = useState<'pos' | 'admin'>('pos');
+  const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('inventory');
+  const [activeInventorySubTab, setActiveInventorySubTab] = useState<InventorySubTab>('products');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+
+  // Verify active session on page mount
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  // Adjust default view mode based on role
+  useEffect(() => {
+    if (user) {
+      if (isCashier() && !isOwner() && !isBranchManager()) {
+        setViewMode('pos');
+      }
+    }
+  }, [user, isCashier, isOwner, isBranchManager]);
+
+  // Loading session state
+  if (status === 'loading' && !user) {
+    return (
+      <div className="h-screen bg-slate-950 flex flex-col items-center justify-center text-white gap-3">
+        <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-semibold tracking-wide text-slate-300">Connecting to POS Platform...</p>
+      </div>
+    );
+  }
+
+  // Unauthenticated: render secure login screen
+  if (status === 'unauthenticated' || !user) {
+    return <LoginScreen />;
+  }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      {/* Top Universal Mode Switcher Bar */}
-      <header className="bg-slate-950 text-white px-4 py-2 flex items-center justify-between border-b border-slate-800 shrink-0">
-        <div className="flex items-center space-x-3">
-          <span className="font-black text-sm tracking-wide text-emerald-400">⚡ KIRANA POS PLATFORM</span>
-          <span className="text-xs text-slate-500 font-mono">v1.0.0-prod</span>
-        </div>
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-100" data-testid="pos-app-root">
+      {/* Modern Collapsible Role-Based Sidebar */}
+      <AppSidebar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        activeAdminTab={activeAdminTab}
+        setActiveAdminTab={(tab) => {
+          setActiveAdminTab(tab);
+          setViewMode('admin');
+        }}
+        activeInventorySubTab={activeInventorySubTab}
+        setActiveInventorySubTab={setActiveInventorySubTab}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onOpenCommand={() => setCommandOpen(true)}
+      />
 
-        <div className="flex items-center space-x-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-          <button
-            onClick={() => setViewMode('pos')}
-            data-testid="mode-pos-btn"
-            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${
-              viewMode === 'pos'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            🛒 Cashier POS
-          </button>
-          <button
-            onClick={() => setViewMode('admin')}
-            data-testid="mode-admin-btn"
-            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 ${
-              viewMode === 'admin'
-                ? 'bg-emerald-600 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            🏢 Store Owner & Admin
-          </button>
-        </div>
+      {/* Main App Canvas */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* Modern App Header with Breadcrumb, Branch status & Command trigger */}
+        <AppHeader
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          activeAdminTab={activeAdminTab}
+          onOpenCommand={() => setCommandOpen(true)}
+        />
 
-        <div className="flex items-center space-x-3 text-xs">
-          <span className="flex items-center gap-1 text-emerald-400 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Online (DB Synced)
-          </span>
-          <span className="text-slate-400 font-mono">Tenant: Kirana Supermart</span>
-        </div>
-      </header>
+        {/* Dynamic Viewport */}
+        <main className="flex-1 overflow-hidden relative">
+          {viewMode === 'pos' ? (
+            <PosCheckoutScreen />
+          ) : (
+            <AdminDashboard
+              activeTab={activeAdminTab}
+              onTabChange={setActiveAdminTab}
+              inventorySubTab={activeInventorySubTab}
+              onInventorySubTabChange={setActiveInventorySubTab}
+            />
+          )}
+        </main>
+      </div>
 
-      {/* Main Active View */}
-      <main className="flex-1 overflow-hidden">
-        {viewMode === 'pos' ? <PosCheckoutScreen /> : <AdminDashboard />}
-      </main>
+      {/* Global ⌘K Command Palette */}
+      <CommandMenu
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        onSelectAction={(target, adminTab, adminSubTab) => {
+          setViewMode(target);
+          if (adminTab) setActiveAdminTab(adminTab as AdminTab);
+          if (adminSubTab) setActiveInventorySubTab(adminSubTab as InventorySubTab);
+        }}
+      />
     </div>
   );
 }

@@ -1,0 +1,188 @@
+import 'package:drift/drift.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../database/app_database.dart';
+import '../models/sync_models.dart';
+import '../repositories/sync_repository.dart';
+
+class SyncWorker {
+  final AppDatabase _db;
+  final SyncRepository _syncRepo;
+  final SharedPreferences? _prefs;
+
+  static const String _keyCursor = 'kirana_sync_cursor';
+  static const String _keyLastSync = 'kirana_last_sync_time';
+
+  SyncWorker({
+    required AppDatabase db,
+    required SyncRepository syncRepo,
+    SharedPreferences? prefs,
+  })  : _db = db,
+        _syncRepo = syncRepo,
+        _prefs = prefs;
+
+  /// Retrieve the local sync cursor for incremental delta pulls
+  Future<String?> getSyncCursor() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    return prefs.getString(_keyCursor);
+  }
+
+  /// Store updated sync cursor after local transaction commit
+  Future<void> setSyncCursor(String cursor) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString(_keyCursor, cursor);
+  }
+
+  /// Timestamp of the last successful sync cycle
+  Future<DateTime?> getLastSyncTime() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final str = prefs.getString(_keyLastSync);
+    if (str == null) return null;
+    return DateTime.tryParse(str);
+  }
+
+  /// Save timestamp of last successful sync
+  Future<void> setLastSyncTime(DateTime time) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastSync, time.toIso8601String());
+  }
+
+  /// Count of unsynced operations pending in local SQLite outbox
+  Future<int> getPendingCount() async {
+    final query = _db.select(_db.syncOutbox)
+      ..where((t) => t.status.isIn(const ['pending', 'failed', 'sending']));
+    final rows = await query.get();
+    return rows.length;
+  }
+
+  /// Full bi-directional synchronization cycle:
+  /// 1. Push pending local mutations to backend (idempotent, Rule 12).
+  /// 2. Pull server deltas and commit locally in atomic SQLite transaction before advancing cursor (Rule 14).
+  Future<SyncCycleResult> synchronize({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    // 1. Fetch pending outbox operations in sequence order
+    final pendingOps = await (_db.select(_db.syncOutbox)
+          ..where((t) => t.status.isIn(const ['pending', 'failed']))
+          ..orderBy([(t) => OrderingTerm(expression: t.sequence, mode: OrderingMode.asc)]))
+        .get();
+
+    int pushedCount = 0;
+    if (pendingOps.isNotEmpty) {
+      final opIds = pendingOps.map((op) => op.operationId).toList();
+      await (_db.update(_db.syncOutbox)..where((t) => t.operationId.isIn(opIds))).write(
+        const SyncOutboxCompanion(status: Value('sending')),
+      );
+
+      try {
+        final pushResult = await _syncRepo.pushBatch(tenantId, deviceId, pendingOps);
+        for (final ack in pushResult.results) {
+          if (ack.status == 'accepted' || ack.status == 'already_processed') {
+            await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
+              SyncOutboxCompanion(
+                status: const Value('accepted'),
+                serverEntityId: Value(ack.serverEntityId),
+                lastError: const Value(null),
+              ),
+            );
+            pushedCount++;
+          } else {
+            await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
+              SyncOutboxCompanion(
+                status: const Value('rejected'),
+                lastError: Value(ack.errorMessage ?? 'Rejected by server'),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        // Revert to failed state and increment retryCount
+        for (final op in pendingOps) {
+          await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(op.operationId))).write(
+            SyncOutboxCompanion(
+              status: const Value('failed'),
+              retryCount: Value(op.retryCount + 1),
+              lastError: Value(e.toString()),
+            ),
+          );
+        }
+        return SyncCycleResult(
+          pushedCount: 0,
+          pulledProductsCount: 0,
+          pulledCategoriesCount: 0,
+          newCursor: '',
+          isSuccess: false,
+          error: 'Outbox push error: ${e.toString()}',
+        );
+      }
+    }
+
+    // 2. Pull server deltas (catalog & reference data)
+    int pulledProducts = 0;
+    int pulledCategories = 0;
+    String newCursor = '';
+
+    try {
+      final currentCursor = await getSyncCursor();
+      final pullResult = await _syncRepo.pullDeltas(tenantId, cursor: currentCursor);
+      newCursor = pullResult.cursor;
+
+      // Rule 14: Pull cursor advances ONLY after local SQLite transaction commits!
+      await _db.transaction(() async {
+        for (final p in pullResult.products) {
+          final prodId = p['id'] as String? ?? '';
+          if (prodId.isEmpty) continue;
+
+          await _db.into(_db.localProducts).insertOnConflictUpdate(
+            LocalProductsCompanion(
+              id: Value(prodId),
+              tenantId: Value(p['tenantId'] as String? ?? tenantId),
+              sku: Value(p['sku'] as String? ?? 'SKU'),
+              name: Value(p['name'] as String? ?? 'Product'),
+              barcode: Value(p['barcode'] as String?),
+              sellingPricePaisa: Value(
+                ((double.tryParse(p['sellingPrice']?.toString() ?? '0') ?? 0) * 100).round(),
+              ),
+              purchaseCostPaisa: Value(
+                ((double.tryParse(p['costPrice']?.toString() ?? '0') ?? 0) * 100).round(),
+              ),
+              mrpPaisa: Value(
+                ((double.tryParse(p['mrp']?.toString() ?? '0') ?? 0) * 100).round(),
+              ),
+              gstRatePercent: Value(double.tryParse(p['gstRate']?.toString() ?? '0') ?? 0.0),
+              hsnCode: Value(p['hsnCode'] as String?),
+              unit: Value(p['unit'] as String? ?? 'PCS'),
+              updatedAt: Value(DateTime.tryParse(p['updatedAt']?.toString() ?? '') ?? DateTime.now()),
+            ),
+          );
+          pulledProducts++;
+        }
+      });
+
+      // Save cursor and timestamp only after transaction succeeded
+      if (newCursor.isNotEmpty) {
+        await setSyncCursor(newCursor);
+      }
+      await setLastSyncTime(DateTime.now());
+      pulledCategories = pullResult.categories.length;
+    } catch (e) {
+      return SyncCycleResult(
+        pushedCount: pushedCount,
+        pulledProductsCount: 0,
+        pulledCategoriesCount: 0,
+        newCursor: '',
+        isSuccess: false,
+        error: 'Delta pull error: ${e.toString()}',
+      );
+    }
+
+    return SyncCycleResult(
+      pushedCount: pushedCount,
+      pulledProductsCount: pulledProducts,
+      pulledCategoriesCount: pulledCategories,
+      newCursor: newCursor,
+      isSuccess: true,
+    );
+  }
+}
+

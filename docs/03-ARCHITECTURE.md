@@ -90,17 +90,42 @@ No external printer/network/WhatsApp call occurs inside the database transaction
 - Tenant is the customer company.
 - Branch belongs to tenant.
 - Warehouse belongs to tenant and may be assigned to branch.
-- Users may have multiple tenant memberships.
-- Branch access is explicitly assigned.
+- Users may have multiple tenant memberships across different branches or tenant-wide.
+- Branch access is explicitly assigned:
+  - `branch_id IS NULL`: Grants tenant-wide authority (Store Owner and global Accountants), spanning all branches.
+  - `branch_id IS NOT NULL`: Scopes user execution strictly to the specified physical branch.
 - Every tenant-owned table contains `tenant_id`.
 - Branch-specific records contain `branch_id` where relevant.
-- Composite foreign keys should prevent cross-tenant relationships.
-- PostgreSQL RLS may be used as defence-in-depth, but backend tenant scoping is still mandatory.
-- Never trust tenant_id supplied by an untrusted client; derive/validate from authenticated membership.
+- Composite foreign keys prevent cross-tenant relationships.
+- PostgreSQL RLS may be used as defence-in-depth, but backend tenant and branch scoping is mandatory on every query and mutation.
+- Never trust `tenant_id` or `branch_id` supplied by an untrusted client; derive and validate from authenticated membership context.
 
-## 6. Authentication
+## 6. Authentication and Authorization Pipeline
 
-For the initial self-hosted deployment, implement identity in the NestJS backend using established libraries (Passport strategies, Argon2id password hashing, cryptographically random refresh tokens, hashed refresh-token storage, rotation and revocation). Do not invent cryptography. Access tokens are short-lived; refresh tokens rotate and are revocable. Add email/phone OTP only after selecting a reliable provider. Device credentials are separate, scoped and revocable. If the product later adopts an external identity provider, keep tenant membership and permissions in the application domain.
+### 6.1 Authentication Architecture
+Identity in the NestJS backend uses Passport JWT strategies with Argon2id password hashing:
+- **Access Tokens**: Short-lived JWTs (15 minutes default) containing user identity and subject.
+- **Refresh Tokens**: Cryptographically secure, random tokens stored as SHA-256 hashes in `refresh_tokens`. Supports atomic rotation and server-side revocation.
+- **Dual Transport Strategy**:
+  - **Web Client**: Transmitted in an `HttpOnly`, `SameSite=Strict`, `Secure` cookie (`pos_refresh_token`) to prevent XSS-based token theft.
+  - **Mobile Client**: Transmitted in the JSON response body and stored in encrypted hardware keystore via `flutter_secure_storage`.
+- Device credentials and sessions are scoped, validated on each request, and immediately revocable.
+
+### 6.2 Three-Stage Guard Pipeline
+Every protected API route executes a sequential 3-stage guard pipeline:
+1. **`AuthGuard('jwt')`**: Validates the cryptographic signature, expiration, and user identity of the Bearer access token.
+2. **`TenantGuard`**:
+   - Resolves tenant context from URL path (`/tenants/:tenantId/...`), headers (`x-tenant-id`), or request body.
+   - Verifies that the authenticated user holds an active membership for the resolved tenant.
+   - Attaches a strongly typed `TenantContext` to the request (`req.tenantContext = { tenantId, userId, membershipId, roles, permissions, branchId, isTenantWide }`).
+   - Validates branch parameters (`branchId` in params, query, or body). If the user is branch-scoped (`branch_id IS NOT NULL`) and requests an operation on a different branch, immediately aborts with `403 Forbidden: Cross-branch access denied`.
+3. **`PermissionsGuard`**:
+   - Evaluates permission requirements declared by `@RequirePermissions(...)`.
+   - Verifies whether the caller holds the required permission keys, calculated dynamically as the union of permissions for all assigned roles (`getPermissionsForRoles(roles)`). Store owners automatically bypass specific permission checks within their tenant.
+   - Evaluates tenant-wide requirements declared by `@RequireTenantWide()`. Non-tenant-wide memberships attempting tenant-level operations receive `403 Forbidden: Operation requires tenant-wide authority`.
+
+### 6.3 Audit Logging
+All sensitive operations (stock manual adjustments, Khata repayments, shift closures/overrides, sales returns, price overrides, employee role changes) write immutable audit entries directly to the `audit_logs` table via `AuditService`.
 
 ## 7. API conventions
 

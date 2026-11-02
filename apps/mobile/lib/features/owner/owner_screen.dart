@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/customer.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/catalog_provider.dart';
 
-class MobileOwnerScreen extends StatelessWidget {
+class MobileOwnerScreen extends ConsumerWidget {
   const MobileOwnerScreen({super.key});
 
   final List<Customer> _sampleCustomers = const [
@@ -22,8 +24,40 @@ class MobileOwnerScreen extends StatelessWidget {
     ),
   ];
 
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final authState = ref.read(authProvider);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: Text(
+          'Are you sure you want to sign out from ${authState.user?.fullName ?? "this terminal"}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(authProvider.notifier).logout();
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
     final lowStockItems = initialProducts.where((p) => p.isLowStock).toList();
 
     return Scaffold(
@@ -31,6 +65,15 @@ class MobileOwnerScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF0F172A),
         foregroundColor: Colors.white,
         title: const Text('Store Owner Analytics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            key: const Key('owner_logout_btn'),
+            icon: const Icon(Icons.logout, size: 20),
+            tooltip: 'Sign Out',
+            onPressed: () => _confirmLogout(context, ref),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -41,11 +84,14 @@ class MobileOwnerScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Today\'s Performance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('Kirana Supermart - Andheri', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text('Today\'s Performance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      '${authState.activeMembership?.tenantName ?? "Kirana Supermart"} - ${authState.activeBranchId ?? "Main"}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
                   ],
                 ),
                 Container(

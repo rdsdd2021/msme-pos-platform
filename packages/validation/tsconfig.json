@@ -5,7 +5,11 @@
     "declaration": true,
     "outDir": "dist",
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pos/shared-types": ["../shared-types/src"]
+    }
   },
   "include": ["src"]
 }

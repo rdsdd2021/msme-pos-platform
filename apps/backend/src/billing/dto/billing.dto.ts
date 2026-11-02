@@ -72,6 +72,16 @@ export class CreateSaleDto {
   @IsOptional()
   customerId?: string;
 
+  @ApiProperty({ required: false, example: '27AAAAA0000A1Z5', description: 'Customer GSTIN for B2B tax invoice' })
+  @IsString()
+  @IsOptional()
+  customerGstin?: string;
+
+  @ApiProperty({ required: false, example: '27', description: '2-digit state code for Place of Supply' })
+  @IsString()
+  @IsOptional()
+  placeOfSupply?: string;
+
   @ApiProperty({ type: [CartLineItemDto] })
   @IsArray()
   @ArrayMinSize(1)

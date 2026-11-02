@@ -15,6 +15,32 @@ export class AuthResponseDto {
   };
 }
 
+export class MembershipSummaryDto {
+  @ApiProperty()
+  tenantId!: string;
+
+  @ApiProperty()
+  tenantName!: string;
+
+  @ApiProperty({ nullable: true })
+  branchId!: string | null;
+
+  @ApiProperty()
+  role!: string;
+
+  @ApiProperty({ type: [String] })
+  roles!: string[];
+
+  @ApiProperty()
+  status!: string;
+
+  @ApiProperty({ type: [String] })
+  permissions!: string[];
+
+  @ApiProperty()
+  isOwner!: boolean;
+}
+
 export class UserProfileDto {
   @ApiProperty()
   id!: string;
@@ -28,12 +54,6 @@ export class UserProfileDto {
   @ApiProperty({ nullable: true })
   phone!: string | null;
 
-  @ApiProperty()
-  memberships!: Array<{
-    tenantId: string;
-    tenantName: string;
-    role: string;
-    status: string;
-  }>;
+  @ApiProperty({ type: [MembershipSummaryDto] })
+  memberships!: MembershipSummaryDto[];
 }
-

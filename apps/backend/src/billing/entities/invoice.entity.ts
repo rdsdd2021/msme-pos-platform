@@ -8,6 +8,8 @@ import {
 } from 'typeorm';
 import { InvoiceStatus, PaymentStatus } from '@pos/shared-types';
 import { InvoiceLineEntity } from './invoice-line.entity';
+import { PaymentEntity } from './payment.entity';
+import { CreditNoteEntity } from './credit-note.entity';
 
 @Entity('invoices')
 @Index(['tenantId', 'branchId', 'invoiceNumber'], { unique: true })
@@ -80,6 +82,12 @@ export class InvoiceEntity {
   @Column({ name: 'is_interstate', type: 'boolean', default: false })
   isInterstate!: boolean;
 
+  @Column({ name: 'customer_gstin_snapshot', type: 'varchar', length: 32, nullable: true })
+  customerGstinSnapshot!: string | null;
+
+  @Column({ name: 'place_of_supply', type: 'varchar', length: 10, nullable: true })
+  placeOfSupply!: string | null;
+
   @Column({ name: 'branch_snapshot', type: 'jsonb', nullable: true })
   branchSnapshot!: Record<string, unknown> | null;
 
@@ -91,5 +99,11 @@ export class InvoiceEntity {
 
   @OneToMany(() => InvoiceLineEntity, (line) => line.invoice, { cascade: true })
   lines!: InvoiceLineEntity[];
+
+  @OneToMany(() => PaymentEntity, (payment) => payment.invoice, { cascade: true })
+  payments?: PaymentEntity[];
+
+  @OneToMany(() => CreditNoteEntity, (cn) => cn.originalInvoice)
+  creditNotes?: CreditNoteEntity[];
 }
 

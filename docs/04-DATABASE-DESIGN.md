@@ -27,10 +27,35 @@
 - created_at, updated_at
 
 ### tenant_memberships
-- id, tenant_id, user_id
-- status
-- joined_at
-- UNIQUE(tenant_id, user_id)
+- id UUID PK (`gen_random_uuid()`)
+- tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE
+- user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
+- branch_id UUID NULL REFERENCES branches(id) ON DELETE SET NULL (`NULL` denotes tenant-wide authority)
+- roles text[] NOT NULL DEFAULT ARRAY['cashier'::text] (Canonical roles: `owner`, `branch_manager`, `cashier`, `inventory_staff`, `accountant`)
+- role text NOT NULL DEFAULT 'cashier' (Backwards compatibility field, maintained alongside `roles`)
+- status VARCHAR NOT NULL DEFAULT 'active' (e.g. `active`, `suspended`, `revoked`)
+- joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+- created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+- updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+- Constraints:
+  - `CHK_tenant_memberships_role`: `role IN ('owner', 'branch_manager', 'cashier', 'inventory_staff', 'accountant')`
+  - `CHK_tenant_memberships_roles`: `roles <@ ARRAY['owner', 'branch_manager', 'cashier', 'inventory_staff', 'accountant']::text[]`
+  - Unique Index `UQ_tenant_memberships_tenant_user_branch`: `(tenant_id, user_id, COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid))`
+  - Index `IDX_tenant_memberships_branch_id`: `(branch_id)`
+  - Index `IDX_tenant_memberships_roles`: `USING GIN (roles)`
+
+### audit_logs
+- id UUID PK (`gen_random_uuid()`)
+- tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE
+- branch_id UUID NULL REFERENCES branches(id) ON DELETE SET NULL
+- actor_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT
+- action VARCHAR(100) NOT NULL (e.g. `stock.adjustment.manual`, `khata.payment.record`, `shift.close.self`, `shift.close.override`, `tenant.member.add`, `tenant.member.update`, `tenant.member.revoke`)
+- resource_type VARCHAR(100) NOT NULL (e.g. `stock_level`, `customer_khata`, `cashier_shift`, `tenant_membership`)
+- resource_id VARCHAR(100) NULL
+- reason TEXT NULL
+- details JSONB NULL
+- created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+- Index: `IDX_audit_logs_tenant_created`: `(tenant_id, created_at DESC)`
 
 ### branches
 - id, tenant_id
@@ -183,6 +208,8 @@ Transfer lifecycle: draft, dispatched, received, cancelled. Stock movement on di
 - financial_year
 - status (draft, posted, voided where legally permitted)
 - customer_id nullable
+- customer_gstin_snapshot VARCHAR(32) NULL (B2B recipient GSTIN snapshot)
+- place_of_supply VARCHAR(10) NULL (2-digit state code for GSTR-1 POS routing)
 - cashier_user_id, device_id
 - invoice_date
 - currency
@@ -190,11 +217,12 @@ Transfer lifecycle: draft, dispatched, received, cancelled. Stock movement on di
 - taxable_total, cgst_total, sgst_total, igst_total, cess_total
 - grand_total, rounding_adjustment
 - payment_status
+- is_interstate boolean default false
 - tax/customer/branch snapshots JSONB
 - source_device_id, local_transaction_id
 - created_at, posted_at
-- UNIQUE(tenant_id, branch_id, invoice_series_id, invoice_number)
-- UNIQUE(tenant_id, source_device_id, local_transaction_id)
+- UNIQUE(tenant_id, branch_id, invoice_number)
+- UNIQUE(tenant_id, idempotency_key)
 
 ### invoice_lines
 - id, tenant_id, invoice_id
@@ -233,15 +261,45 @@ Separate document records linked to original transaction and tax snapshots.
 - tenant, branch, supplier, order number, status, expected date
 - product, quantity, unit, cost, expected tax
 
-### purchase_invoices
-- id, tenant_id, branch_id, supplier_id
-- supplier_invoice_number
-- invoice_date, status
-- subtotal, tax totals, grand_total
-- source document snapshot
+### supplier_invoices (Vendor Tax Invoices for Statutory ITC Proof)
+- id UUID PK (`gen_random_uuid()`)
+- tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE
+- branch_id UUID NOT NULL REFERENCES branches(id) ON DELETE CASCADE
+- supplier_id UUID NOT NULL REFERENCES suppliers(id) ON DELETE RESTRICT
+- purchase_order_id UUID NULL REFERENCES purchase_orders(id) ON DELETE SET NULL
+- supplier_invoice_number VARCHAR(64) NOT NULL (Vendor invoice number)
+- supplier_invoice_date TIMESTAMPTZ NOT NULL (Date on vendor invoice)
+- subtotal NUMERIC(14, 2) NOT NULL DEFAULT 0 (Taxable value)
+- cgst_amount NUMERIC(14, 2) NOT NULL DEFAULT 0
+- sgst_amount NUMERIC(14, 2) NOT NULL DEFAULT 0
+- igst_amount NUMERIC(14, 2) NOT NULL DEFAULT 0
+- total_amount NUMERIC(14, 2) NOT NULL DEFAULT 0 (Grand total with taxes)
+- is_itc_eligible BOOLEAN NOT NULL DEFAULT true (Input Tax Credit eligibility under Section 16(2))
+- ineligibility_reason VARCHAR(255) NULL (e.g. Section 17(5) blocked credits, food, motor vehicles)
+- is_reverse_charge BOOLEAN NOT NULL DEFAULT false (Section 9(3)/9(4) reverse charge liability)
+- place_of_supply VARCHAR(10) NULL
+- notes TEXT NULL
+- created_by UUID NULL
+- created_at, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+- UNIQUE(tenant_id, supplier_id, supplier_invoice_number)
+- Indexes: `(tenant_id, supplier_invoice_date)`, `(tenant_id, branch_id)`, `(tenant_id, supplier_id)`
 
-### purchase_invoice_lines
-- product, quantity, unit, unit_cost, discount, tax snapshots, line total
+### supplier_invoice_lines
+- id UUID PK (`gen_random_uuid()`)
+- tenant_id UUID NOT NULL
+- supplier_invoice_id UUID NOT NULL REFERENCES supplier_invoices(id) ON DELETE CASCADE
+- product_id UUID NULL REFERENCES products(id) ON DELETE SET NULL
+- description VARCHAR(255) NOT NULL
+- hsn_code VARCHAR(16) NULL
+- quantity NUMERIC(12, 3) NOT NULL DEFAULT 1
+- unit_cost NUMERIC(14, 2) NOT NULL DEFAULT 0
+- taxable_value NUMERIC(14, 2) NOT NULL DEFAULT 0
+- gst_rate_percent NUMERIC(5, 2) NOT NULL DEFAULT 0
+- cgst_amount NUMERIC(14, 2) NOT NULL DEFAULT 0
+- sgst_amount NUMERIC(14, 2) NOT NULL DEFAULT 0
+- igst_amount NUMERIC(14, 2) NOT NULL DEFAULT 0
+- line_total NUMERIC(14, 2) NOT NULL DEFAULT 0
+- created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
 ### goods_receipts / goods_receipt_lines
 Received quantities and warehouse destination; creates stock ledger entries.

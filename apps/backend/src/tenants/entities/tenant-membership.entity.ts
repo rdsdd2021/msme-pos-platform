@@ -6,14 +6,16 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  Unique,
+  Index,
 } from 'typeorm';
-import { MembershipStatus } from '@pos/shared-types';
+import { MembershipStatus, Role } from '@pos/shared-types';
 import { TenantEntity } from './tenant.entity';
 import { UserEntity } from './user.entity';
+import { BranchEntity } from './branch.entity';
 
 @Entity('tenant_memberships')
-@Unique(['tenantId', 'userId'])
+@Index(['tenantId', 'userId', 'branchId'], { unique: true })
+@Index(['tenantId', 'branchId'])
 export class TenantMembershipEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -24,6 +26,9 @@ export class TenantMembershipEntity {
   @Column({ name: 'user_id', type: 'uuid' })
   userId!: string;
 
+  @Column({ name: 'branch_id', type: 'uuid', nullable: true })
+  branchId!: string | null;
+
   @Column({
     type: 'enum',
     enum: MembershipStatus,
@@ -31,8 +36,11 @@ export class TenantMembershipEntity {
   })
   status!: MembershipStatus;
 
-  @Column({ name: 'role', type: 'varchar', length: 64, default: 'owner' })
-  role!: string;
+  @Column({ name: 'role', type: 'varchar', length: 64, default: Role.CASHIER })
+  role!: Role | string;
+
+  @Column({ name: 'roles', type: 'text', array: true, default: [Role.CASHIER] })
+  roles!: Role[];
 
   @CreateDateColumn({ name: 'joined_at', type: 'timestamptz' })
   joinedAt!: Date;
@@ -47,5 +55,10 @@ export class TenantMembershipEntity {
   @ManyToOne(() => UserEntity, (user) => user.memberships, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user!: UserEntity;
+
+  @ManyToOne(() => BranchEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branch_id' })
+  branch?: BranchEntity | null;
 }
+
 

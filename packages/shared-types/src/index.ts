@@ -5,3 +5,4 @@ export * from './common';
 export * from './enums';
 export * from './receipt';
 export * from './sync';
+export * from './rbac';

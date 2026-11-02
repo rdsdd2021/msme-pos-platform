@@ -61,6 +61,12 @@ export class ProductEntity {
   @Column({ name: 'hsn_code', type: 'varchar', length: 16, nullable: true })
   hsnCode!: string | null;
 
+  @Column({ name: 'gst_rate_percent', type: 'numeric', precision: 5, scale: 2, default: 0 })
+  gstRatePercent!: string;
+
+  @Column({ name: 'package_size', type: 'varchar', length: 64, nullable: true })
+  packageSize!: string | null;
+
   @Column({ name: 'track_inventory', type: 'boolean', default: true })
   trackInventory!: boolean;
 

@@ -1,0 +1,4999 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "summary": "Application health check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "summary": "Readiness check - includes database connectivity",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "AuthController_register",
+        "summary": "Register a new user",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "summary": "Login with email and password",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh",
+        "summary": "Refresh access token using refresh token from body or secure cookie",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "summary": "Logout, revoke refresh token and clear session cookie",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "summary": "Get current user profile, memberships and effective permissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants": {
+      "post": {
+        "operationId": "TenantsController_createTenant",
+        "summary": "Create a new business tenant",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "TenantsController_getMyTenants",
+        "summary": "List all tenants where current user is an active member",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}": {
+      "get": {
+        "operationId": "TenantsController_getTenant",
+        "summary": "Get details for a specific tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/branches": {
+      "get": {
+        "operationId": "TenantsController_getBranches",
+        "summary": "List all branches for a tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "TenantsController_createBranch",
+        "summary": "Create a new branch for a tenant (Owner tenant-wide only)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/branches/{branchId}": {
+      "patch": {
+        "operationId": "TenantsController_updateBranch",
+        "summary": "Update branch configuration, address, or GSTIN",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBranchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/members": {
+      "get": {
+        "operationId": "TenantsController_getMembers",
+        "summary": "List employees and members of tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "TenantsController_addMember",
+        "summary": "Add a new member with assigned role and branch scope",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/members/{memberId}": {
+      "patch": {
+        "operationId": "TenantsController_updateMember",
+        "summary": "Update a member role or assigned branch",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMemberDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "TenantsController_revokeMember",
+        "summary": "Revoke and suspend member access",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "memberId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "tenants"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/categories": {
+      "post": {
+        "operationId": "CatalogController_createCategory",
+        "summary": "Create a new product category",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CatalogController_getCategories",
+        "summary": "List all categories for tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/categories/{id}": {
+      "put": {
+        "operationId": "CatalogController_updateCategory",
+        "summary": "Update an existing category",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CatalogController_deleteCategory",
+        "summary": "Deactivate a category",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/units": {
+      "get": {
+        "operationId": "CatalogController_getUnits",
+        "summary": "List standard and custom units of measurement",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "CatalogController_createUnit",
+        "summary": "Create a new unit of measurement",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUnitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/products": {
+      "post": {
+        "operationId": "CatalogController_createProduct",
+        "summary": "Create a new product with SKU, barcode, HSN, and optional opening stock",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CatalogController_getProducts",
+        "summary": "List all active products",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/products/search": {
+      "get": {
+        "operationId": "CatalogController_searchProduct",
+        "summary": "Search product by primary barcode or SKU",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/products/{id}": {
+      "get": {
+        "operationId": "CatalogController_getProductById",
+        "summary": "Get product details by ID",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "CatalogController_updateProduct",
+        "summary": "Update product information, pricing, or tax details",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CatalogController_deleteProduct",
+        "summary": "Archive/soft-delete a product",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/stock/movements": {
+      "post": {
+        "operationId": "CatalogController_recordStockMovement",
+        "summary": "Record an immutable stock ledger movement (opening stock, purchase, adjustment)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordStockMovementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/branches/{branchId}/low-stock": {
+      "get": {
+        "operationId": "CatalogController_getLowStock",
+        "summary": "Get products below low stock threshold for a branch",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/stock-balances": {
+      "get": {
+        "operationId": "CatalogController_getStockBalances",
+        "summary": "Get stock balances for tenant, optionally filtered by branch",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/suppliers": {
+      "post": {
+        "operationId": "CatalogController_createSupplier",
+        "summary": "Create a new supplier",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupplierDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CatalogController_getSuppliers",
+        "summary": "List all active suppliers",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/suppliers/{id}": {
+      "get": {
+        "operationId": "CatalogController_getSupplierById",
+        "summary": "Get supplier by ID",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "CatalogController_updateSupplier",
+        "summary": "Update an existing supplier",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSupplierDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "CatalogController_deleteSupplier",
+        "summary": "Archive/soft-delete a supplier",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/purchases/orders": {
+      "post": {
+        "operationId": "CatalogController_createPurchaseOrder",
+        "summary": "Create a new purchase order with lines",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePurchaseOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CatalogController_getPurchaseOrders",
+        "summary": "List purchase orders",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "supplierId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "draft",
+                "ordered",
+                "received",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/purchases/orders/{id}": {
+      "get": {
+        "operationId": "CatalogController_getPurchaseOrderById",
+        "summary": "Get purchase order with lines and supplier",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/purchases/orders/{id}/status": {
+      "patch": {
+        "operationId": "CatalogController_updatePurchaseOrderStatus",
+        "summary": "Update purchase order status",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePurchaseOrderStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/purchases/orders/{id}/receive": {
+      "post": {
+        "operationId": "CatalogController_receiveGoods",
+        "summary": "Receive goods against purchase order (GRN inward to stock ledger)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceivePurchaseOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/transfers": {
+      "post": {
+        "operationId": "CatalogController_createStockTransfer",
+        "summary": "Create a new inter-branch stock transfer",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CatalogController_getStockTransfers",
+        "summary": "List inter-branch stock transfers with filters",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceBranchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "destinationBranchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "draft",
+                "dispatched",
+                "in_transit",
+                "received",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/transfers/{id}": {
+      "get": {
+        "operationId": "CatalogController_getStockTransferById",
+        "summary": "Get stock transfer details with lines and product info",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/transfers/{id}/dispatch": {
+      "post": {
+        "operationId": "CatalogController_dispatchStockTransfer",
+        "summary": "Dispatch an inter-branch stock transfer (deducts stock from source branch)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/transfers/{id}/receive": {
+      "post": {
+        "operationId": "CatalogController_receiveStockTransfer",
+        "summary": "Receive and reconcile an inter-branch stock transfer (increments destination branch stock)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/catalog/transfers/{id}/cancel": {
+      "post": {
+        "operationId": "CatalogController_cancelStockTransfer",
+        "summary": "Cancel a stock transfer (reverses stock movement if already dispatched)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelStockTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "catalog"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/sales": {
+      "post": {
+        "operationId": "BillingController_createSale",
+        "summary": "Process POS sale, calculate GST, deduct stock & post invoice",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSaleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/invoices": {
+      "get": {
+        "operationId": "BillingController_getInvoices",
+        "summary": "List posted invoices for tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/invoices/{invoiceId}": {
+      "get": {
+        "operationId": "BillingController_getInvoice",
+        "summary": "Get invoice details with line items",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "invoiceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/returns": {
+      "post": {
+        "operationId": "BillingController_createReturn",
+        "summary": "Process sales return, issue credit note, restore inventory & refund",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSalesReturnDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/credit-notes": {
+      "get": {
+        "operationId": "BillingController_getCreditNotes",
+        "summary": "List statutory credit notes for tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by branch ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "originalInvoiceId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by original invoice ID",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "startDate",
+            "required": false,
+            "in": "query",
+            "description": "Start date filter (YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endDate",
+            "required": false,
+            "in": "query",
+            "description": "End date filter (YYYY-MM-DD)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Page size limit",
+            "schema": {
+              "default": 50,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/credit-notes/{creditNoteId}": {
+      "get": {
+        "operationId": "BillingController_getCreditNote",
+        "summary": "Get credit note details with line items and refund breakdown",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "creditNoteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/reports/gst/gstr-1": {
+      "get": {
+        "operationId": "BillingController_getGstr1Report",
+        "summary": "Prepare statutory GSTR-1 outward supplies return summary and tables",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Start date (YYYY-MM-DD)",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "End date (YYYY-MM-DD)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "month",
+            "required": false,
+            "in": "query",
+            "description": "Month (1-12)",
+            "schema": {
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "description": "Year (YYYY)",
+            "schema": {
+              "example": 2026,
+              "type": "number"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific branch UUID. If omitted, consolidates all branches.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "json",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/reports/gst/gstr-3b": {
+      "get": {
+        "operationId": "BillingController_getGstr3bReport",
+        "summary": "Prepare statutory GSTR-3B summary return with ITC and net tax liability",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Start date (YYYY-MM-DD)",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "End date (YYYY-MM-DD)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "month",
+            "required": false,
+            "in": "query",
+            "description": "Month (1-12)",
+            "schema": {
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "description": "Year (YYYY)",
+            "schema": {
+              "example": 2026,
+              "type": "number"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific branch UUID. If omitted, consolidates all branches.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "json",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/reports/gst/sales-register": {
+      "get": {
+        "operationId": "BillingController_getSalesRegister",
+        "summary": "Invoice-by-invoice sales and tax register",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Start date (YYYY-MM-DD)",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "End date (YYYY-MM-DD)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "month",
+            "required": false,
+            "in": "query",
+            "description": "Month (1-12)",
+            "schema": {
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "description": "Year (YYYY)",
+            "schema": {
+              "example": 2026,
+              "type": "number"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific branch UUID. If omitted, consolidates all branches.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "json",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/billing/supplier-invoices": {
+      "post": {
+        "operationId": "BillingController_recordSupplierInvoice",
+        "summary": "Record vendor tax invoice with line items for statutory ITC verification",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupplierInvoiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "BillingController_getSupplierInvoices",
+        "summary": "List recorded vendor tax invoices with ITC eligibility status",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "billing"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/sync/push": {
+      "post": {
+        "operationId": "SyncController_pushBatch",
+        "summary": "Ingest a batch of offline operations from device with idempotency",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSyncBatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sync"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/sync/pull": {
+      "get": {
+        "operationId": "SyncController_pullDeltas",
+        "summary": "Pull delta updates for catalog & reference data after cursor",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "ISO timestamp cursor",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sync"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/sync/invoice-ranges/allocate": {
+      "post": {
+        "operationId": "SyncController_allocateRange",
+        "summary": "Reserve an invoice number range for an offline device",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllocateInvoiceRangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sync"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers": {
+      "post": {
+        "operationId": "OperationsController_createCustomer",
+        "summary": "Create a customer record",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "OperationsController_getCustomers",
+        "summary": "List customers for tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/search": {
+      "get": {
+        "operationId": "OperationsController_searchCustomers",
+        "summary": "Search customers by name, phone, or customer ID",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/history": {
+      "get": {
+        "operationId": "OperationsController_getCustomerHistory",
+        "summary": "Get lifetime purchase, invoice, and repayment history for customer",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/merge": {
+      "post": {
+        "operationId": "OperationsController_mergeCustomers",
+        "summary": "Merge source customer records and ledger atomically into target customer",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeCustomerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/cleanup-dev-test-data": {
+      "post": {
+        "operationId": "OperationsController_cleanupDevTestCustomers",
+        "summary": "Clean non-financial development test customer records (strictly non-production)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/ledger": {
+      "get": {
+        "operationId": "OperationsController_getCustomerLedger",
+        "summary": "Get Khata credit ledger entries for customer",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/credit-limit": {
+      "patch": {
+        "operationId": "OperationsController_updateCustomerCreditLimit",
+        "summary": "Update customer credit limit with audit logging",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerCreditLimitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/payments": {
+      "post": {
+        "operationId": "OperationsController_recordPayment",
+        "summary": "Record Khata debt repayment from customer",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordCustomerPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/adjustments": {
+      "post": {
+        "operationId": "OperationsController_recordCustomerAdjustment",
+        "summary": "Record manual credit or debit adjustment on customer Khata",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerAdjustmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/customers/{customerId}/statement": {
+      "get": {
+        "operationId": "OperationsController_getCustomerStatement",
+        "summary": "Get detailed customer statement with running balance and ageing analysis",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31T23:59:59Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/shifts/open": {
+      "post": {
+        "operationId": "OperationsController_openShift",
+        "summary": "Open a cashier shift with opening cash float",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenShiftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/shifts/{shiftId}/close": {
+      "post": {
+        "operationId": "OperationsController_closeShift",
+        "summary": "Close a cashier shift and reconcile counted cash against sales",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "shiftId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseShiftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/shifts": {
+      "get": {
+        "operationId": "OperationsController_getShifts",
+        "summary": "List cashier shifts for tenant / branch",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/shifts/current": {
+      "get": {
+        "operationId": "OperationsController_getCurrentShift",
+        "summary": "Get current open shift for authenticated cashier in branch",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/operations/reports/daily-sales": {
+      "get": {
+        "operationId": "OperationsController_getDailySalesReport",
+        "summary": "Get daily sales, GST tax totals & payment breakdown report",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "operations"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/commercial/devices": {
+      "post": {
+        "operationId": "CommercialController_registerDevice",
+        "summary": "Register a new POS terminal device subject to subscription limit",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "commercial"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      },
+      "get": {
+        "operationId": "CommercialController_getDevices",
+        "summary": "List all registered devices and terminals for tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "commercial"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/commercial/devices/{deviceId}/revoke": {
+      "post": {
+        "operationId": "CommercialController_revokeDevice",
+        "summary": "Revoke and deactivate a lost or decommissioned device",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "deviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeDeviceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "commercial"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenantId}/commercial/subscription": {
+      "get": {
+        "operationId": "CommercialController_getSubscription",
+        "summary": "Get current tenant subscription plan and branch/device entitlements (Tenant-wide)",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "commercial"
+        ],
+        "security": [
+          {
+            "access-token": []
+          }
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "MSME POS Platform API",
+    "description": "REST API for the MSME POS and business management platform",
+    "version": "1.0",
+    "contact": {
+      "name": "Platform Team",
+      "url": "",
+      "email": ""
+    }
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Health checks"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "error",
+              "degraded"
+            ],
+            "example": "ok"
+          },
+          "timestamp": {
+            "type": "string",
+            "example": "2024-01-01T00:00:00.000Z"
+          },
+          "version": {
+            "type": "string",
+            "example": "0.1.0"
+          },
+          "uptime": {
+            "type": "number",
+            "example": 3600
+          },
+          "checks": {
+            "type": "object",
+            "example": {
+              "database": "ok"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "timestamp",
+          "version",
+          "uptime"
+        ]
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "owner@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecurePassword123!",
+            "minLength": 8
+          },
+          "fullName": {
+            "type": "string",
+            "example": "Ramanuj Sarkar"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+919876543210"
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "fullName"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "user": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "user"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "owner@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecurePassword123!"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "MembershipSummaryDto": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantName": {
+            "type": "string"
+          },
+          "branchId": {
+            "type": "object",
+            "nullable": true
+          },
+          "role": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isOwner": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tenantId",
+          "tenantName",
+          "branchId",
+          "role",
+          "roles",
+          "status",
+          "permissions",
+          "isOwner"
+        ]
+      },
+      "UserProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "object",
+            "nullable": true
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MembershipSummaryDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "fullName",
+          "phone",
+          "memberships"
+        ]
+      },
+      "CreateTenantDto": {
+        "type": "object",
+        "properties": {
+          "legalName": {
+            "type": "string",
+            "example": "Kirana Store Pvt Ltd"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "Gupta General Store"
+          },
+          "businessType": {
+            "type": "string",
+            "enum": [
+              "grocery",
+              "pharmacy",
+              "apparel",
+              "electronics",
+              "restaurant",
+              "wholesale",
+              "other"
+            ],
+            "example": "grocery"
+          },
+          "defaultTimezone": {
+            "type": "string",
+            "example": "Asia/Kolkata"
+          }
+        },
+        "required": [
+          "legalName",
+          "displayName",
+          "businessType"
+        ]
+      },
+      "CreateBranchDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "MAIN"
+          },
+          "name": {
+            "type": "string",
+            "example": "Main Branch"
+          },
+          "addressLine1": {
+            "type": "string",
+            "example": "123 Market Street"
+          },
+          "city": {
+            "type": "string",
+            "example": "Kolkata"
+          },
+          "stateCode": {
+            "type": "string",
+            "example": "WB"
+          },
+          "postalCode": {
+            "type": "string",
+            "example": "700001"
+          },
+          "gstin": {
+            "type": "string",
+            "example": "27AABCK1234F1Z5"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "UpdateBranchDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Main Branch"
+          },
+          "gstin": {
+            "type": "string",
+            "example": "27AABCK1234F1Z5"
+          },
+          "stateCode": {
+            "type": "string",
+            "example": "27"
+          },
+          "addressLine1": {
+            "type": "string",
+            "example": "123 Market Street"
+          },
+          "addressLine2": {
+            "type": "string",
+            "example": "Suite 400"
+          },
+          "city": {
+            "type": "string",
+            "example": "Mumbai"
+          },
+          "postalCode": {
+            "type": "string",
+            "example": "400001"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "AddMemberDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "example": "a4ee55c4-3acf-4ad1-9861-87258ec529be"
+          },
+          "roles": {
+            "type": "array",
+            "example": [
+              "cashier"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "owner",
+                "branch_manager",
+                "cashier",
+                "inventory_staff",
+                "accountant"
+              ]
+            }
+          },
+          "branchId": {
+            "type": "object",
+            "example": "2ca7e728-18fc-4b5c-80db-a86309b16b77",
+            "nullable": true
+          }
+        },
+        "required": [
+          "userId",
+          "roles"
+        ]
+      },
+      "UpdateMemberDto": {
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "array",
+            "example": [
+              "branch_manager"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "owner",
+                "branch_manager",
+                "cashier",
+                "inventory_staff",
+                "accountant"
+              ]
+            }
+          },
+          "branchId": {
+            "type": "object",
+            "example": "2ca7e728-18fc-4b5c-80db-a86309b16b77",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "invited",
+              "suspended"
+            ],
+            "example": "active"
+          }
+        }
+      },
+      "CreateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Groceries & Staples"
+          },
+          "code": {
+            "type": "string",
+            "example": "CAT-GROC"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number",
+            "example": 0
+          }
+        },
+        "required": [
+          "name",
+          "code"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Groceries & Staples"
+          },
+          "code": {
+            "type": "string",
+            "example": "CAT-GROC"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number",
+            "example": 0
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CreateUnitDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Kilogram"
+          },
+          "symbol": {
+            "type": "string",
+            "example": "KG"
+          },
+          "decimalPlaces": {
+            "type": "number",
+            "example": 3,
+            "default": 0
+          }
+        },
+        "required": [
+          "name",
+          "symbol",
+          "decimalPlaces"
+        ]
+      },
+      "CreateProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Aashirvaad Shudh Chakki Atta 5kg"
+          },
+          "sku": {
+            "type": "string",
+            "example": "GROC-001"
+          },
+          "barcodePrimary": {
+            "type": "string",
+            "example": "890103000001"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "baseUnitId": {
+            "type": "string"
+          },
+          "purchaseCost": {
+            "type": "string",
+            "example": "210.00"
+          },
+          "sellingPrice": {
+            "type": "string",
+            "example": "240.00"
+          },
+          "mrp": {
+            "type": "string",
+            "example": "250.00"
+          },
+          "hsnCode": {
+            "type": "string",
+            "example": "11010000"
+          },
+          "gstRatePercent": {
+            "type": "string",
+            "example": "5.00",
+            "default": "0.00"
+          },
+          "packageSize": {
+            "type": "string",
+            "example": "5 kg"
+          },
+          "productType": {
+            "type": "string",
+            "enum": [
+              "stock",
+              "service",
+              "composite"
+            ],
+            "default": "stock"
+          },
+          "trackInventory": {
+            "type": "boolean",
+            "default": true
+          },
+          "allowFractionalQuantity": {
+            "type": "boolean",
+            "default": false
+          },
+          "openingStockQuantity": {
+            "type": "string",
+            "example": "50.000",
+            "description": "Optional initial opening stock to record on creation"
+          },
+          "openingStockBranchId": {
+            "type": "string",
+            "example": "uuid-of-branch",
+            "description": "Target branch for opening stock"
+          }
+        },
+        "required": [
+          "name",
+          "sku",
+          "purchaseCost",
+          "sellingPrice",
+          "mrp",
+          "gstRatePercent",
+          "productType",
+          "trackInventory",
+          "allowFractionalQuantity"
+        ]
+      },
+      "UpdateProductDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Aashirvaad Shudh Chakki Atta 5kg"
+          },
+          "sku": {
+            "type": "string",
+            "example": "GROC-001"
+          },
+          "barcodePrimary": {
+            "type": "string",
+            "example": "890103000001"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "baseUnitId": {
+            "type": "string"
+          },
+          "purchaseCost": {
+            "type": "string",
+            "example": "210.00"
+          },
+          "sellingPrice": {
+            "type": "string",
+            "example": "240.00"
+          },
+          "mrp": {
+            "type": "string",
+            "example": "250.00"
+          },
+          "hsnCode": {
+            "type": "string",
+            "example": "11010000"
+          },
+          "gstRatePercent": {
+            "type": "string",
+            "example": "5.00"
+          },
+          "packageSize": {
+            "type": "string",
+            "example": "5 kg"
+          },
+          "productType": {
+            "type": "string",
+            "enum": [
+              "stock",
+              "service",
+              "composite"
+            ]
+          },
+          "trackInventory": {
+            "type": "boolean"
+          },
+          "allowFractionalQuantity": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecordStockMovementDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-of-branch"
+          },
+          "productId": {
+            "type": "string",
+            "example": "uuid-of-product"
+          },
+          "movementType": {
+            "type": "string",
+            "enum": [
+              "opening",
+              "purchase",
+              "sale",
+              "sale_return",
+              "purchase_return",
+              "transfer_in",
+              "transfer_out",
+              "adjustment",
+              "damage",
+              "expiry"
+            ],
+            "example": "opening"
+          },
+          "quantityDelta": {
+            "type": "string",
+            "example": "50.000",
+            "description": "Positive delta increases stock, negative decreases"
+          },
+          "unitCost": {
+            "type": "string",
+            "example": "120.00"
+          },
+          "sourceType": {
+            "type": "string",
+            "example": "purchase_order"
+          },
+          "sourceId": {
+            "type": "string",
+            "example": "po-12345"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "uuid-v4-idempotency-key"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Physical stock count discrepancy"
+          }
+        },
+        "required": [
+          "branchId",
+          "productId",
+          "movementType",
+          "quantityDelta",
+          "sourceType",
+          "sourceId",
+          "idempotencyKey"
+        ]
+      },
+      "CreateSupplierDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Hindustan Unilever Ltd"
+          },
+          "contactPerson": {
+            "type": "string",
+            "example": "Ramesh Sharma"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+91 98765 43210"
+          },
+          "email": {
+            "type": "string",
+            "example": "ramesh@hul-distributor.com"
+          },
+          "gstin": {
+            "type": "string",
+            "example": "29ABCDE1234F1Z5"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateSupplierDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Hindustan Unilever Ltd"
+          },
+          "contactPerson": {
+            "type": "string",
+            "example": "Ramesh Sharma"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+91 98765 43210"
+          },
+          "email": {
+            "type": "string",
+            "example": "ramesh@hul-distributor.com"
+          },
+          "gstin": {
+            "type": "string",
+            "example": "29ABCDE1234F1Z5"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CreatePurchaseOrderLineDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "example": "product-uuid"
+          },
+          "quantityOrdered": {
+            "type": "string",
+            "example": "50.000"
+          },
+          "unitCost": {
+            "type": "string",
+            "example": "180.00"
+          },
+          "taxRatePercent": {
+            "type": "string",
+            "example": "5.00"
+          }
+        },
+        "required": [
+          "productId",
+          "quantityOrdered",
+          "unitCost"
+        ]
+      },
+      "CreatePurchaseOrderDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "branch-uuid"
+          },
+          "supplierId": {
+            "type": "string",
+            "example": "supplier-uuid"
+          },
+          "orderNumber": {
+            "type": "string",
+            "example": "PO-20261031-001"
+          },
+          "expectedDeliveryDate": {
+            "type": "string",
+            "example": "2026-11-05T00:00:00Z"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Diwali stock replenishment"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreatePurchaseOrderLineDto"
+            }
+          }
+        },
+        "required": [
+          "branchId",
+          "supplierId",
+          "lines"
+        ]
+      },
+      "UpdatePurchaseOrderStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "ordered",
+              "received",
+              "cancelled"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ReceivePurchaseOrderItemDto": {
+        "type": "object",
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "example": "po-line-uuid"
+          },
+          "quantityReceived": {
+            "type": "string",
+            "example": "25.000"
+          }
+        },
+        "required": [
+          "lineId",
+          "quantityReceived"
+        ]
+      },
+      "ReceivePurchaseOrderDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceivePurchaseOrderItemDto"
+            }
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "grn-idempotency-uuid"
+          },
+          "notes": {
+            "type": "string",
+            "example": "First partial delivery received at warehouse"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CreateStockTransferLineDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "example": "product-uuid"
+          },
+          "quantityRequested": {
+            "type": "string",
+            "example": "25.000"
+          },
+          "unitCost": {
+            "type": "string",
+            "example": "180.00"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Batch allocation"
+          }
+        },
+        "required": [
+          "productId",
+          "quantityRequested"
+        ]
+      },
+      "CreateStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "sourceBranchId": {
+            "type": "string",
+            "example": "source-branch-uuid"
+          },
+          "destinationBranchId": {
+            "type": "string",
+            "example": "dest-branch-uuid"
+          },
+          "transferNumber": {
+            "type": "string",
+            "example": "TRF-20261101-001"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Inter-branch stock rebalancing"
+          },
+          "autoDispatch": {
+            "type": "boolean",
+            "example": false
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateStockTransferLineDto"
+            }
+          }
+        },
+        "required": [
+          "sourceBranchId",
+          "destinationBranchId",
+          "lines"
+        ]
+      },
+      "DispatchStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "example": "dispatch-idempotency-key"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Dispatched via delivery van #4"
+          }
+        }
+      },
+      "ReceiveStockTransferItemDto": {
+        "type": "object",
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "example": "transfer-line-uuid"
+          },
+          "quantityReceived": {
+            "type": "string",
+            "example": "25.000"
+          },
+          "discrepancyReason": {
+            "type": "string",
+            "example": "Damaged in transit: 2 units leaking"
+          }
+        },
+        "required": [
+          "lineId",
+          "quantityReceived"
+        ]
+      },
+      "ReceiveStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReceiveStockTransferItemDto"
+            }
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "receipt-idempotency-key"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Received at receiving dock with minor carton damage"
+          },
+          "discrepancyReason": {
+            "type": "string",
+            "example": "2 packages damaged during transit"
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "CancelStockTransferDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Transfer cancelled by store manager due to demand spike at origin branch"
+          }
+        }
+      },
+      "CartLineItemDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "example": "uuid-of-product"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "2.000"
+          },
+          "discountAmount": {
+            "type": "string",
+            "example": "0.00"
+          },
+          "gstRatePercent": {
+            "type": "string",
+            "example": "5.00",
+            "description": "GST rate percentage (e.g. 0, 5, 12, 18, 28)"
+          }
+        },
+        "required": [
+          "productId",
+          "quantity",
+          "gstRatePercent"
+        ]
+      },
+      "PaymentSplitDto": {
+        "type": "object",
+        "properties": {
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "upi",
+              "card",
+              "credit"
+            ],
+            "example": "cash"
+          },
+          "amount": {
+            "type": "string",
+            "example": "200.00"
+          },
+          "externalReference": {
+            "type": "string",
+            "example": "UPI-TXN-98765"
+          }
+        },
+        "required": [
+          "paymentMethod",
+          "amount"
+        ]
+      },
+      "CreateSaleDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-of-branch"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "uuid-idempotency-key"
+          },
+          "isInterstate": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "True for IGST interstate sale, false for intra-state CGST+SGST"
+          },
+          "customerId": {
+            "type": "string"
+          },
+          "customerGstin": {
+            "type": "string",
+            "example": "27AAAAA0000A1Z5",
+            "description": "Customer GSTIN for B2B tax invoice"
+          },
+          "placeOfSupply": {
+            "type": "string",
+            "example": "27",
+            "description": "2-digit state code for Place of Supply"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartLineItemDto"
+            }
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentSplitDto"
+            }
+          }
+        },
+        "required": [
+          "branchId",
+          "idempotencyKey",
+          "isInterstate",
+          "items",
+          "payments"
+        ]
+      },
+      "ReturnLineItemDto": {
+        "type": "object",
+        "properties": {
+          "invoiceLineId": {
+            "type": "string",
+            "description": "Original invoice line ID being returned",
+            "format": "uuid"
+          },
+          "resellableQuantity": {
+            "type": "string",
+            "description": "Quantity in good, resellable condition returned to stock",
+            "example": "1.000"
+          },
+          "damagedQuantity": {
+            "type": "string",
+            "description": "Quantity damaged/expired not added back to salable stock",
+            "example": "0.000"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Specific line return reason",
+            "example": "Customer ordered wrong variant"
+          }
+        },
+        "required": [
+          "invoiceLineId",
+          "resellableQuantity",
+          "damagedQuantity"
+        ]
+      },
+      "CreateSalesReturnDto": {
+        "type": "object",
+        "properties": {
+          "originalInvoiceId": {
+            "type": "string",
+            "description": "Original invoice UUID against which return is processed",
+            "format": "uuid"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Client-generated idempotency key to prevent double returns",
+            "example": "ret-uuid-1234"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Overall return reason",
+            "example": "Customer exchange / return"
+          },
+          "refundPaymentMethod": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "upi",
+              "card",
+              "credit"
+            ],
+            "description": "Tender used to refund customer",
+            "example": "cash"
+          },
+          "refundReference": {
+            "type": "string",
+            "description": "External refund reference (e.g. UPI txn ID, card refund ARN)",
+            "example": "UPI-REF-9988"
+          },
+          "items": {
+            "description": "List of items and quantities being returned",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReturnLineItemDto"
+            }
+          }
+        },
+        "required": [
+          "originalInvoiceId",
+          "idempotencyKey",
+          "reason",
+          "refundPaymentMethod",
+          "items"
+        ]
+      },
+      "CreateSupplierInvoiceLineDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "example": "uuid-of-product"
+          },
+          "description": {
+            "type": "string",
+            "example": "Fortune Sunlite Sunflower Oil 1L"
+          },
+          "hsnCode": {
+            "type": "string",
+            "example": "1512"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "10.000"
+          },
+          "unitCost": {
+            "type": "string",
+            "example": "110.00"
+          },
+          "gstRatePercent": {
+            "type": "string",
+            "example": "5.00"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unitCost",
+          "gstRatePercent"
+        ]
+      },
+      "CreateSupplierInvoiceDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-of-branch"
+          },
+          "supplierId": {
+            "type": "string",
+            "example": "uuid-of-supplier"
+          },
+          "purchaseOrderId": {
+            "type": "string",
+            "example": "uuid-of-po"
+          },
+          "supplierInvoiceNumber": {
+            "type": "string",
+            "example": "INV-VEN-2026-9812"
+          },
+          "supplierInvoiceDate": {
+            "type": "string",
+            "example": "2026-10-15T00:00:00.000Z"
+          },
+          "isItcEligible": {
+            "type": "boolean",
+            "default": true,
+            "description": "True if eligible for Input Tax Credit (ITC) under Section 16(2)"
+          },
+          "ineligibilityReason": {
+            "type": "string",
+            "example": "Section 17(5) motor vehicles or personal consumption"
+          },
+          "isReverseCharge": {
+            "type": "boolean",
+            "default": false,
+            "description": "True if supply is liable to reverse charge under Section 9(3)/9(4)"
+          },
+          "placeOfSupply": {
+            "type": "string",
+            "example": "27"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Monthly supply of cooking oils"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateSupplierInvoiceLineDto"
+            }
+          }
+        },
+        "required": [
+          "branchId",
+          "supplierId",
+          "supplierInvoiceNumber",
+          "supplierInvoiceDate",
+          "isItcEligible",
+          "isReverseCharge",
+          "items"
+        ]
+      },
+      "SyncOperationItemDto": {
+        "type": "object",
+        "properties": {
+          "operationId": {
+            "type": "string",
+            "example": "uuid-operation-id"
+          },
+          "deviceId": {
+            "type": "string",
+            "example": "uuid-device-id"
+          },
+          "sequence": {
+            "type": "number",
+            "example": 1
+          },
+          "operationType": {
+            "type": "string",
+            "example": "CREATE_SALE"
+          },
+          "schemaVersion": {
+            "type": "number",
+            "example": 1,
+            "default": 1
+          },
+          "occurredAt": {
+            "type": "string",
+            "example": "2026-10-31T11:55:00.000Z"
+          },
+          "payload": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "operationId",
+          "deviceId",
+          "sequence",
+          "operationType",
+          "schemaVersion",
+          "occurredAt",
+          "payload"
+        ]
+      },
+      "PushSyncBatchDto": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "example": "uuid-device-id"
+          },
+          "operations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncOperationItemDto"
+            }
+          }
+        },
+        "required": [
+          "deviceId",
+          "operations"
+        ]
+      },
+      "AllocateInvoiceRangeDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-branch-id"
+          },
+          "deviceId": {
+            "type": "string",
+            "example": "uuid-device-id"
+          },
+          "rangeSize": {
+            "type": "number",
+            "example": 50,
+            "default": 50
+          }
+        },
+        "required": [
+          "branchId",
+          "deviceId",
+          "rangeSize"
+        ]
+      },
+      "CreateCustomerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ramesh Patel"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+919876543210"
+          },
+          "email": {
+            "type": "string",
+            "example": "ramesh@example.com"
+          },
+          "gstin": {
+            "type": "string",
+            "example": "29ABCDE1234F1Z5"
+          },
+          "creditLimit": {
+            "type": "string",
+            "example": "5000.00"
+          },
+          "confirmDuplicate": {
+            "type": "boolean",
+            "example": false,
+            "description": "Bypass duplicate phone warning and force creation"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "MergeCustomerDto": {
+        "type": "object",
+        "properties": {
+          "targetCustomerId": {
+            "type": "string",
+            "example": "a4ee55c4-3acf-4ad1-9861-87258ec529be",
+            "description": "Target customer ID to receive merged records"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Consolidating duplicate profile created with alternate phone formatting",
+            "description": "Audit reason for merge"
+          }
+        },
+        "required": [
+          "targetCustomerId",
+          "reason"
+        ]
+      },
+      "UpdateCustomerCreditLimitDto": {
+        "type": "object",
+        "properties": {
+          "creditLimit": {
+            "type": "string",
+            "example": "7500.00"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Increased limit after timely repayments"
+          }
+        },
+        "required": [
+          "creditLimit"
+        ]
+      },
+      "RecordCustomerPaymentDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-branch-id"
+          },
+          "amount": {
+            "type": "string",
+            "example": "500.00"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "example": "cash",
+            "enum": [
+              "cash",
+              "upi",
+              "card",
+              "bank_transfer"
+            ],
+            "default": "cash"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "khata-settlement-101"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "branchId",
+          "amount",
+          "idempotencyKey"
+        ]
+      },
+      "CustomerAdjustmentDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-branch-id"
+          },
+          "type": {
+            "type": "string",
+            "example": "credit",
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "example": "50.00"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Disputed charge settlement"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "example": "adj-uuid-key"
+          }
+        },
+        "required": [
+          "branchId",
+          "type",
+          "amount",
+          "reason",
+          "idempotencyKey"
+        ]
+      },
+      "OpenShiftDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-branch-id"
+          },
+          "openingCash": {
+            "type": "string",
+            "example": "1000.00",
+            "description": "Opening float cash in drawer"
+          }
+        },
+        "required": [
+          "branchId",
+          "openingCash"
+        ]
+      },
+      "CloseShiftDto": {
+        "type": "object",
+        "properties": {
+          "closingCash": {
+            "type": "string",
+            "example": "5420.00",
+            "description": "Physical cash counted at shift end"
+          }
+        },
+        "required": [
+          "closingCash"
+        ]
+      },
+      "RegisterDeviceDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "example": "uuid-branch-id"
+          },
+          "deviceIdentifier": {
+            "type": "string",
+            "example": "POS-ANDROID-A1B2C3"
+          },
+          "deviceName": {
+            "type": "string",
+            "example": "Counter 1 Tablet"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android",
+              "web",
+              "windows"
+            ],
+            "default": "android"
+          },
+          "appVersion": {
+            "type": "string",
+            "example": "1.0.0"
+          }
+        },
+        "required": [
+          "branchId",
+          "deviceIdentifier",
+          "deviceName",
+          "platform"
+        ]
+      },
+      "RevokeDeviceDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Device decommissioned / lost"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      }
+    }
+  }
+}

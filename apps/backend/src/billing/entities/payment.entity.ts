@@ -4,8 +4,11 @@ import {
   Column,
   CreateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { PaymentMethod } from '@pos/shared-types';
+import { InvoiceEntity } from './invoice.entity';
 
 @Entity('payments')
 @Index(['tenantId', 'invoiceId'])
@@ -37,5 +40,9 @@ export class PaymentEntity {
 
   @CreateDateColumn({ name: 'received_at', type: 'timestamptz' })
   receivedAt!: Date;
+
+  @ManyToOne(() => InvoiceEntity, (invoice) => invoice.payments, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'invoice_id' })
+  invoice?: InvoiceEntity;
 }
 

@@ -2,6 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/v1/:path*`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

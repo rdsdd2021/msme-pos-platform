@@ -8,6 +8,7 @@ import { SyncIngestedOperationEntity } from './entities/sync-ingested-operation.
 import { DeviceInvoiceRangeEntity } from './entities/device-invoice-range.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
+import { DeviceEntity } from '../commercial/entities/device.entity';
 import { BillingService } from '../billing/billing.service';
 import { CreateSaleDto } from '../billing/dto/billing.dto';
 import { PushSyncBatchDto, AllocateInvoiceRangeDto } from './dto/sync.dto';
@@ -15,6 +16,7 @@ import {
   SyncPushResponse,
   SyncOperationAck,
   SyncPullDeltaResponse,
+  DeviceStatus,
 } from '@pos/shared-types';
 
 @Injectable()
@@ -30,6 +32,8 @@ export class SyncService {
     private readonly productRepo: Repository<ProductEntity>,
     @InjectRepository(CategoryEntity)
     private readonly categoryRepo: Repository<CategoryEntity>,
+    @InjectRepository(DeviceEntity)
+    private readonly deviceRepo: Repository<DeviceEntity>,
     private readonly billingService: BillingService,
     private readonly dataSource: DataSource,
   ) {}
@@ -46,6 +50,34 @@ export class SyncService {
     const results: SyncOperationAck[] = [];
 
     for (const op of dto.operations) {
+      // 0. Validate Device Status and Tenancy
+      const device = await this.deviceRepo.findOne({
+        where: { id: op.deviceId, tenantId },
+      });
+
+      if (!device) {
+        results.push({
+          operationId: op.operationId,
+          status: 'rejected',
+          errorCode: 'DEVICE_NOT_FOUND',
+          errorMessage: `Device ${op.deviceId} is not registered for this tenant`,
+        });
+        continue;
+      }
+
+      if (device.status === DeviceStatus.REVOKED) {
+        results.push({
+          operationId: op.operationId,
+          status: 'rejected',
+          errorCode: 'DEVICE_REVOKED',
+          errorMessage: `Device ${op.deviceId} has been revoked and cannot sync`,
+        });
+        continue;
+      }
+
+      // Update device last seen timestamp
+      await this.deviceRepo.update(device.id, { lastSeenAt: new Date() });
+
       // 1. Check if already ingested (Idempotency)
       const existing = await this.ingestedRepo.findOne({
         where: { tenantId, deviceId: op.deviceId, operationId: op.operationId },

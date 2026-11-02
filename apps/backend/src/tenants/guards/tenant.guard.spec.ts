@@ -3,18 +3,18 @@ import { ExecutionContext, ForbiddenException, BadRequestException } from '@nest
 import { DataSource } from 'typeorm';
 import { TenantGuard } from './tenant.guard';
 import { TenantMembershipEntity } from '../entities/tenant-membership.entity';
-import { MembershipStatus } from '@pos/shared-types';
+import { MembershipStatus, Role } from '@pos/shared-types';
 
-describe('TenantGuard (IDOR Prevention)', () => {
+describe('TenantGuard (IDOR Prevention & Branch Scoping)', () => {
   let guard: TenantGuard;
-  let mockFindOne: jest.Mock;
+  let mockFind: jest.Mock;
   let mockDataSource: { getRepository: jest.Mock };
 
   beforeEach(async () => {
-    mockFindOne = jest.fn();
+    mockFind = jest.fn();
     mockDataSource = {
       getRepository: jest.fn().mockReturnValue({
-        findOne: mockFindOne,
+        find: mockFind,
       }),
     };
 
@@ -30,7 +30,7 @@ describe('TenantGuard (IDOR Prevention)', () => {
 
   const createMockContext = (
     user: { userId: string } | undefined,
-    params: { tenantId?: string } = {},
+    params: { tenantId?: string; branchId?: string } = {},
     headers: Record<string, string> = {},
   ): { context: ExecutionContext; request: Record<string, any> } => {
     const request: Record<string, any> = {
@@ -50,30 +50,32 @@ describe('TenantGuard (IDOR Prevention)', () => {
     const userId = 'user-uuid-1';
     const tenantId = 'tenant-uuid-1';
 
-    mockFindOne.mockResolvedValueOnce({
-      tenantId,
-      userId,
-      role: 'owner',
-      status: MembershipStatus.ACTIVE,
-    } as TenantMembershipEntity);
+    mockFind.mockResolvedValueOnce([
+      {
+        tenantId,
+        userId,
+        role: Role.OWNER,
+        roles: [Role.OWNER],
+        branchId: null,
+        status: MembershipStatus.ACTIVE,
+      } as TenantMembershipEntity,
+    ]);
 
     const { context, request } = createMockContext({ userId }, { tenantId });
     const result = await guard.canActivate(context);
 
     expect(result).toBe(true);
-    expect(request['tenantContext']).toEqual({
-      tenantId,
-      userId,
-      role: 'owner',
-    });
+    expect(request['tenantContext'].tenantId).toBe(tenantId);
+    expect(request['tenantContext'].userId).toBe(userId);
+    expect(request['tenantContext'].isOwner).toBe(true);
   });
 
   it('rejects access (cross-tenant IDOR) when user does not belong to the target tenant', async () => {
     const userId = 'user-uuid-1';
     const attackerTargetTenantId = 'tenant-uuid-other-company';
 
-    // Database lookup returns null (no membership found)
-    mockFindOne.mockResolvedValueOnce(null);
+    // Database lookup returns empty array (no membership found)
+    mockFind.mockResolvedValueOnce([]);
 
     const { context } = createMockContext({ userId }, { tenantId: attackerTargetTenantId });
 
@@ -90,4 +92,3 @@ describe('TenantGuard (IDOR Prevention)', () => {
     await expect(guard.canActivate(context)).rejects.toThrow(BadRequestException);
   });
 });
-

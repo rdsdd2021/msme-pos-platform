@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sync-openapi": "node ../../scripts/sync-openapi.js"
   },
   "devDependencies": {
     "typescript": "^5.4.3"

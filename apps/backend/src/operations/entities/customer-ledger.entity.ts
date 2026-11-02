@@ -45,6 +45,12 @@ export class CustomerLedgerEntity {
   @Column({ name: 'idempotency_key', type: 'varchar', length: 128, nullable: true })
   idempotencyKey!: string | null;
 
+  @Column({ name: 'payment_method', type: 'varchar', length: 32, nullable: true })
+  paymentMethod!: string | null;
+
+  @Column({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy!: string | null;
+
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 

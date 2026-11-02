@@ -23,6 +23,10 @@ import {
 import * as bcrypt from 'bcrypt';
 
 export async function runSeeds() {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PROD_SEED !== 'true') {
+    throw new Error('Security Violation: Database seeds cannot be executed in production environment without ALLOW_PROD_SEED=true');
+  }
+
   console.log('--- Initializing DataSource for Database Seeding ---');
   if (!AppDataSource.isInitialized) {
     await AppDataSource.initialize();

@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/product.dart';
 import '../../core/models/customer.dart';
+import '../../core/models/receipt_document.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/catalog_provider.dart';
+import '../../core/providers/printer_provider.dart';
+import '../../core/providers/sync_provider.dart';
+import '../../core/services/barcode_scanner_listener.dart';
+import '../../core/services/escpos_builder.dart';
 import '../../core/services/offline_billing_service.dart';
 
 class MobilePosScreen extends ConsumerStatefulWidget {
@@ -69,6 +75,9 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
             // Clear Cart
             ref.read(cartProvider.notifier).clearCart();
 
+            // Refresh pending outbox sync count
+            await ref.read(syncStateProvider.notifier).refreshStatus();
+
             if (!mounted) return;
             _showReceiptDialog(result);
           },
@@ -77,70 +86,261 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     );
   }
 
+  void _onBarcodeScanned(String barcode) {
+    final catalogState = ref.read(catalogProvider);
+    final cleanBarcode = barcode.trim().toLowerCase();
+
+    Product? matchedProduct;
+    for (final p in catalogState.allProducts) {
+      if (p.barcode?.toLowerCase() == cleanBarcode ||
+          p.sku.toLowerCase() == cleanBarcode) {
+        matchedProduct = p;
+        break;
+      }
+    }
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    if (matchedProduct != null) {
+      ref.read(cartProvider.notifier).addProduct(matchedProduct);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Scanned: ${matchedProduct.name} (₹${matchedProduct.sellingPriceRupees.toStringAsFixed(2)}) added to cart!'),
+          backgroundColor: Colors.green.shade700,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Barcode "$barcode" not recognized in catalog.'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 2),
+          action: SnackBarAction(
+            label: 'Search',
+            textColor: Colors.white,
+            onPressed: () {
+              _searchController.text = barcode;
+              ref.read(catalogProvider.notifier).updateSearch(barcode);
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   void _showReceiptDialog(OfflineSaleResult result) {
+    final printerState = ref.read(printerProvider);
+    final receiptDoc = result.receiptDocument ??
+        ReceiptDocument.fromOfflineSale(
+          sale: result,
+          items: const [],
+        );
+
     showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isPrinting = ref.watch(printerProvider).isPrinting;
+
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  SizedBox(width: 8),
+                  Text('Sale Complete!'),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Bill No: ${result.invoiceNumber}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text('Tender: ${result.paymentMethod.toUpperCase()}'),
+                      Text(
+                        'Amount Paid: ₹${result.totalRupees.toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.print, size: 14, color: Colors.blue.shade700),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Printer: ${printerState.activeTransportName} (${printerState.paperWidth.name.toUpperCase()})',
+                                style: TextStyle(fontSize: 11, color: Colors.blue.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 20),
+                      const Text('Thermal Receipt Preview:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          result.receiptText,
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('New Sale (Done)'),
+                ),
+                ElevatedButton.icon(
+                  key: const Key('print_receipt_btn'),
+                  onPressed: isPrinting
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final navigator = Navigator.of(ctx);
+                          final printRes = await ref.read(printerProvider.notifier).printReceipt(
+                                receiptDoc,
+                                openCashDrawer: result.paymentMethod.toLowerCase() == 'cash',
+                              );
+                          if (!mounted) return;
+                          messenger.hideCurrentSnackBar();
+                          if (printRes.success) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Receipt printed successfully (${printRes.bytesSent} bytes)!'),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                            navigator.pop();
+                          } else {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Print Error: ${printRes.errorMessage ?? "Printer offline"}\nSale recorded safely in database (Rule 14).',
+                                ),
+                                backgroundColor: Colors.red.shade700,
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        },
+                  icon: isPrinting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.print),
+                  label: Text(isPrinting ? 'Printing...' : 'Print Receipt'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showRecentBillsDialog() async {
+    final invoices = await OfflineBillingService.getAllInvoices();
+
+    if (!mounted) return;
+    await showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 28),
+              Icon(Icons.receipt_long, color: Color(0xFF0F172A)),
               SizedBox(width: 8),
-              Text('Sale Complete!'),
+              Text('Recent Invoices'),
             ],
           ),
           content: SizedBox(
             width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Bill No: ${result.invoiceNumber}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+            height: 350,
+            child: invoices.isEmpty
+                ? const Center(child: Text('No invoices recorded locally yet.'))
+                : ListView.separated(
+                    itemCount: invoices.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final inv = invoices[index];
+                      final dateStr = '${inv.createdAt.day}/${inv.createdAt.month}/${inv.createdAt.year} '
+                          '${inv.createdAt.hour}:${inv.createdAt.minute.toString().padLeft(2, '0')}';
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        title: Text(
+                          inv.invoiceNumber,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        subtitle: Text('$dateStr | ${inv.paymentMethod.toUpperCase()} | ₹${(inv.grandTotalPaisa / 100).toStringAsFixed(2)}'),
+                        trailing: ElevatedButton.icon(
+                          key: Key('reprint_btn_${inv.invoiceNumber}'),
+                          icon: const Icon(Icons.print, size: 14),
+                          label: const Text('Reprint', style: TextStyle(fontSize: 11)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0F172A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          ),
+                          onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final navigator = Navigator.of(ctx);
+                            final doc = await OfflineBillingService.getReceiptDocument(inv.id);
+                            if (doc == null) return;
+                            final printRes = await ref.read(printerProvider.notifier).reprintReceipt(doc);
+                            if (!mounted) return;
+                            messenger.hideCurrentSnackBar();
+                            if (printRes.success) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Duplicate receipt printed for ${inv.invoiceNumber}!'),
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                              navigator.pop();
+                            } else {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Reprint failed: ${printRes.errorMessage}'),
+                                  backgroundColor: Colors.red.shade700,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      );
+                    },
                   ),
-                  Text('Tender: ${result.paymentMethod.toUpperCase()}'),
-                  Text(
-                    'Amount Paid: ₹${result.totalRupees.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                  ),
-                  const Divider(height: 24),
-                  const Text('58mm Thermal Receipt Preview:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Text(
-                      result.receiptText,
-                      style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('New Sale (Done)'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('ESC/POS Command sent to Bluetooth Printer'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.print),
-              label: const Text('Print Receipt'),
+              child: const Text('Close'),
             ),
           ],
         );
@@ -148,45 +348,361 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     );
   }
 
+  void _showPrinterSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final printer = ref.watch(printerProvider);
+            final notifier = ref.read(printerProvider.notifier);
+
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.print, color: Color(0xFF0F172A)),
+                  SizedBox(width: 8),
+                  Text('Thermal Printer Setup'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        size: 12,
+                        color: printer.isReady
+                            ? Colors.green
+                            : (printer.hasError ? Colors.red : Colors.grey),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Status: ${printer.status.label}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Device: ${printer.activeTransportName}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const Divider(height: 24),
+                  const Text('Paper Width Profile:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text('58mm (32 cols)'),
+                        selected: printer.paperWidth == PaperWidth.mm58,
+                        onSelected: (val) {
+                          if (val) notifier.setPaperWidth(PaperWidth.mm58);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text('80mm (48 cols)'),
+                        selected: printer.paperWidth == PaperWidth.mm80,
+                        onSelected: (val) {
+                          if (val) notifier.setPaperWidth(PaperWidth.mm80);
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final res = await notifier.printTestPage();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  res.success ? 'Test page printed!' : 'Test print error: ${res.errorMessage}',
+                                ),
+                                backgroundColor: res.success ? Colors.green : Colors.red,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.receipt, size: 16),
+                          label: const Text('Test Print', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            final ok = await notifier.kickCashDrawer();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(ok ? 'Cash drawer pulse sent!' : 'Drawer kick failed'),
+                                backgroundColor: ok ? Colors.green : Colors.red,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.point_of_sale, size: 16),
+                          label: const Text('Kick Drawer', style: TextStyle(fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showManualBarcodeDialog(BuildContext context) {
+    final controller = TextEditingController();
+    final sampleBarcodes = [
+      {'name': 'Atta 5kg', 'barcode': '890103000001'},
+      {'name': 'Butter 500g', 'barcode': '890103000002'},
+      {'name': 'Tata Salt 1kg', 'barcode': '890103000003'},
+      {'name': 'Sunflower Oil 1L', 'barcode': '890103000004'},
+      {'name': 'Parle-G 800g', 'barcode': '890103000005'},
+      {'name': 'Maggi Masala', 'barcode': '890103000006'},
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_scanner, color: Color(0xFF0F172A)),
+            SizedBox(width: 8),
+            Text('Scan Barcode'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'External USB/Bluetooth scanners scan automatically in background.\nOr enter/tap a barcode below:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                hintText: 'Enter Barcode (e.g. 890103000005)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Quick Test Barcodes:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: sampleBarcodes.map((item) {
+                return ActionChip(
+                  label: Text('${item["name"]}', style: const TextStyle(fontSize: 11)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _onBarcodeScanned(item['barcode']!);
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final code = controller.text.trim();
+              if (code.isNotEmpty) {
+                Navigator.pop(ctx);
+                _onBarcodeScanned(code);
+              }
+            },
+            child: const Text('Add to Cart'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final authState = ref.read(authProvider);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: Text(
+          'Are you sure you want to sign out from ${authState.user?.fullName ?? "this terminal"}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(authProvider.notifier).logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final syncState = ref.watch(syncStateProvider);
     final catalogState = ref.watch(catalogProvider);
     final cartState = ref.watch(cartProvider);
 
     final categories = ['All', 'Groceries', 'Dairy', 'Snacks'];
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Kirana Supermart', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            Text(
-              'Andheri West (BR-001) | Cashier: Suresh',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+    return HardwareBarcodeScannerListener(
+      onBarcodeScanned: _onBarcodeScanned,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF0F172A),
+          foregroundColor: Colors.white,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                authState.activeMembership?.tenantName ?? 'Kirana Supermart',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${authState.activeBranchId ?? "BR-001"} | ${authState.user?.fullName ?? "Cashier"}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              key: const Key('pos_recent_bills_btn'),
+              icon: const Icon(Icons.receipt_long, size: 20),
+              tooltip: 'Recent Invoices & Reprint',
+              onPressed: _showRecentBillsDialog,
             ),
-          ],
-        ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.green.shade600),
+            IconButton(
+              key: const Key('pos_printer_btn'),
+              icon: const Icon(Icons.print, size: 20),
+              tooltip: 'Thermal Printer Setup',
+              onPressed: () => _showPrinterSettingsDialog(context),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.cloud_done, size: 14, color: Colors.greenAccent),
-                SizedBox(width: 4),
-                Text('Offline Ready', style: TextStyle(fontSize: 11, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
-              ],
+            InkWell(
+              key: const Key('pos_sync_badge'),
+            onTap: () async {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              final success = await ref.read(syncStateProvider.notifier).syncNow();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    success
+                        ? 'Synchronization complete!'
+                        : 'Sync status: ${ref.read(syncStateProvider).lastError ?? "Offline (saved locally)"}',
+                  ),
+                  backgroundColor: success ? Colors.green : Colors.orange.shade800,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: syncState.isSyncing
+                    ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
+                    : (syncState.hasPending
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
+                        : const Color(0xFF10B981).withValues(alpha: 0.2)),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: syncState.isSyncing
+                      ? Colors.blue.shade600
+                      : (syncState.hasPending
+                          ? Colors.amber.shade600
+                          : Colors.green.shade600),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (syncState.isSyncing) ...[
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.lightBlueAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Syncing...',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.lightBlueAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ] else ...[
+                    Icon(
+                      syncState.hasPending ? Icons.cloud_upload_outlined : Icons.cloud_done,
+                      size: 14,
+                      color: syncState.hasPending ? Colors.amberAccent : Colors.greenAccent,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      syncState.hasPending
+                          ? 'Offline Ready (${syncState.pendingCount})'
+                          : 'Offline Ready',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: syncState.hasPending ? Colors.amberAccent : Colors.greenAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
+          IconButton(
+            key: const Key('pos_logout_btn'),
+            icon: const Icon(Icons.logout, size: 20),
+            tooltip: 'Sign Out',
+            onPressed: () => _confirmLogout(context),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -211,11 +727,8 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  onPressed: () {
-                    // Simulate scanning Atta Barcode
-                    _searchController.text = '890103000001';
-                    ref.read(catalogProvider.notifier).updateSearch('890103000001');
-                  },
+                  key: const Key('pos_manual_scan_btn'),
+                  onPressed: () => _showManualBarcodeDialog(context),
                   icon: const Icon(Icons.qr_code_scanner),
                   tooltip: 'Scan Barcode',
                   style: IconButton.styleFrom(backgroundColor: const Color(0xFF0F172A)),
@@ -282,8 +795,9 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _ProductCard extends StatelessWidget {

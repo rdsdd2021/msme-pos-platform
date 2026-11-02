@@ -185,3 +185,20 @@ No phase is considered complete merely because the UI exists. Each phase must in
 - documentation
 - failure-path testing
 - security checks
+
+## 14. Implementation Milestone Tracking & Verification Results
+
+All core release phases have been developed, hardened, tested, and verified:
+
+| Phase | Delivered Scope | Verification & Test Outcome |
+|-------|-----------------|-----------------------------|
+| **Phase 0: Foundation** | Monorepo structure (pnpm, NestJS, Next.js, Flutter), TypeORM, migrations harness, healthchecks | Monorepo typecheck clean (5/5 pkgs) |
+| **Phase 1: Identity & RBAC** | JWT Auth, store owner seeds, branch scoping, 14 granular permissions, IDOR defense | `auth.service.spec.ts`, `rbac-security.spec.ts` passing |
+| **Phase 2: Catalog & Inventory** | Categories, products, barcodes, stock movements, multi-branch stock transfers | `catalog.service.spec.ts`, transfer lifecycle tests |
+| **Phase 3: Billing & Returns** | Decimal-safe pricing, multi-tender payments, GSTR-1/3B statutory returns, sales returns & credit notes | `billing.service.spec.ts`, `gst-reporting.service.spec.ts` |
+| **Phase 4: Operations** | Customer khata credit/debit ledgers, cashier shifts, drawer reconciliation | `operations.service.spec.ts` passing |
+| **Phase 5: Mobile Offline Sync** | Drift SQLite local schema, bidirectional delta sync, idempotent push ingestion | `sync_service_test.dart`, `local_billing_repository_test.dart` |
+| **Phase 6: Hardware Integration** | Pure Dart ESC/POS command encoder (58mm/80mm), Model 2 QR code, HID barcode listener | `escpos_printer_service_test.dart`, `barcode_scanner_test.dart` |
+| **Phase 7: Hardening & Orchestration** | Hardened Dockerfiles (unprivileged users), Nginx gateway, OpenAPI v3 synchronization | Full Retail Lifecycle E2E (`scripts/test-e2e-lifecycle.ps1`, 11/11 tests pass) |
+| **Phase 8: Android Packaging** | Android native runner scaffolding, SDK 36, APK generation | `app-debug.apk` built (154.8 MB) |
+

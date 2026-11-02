@@ -9,6 +9,7 @@ class Product {
   final int purchaseCostPaisa;
   final int gstRate; // e.g. 0, 5, 12, 18
   final double currentStock;
+  final String? hsnCode;
 
   const Product({
     required this.id,
@@ -21,6 +22,7 @@ class Product {
     required this.purchaseCostPaisa,
     required this.gstRate,
     required this.currentStock,
+    this.hsnCode,
   });
 
   double get sellingPriceRupees => sellingPricePaisa / 100.0;

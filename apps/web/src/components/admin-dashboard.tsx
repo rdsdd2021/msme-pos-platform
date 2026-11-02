@@ -1,715 +1,2209 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuthStore } from '@/store/auth.store';
+import {
+  apiClient,
+  Product,
+  StockBalance,
+  Customer,
+  Branch,
+  CustomerHistoryResponse,
+  CashierShift,
+  DailySalesReport,
+  Device,
+  Subscription,
+  Category,
+  Unit,
+  Supplier,
+  PurchaseOrder,
+  PurchaseOrderLine,
+  CustomerStatementResponse,
+  CustomerStatementEntry,
+  Invoice,
+} from '@/lib/api-client';
+import { StockMovementType } from '@pos/shared-types';
+import { Badge } from '@/components/ui/badge';
+import { InvoicesListView } from '@/features/billing/invoices-list-view';
+import { GstReportsView } from './gst-reports-view';
+import { ProductListView } from '@/features/catalog/product-list-view';
+import { ProductDrawer, ProductFormData } from '@/features/catalog/product-drawer';
+import { CategoryManager } from '@/features/catalog/category-manager';
+import { StockBalancesView } from '@/features/inventory/stock-balances-view';
+import { StockAdjustmentDialog } from '@/features/inventory/stock-adjustment-dialog';
+import { StockTransfersView } from '@/features/inventory/stock-transfers-view';
+import { SupplierDirectory } from '@/features/purchasing/supplier-directory';
+import { SupplierModal } from '@/features/purchasing/supplier-modal';
+import { PurchaseOrderList } from '@/features/purchasing/purchase-order-list';
+import { CreatePoModal } from '@/features/purchasing/create-po-modal';
+import { GrnReceiptModal } from '@/features/purchasing/grn-receipt-modal';
+import { CustomerDirectory } from '@/features/customers/customer-directory';
+import { CreateCustomerModal } from '@/features/customers/create-customer-modal';
+import { CreditLimitModal } from '@/features/customers/credit-limit-modal';
+import { RepaymentModal, RepaymentReceiptModal } from '@/features/customers/repayment-modal';
+import { CustomerStatementModal } from '@/features/customers/customer-statement-modal';
+import { CustomerMergeDialog } from '@/features/customers/customer-merge-dialog';
+import { CustomerDossierModal } from '@/features/customers/customer-dossier-modal';
+import { DevCleanupModal } from '@/features/customers/dev-cleanup-modal';
+import { ShiftsView } from '@/features/settings/shifts-view';
+import { DevicesView } from '@/features/settings/devices-view';
+import { SubscriptionView } from '@/features/settings/subscription-view';
+import { BranchesView } from '@/features/settings/branches-view';
+import { BranchGstinModal } from '@/features/settings/branch-gstin-modal';
 
-interface DailyReport {
-  date: string;
-  totalSales: number;
-  invoiceCount: number;
-  cashCollected: number;
-  upiCollected: number;
-  cardCollected: number;
-  khataCreditGiven: number;
-  totalCgst: number;
-  totalSgst: number;
-  totalIgst: number;
+function generateUuid(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
-interface ProductItem {
-  id: string;
-  name: string;
-  sku: string;
-  barcodePrimary: string | null;
-  sellingPrice: string;
-  purchaseCost: string;
-  mrp: string;
-  hsnCode: string | null;
-  trackInventory: boolean;
-  currentStock?: string;
+export type AdminTab = 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices';
+export type InventorySubTab = 'products' | 'stock' | 'suppliers' | 'purchases' | 'categories' | 'transfers';
+
+interface AdminDashboardProps {
+  activeTab?: AdminTab;
+  onTabChange?: (tab: AdminTab) => void;
+  inventorySubTab?: InventorySubTab;
+  onInventorySubTabChange?: (subTab: InventorySubTab) => void;
 }
 
-interface CustomerAccount {
-  id: string;
-  name: string;
-  phone: string | null;
-  creditLimit: string;
-  currentBalance: string;
-}
+export default function AdminDashboard({
+  activeTab: controlledActiveTab,
+  onTabChange,
+  inventorySubTab: controlledSubTab,
+  onInventorySubTabChange,
+}: AdminDashboardProps = {}) {
+  const { activeTenant, activeBranch, branches, isOwner, isBranchManager, isAccountant } = useAuthStore();
 
-interface CashierShift {
-  id: string;
-  cashierUserId: string;
-  status: 'open' | 'closed';
-  openingCash: string;
-  closingCash: string | null;
-  expectedCash: string | null;
-  variance: string | null;
-  openedAt: string;
-}
+  const [internalActiveTab, setInternalActiveTab] = useState<AdminTab>('inventory');
+  const [internalInventorySubTab, setInternalInventorySubTab] = useState<InventorySubTab>('products');
 
-interface DeviceItem {
-  id: string;
-  deviceName: string;
-  deviceIdentifier: string;
-  platform: string;
-  status: 'active' | 'inactive' | 'revoked';
-  lastSeenAt: string | null;
-}
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const setActiveTab = (tab: AdminTab) => {
+    setInternalActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
-interface SubscriptionInfo {
-  planCode: string;
-  status: string;
-  maxBranches: number;
-  maxDevices: number;
-  maxUsers: number;
-  currentPeriodEnd: string | null;
-}
+  const inventorySubTab = controlledSubTab ?? internalInventorySubTab;
+  const setInventorySubTab = (subTab: InventorySubTab) => {
+    setInternalInventorySubTab(subTab);
+    onInventorySubTabChange?.(subTab);
+  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices'>('analytics');
-  
-  // Seeded default tenant ID for live dev display
-  const tenantId = 'a72d32b7-f3e4-4e51-9370-03c748623848';
+  // Live Data States
+  const [report, setReport] = useState<DailySalesReport | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stockMap, setStockMap] = useState<Map<string, string>>(new Map());
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [branchesList, setBranchesList] = useState<Branch[]>([]);
+  const [shifts, setShifts] = useState<CashierShift[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  // Demo / Initial State with live fallback
-  const [report, setReport] = useState<DailyReport>({
-    date: new Date().toISOString().split('T')[0],
-    totalSales: 4850.0,
-    invoiceCount: 18,
-    cashCollected: 2450.0,
-    upiCollected: 1800.0,
-    cardCollected: 350.0,
-    khataCreditGiven: 250.0,
-    totalCgst: 112.5,
-    totalSgst: 112.5,
-    totalIgst: 0.0,
+  // Customer History Modal State
+  const [customerHistoryModal, setCustomerHistoryModal] = useState<{
+    open: boolean;
+    customer: Customer | null;
+    loading: boolean;
+    data: CustomerHistoryResponse | null;
+    error?: string;
+  }>({
+    open: false,
+    customer: null,
+    loading: false,
+    data: null,
   });
 
-  const [products, setProducts] = useState<ProductItem[]>([
-    {
-      id: 'prod-1',
-      name: 'Aashirvaad Shudh Chakki Atta 5kg',
-      sku: 'GROC-001',
-      barcodePrimary: '890103000001',
-      sellingPrice: '240.00',
-      purchaseCost: '210.00',
-      mrp: '250.00',
-      hsnCode: '11010000',
-      trackInventory: true,
-      currentStock: '50.000',
-    },
-    {
-      id: 'prod-2',
-      name: 'Amul Salted Butter 500g',
-      sku: 'DAIRY-001',
-      barcodePrimary: '890103000002',
-      sellingPrice: '275.00',
-      purchaseCost: '245.00',
-      mrp: '280.00',
-      hsnCode: '04051000',
-      trackInventory: true,
-      currentStock: '4.000', // Low stock demo (<5)
-    },
-    {
-      id: 'prod-3',
-      name: 'Tata Salt Vacuum Evaporated 1kg',
-      sku: 'GROC-002',
-      barcodePrimary: '890103000003',
-      sellingPrice: '28.00',
-      purchaseCost: '22.00',
-      mrp: '30.00',
-      hsnCode: '25010010',
-      trackInventory: true,
-      currentStock: '100.000',
-    },
-    {
-      id: 'prod-4',
-      name: 'Fortune Sunlite Refined Sunflower Oil 1L',
-      sku: 'GROC-003',
-      barcodePrimary: '890103000004',
-      sellingPrice: '165.00',
-      purchaseCost: '140.00',
-      mrp: '175.00',
-      hsnCode: '15121910',
-      trackInventory: true,
-      currentStock: '60.000',
-    },
-    {
-      id: 'prod-5',
-      name: 'Parle-G Gold Glucose Biscuit 800g',
-      sku: 'SNACK-001',
-      barcodePrimary: '890103000005',
-      sellingPrice: '80.00',
-      purchaseCost: '68.00',
-      mrp: '85.00',
-      hsnCode: '19053100',
-      trackInventory: true,
-      currentStock: '80.000',
-    },
-    {
-      id: 'prod-6',
-      name: 'Maggi 2-Minute Masala Noodles 280g',
-      sku: 'SNACK-002',
-      barcodePrimary: '890103000006',
-      sellingPrice: '55.00',
-      purchaseCost: '46.00',
-      mrp: '60.00',
-      hsnCode: '19023010',
-      trackInventory: true,
-      currentStock: '3.000', // Low stock demo (<5)
-    },
-  ]);
-
-  const [customers, setCustomers] = useState<CustomerAccount[]>([
-    {
-      id: 'cust-1',
-      name: 'Ramesh Sharma',
-      phone: '+919876543210',
-      creditLimit: '5000.00',
-      currentBalance: '1250.00',
-    },
-    {
-      id: 'cust-2',
-      name: 'Pooja Verma',
-      phone: '+919876543211',
-      creditLimit: '3000.00',
-      currentBalance: '420.00',
-    },
-  ]);
-
-  const [shifts, setShifts] = useState<CashierShift[]>([
-    {
-      id: 'shift-1',
-      cashierUserId: 'Suresh Cashier',
-      status: 'open',
-      openingCash: '1000.00',
-      closingCash: null,
-      expectedCash: '3450.00',
-      variance: '0.00',
-      openedAt: '2026-10-31T09:00:00Z',
-    },
-  ]);
-
-  const [devices, setDevices] = useState<DeviceItem[]>([
-    {
-      id: 'dev-1',
-      deviceName: 'Counter 1 - Sunmi V2 Pro',
-      deviceIdentifier: 'POS-SUNMI-001',
-      platform: 'android',
-      status: 'active',
-      lastSeenAt: '2026-10-31T14:15:00Z',
-    },
-    {
-      id: 'dev-2',
-      deviceName: 'Counter 2 - Chrome Web POS',
-      deviceIdentifier: 'POS-WEB-001',
-      platform: 'web',
-      status: 'active',
-      lastSeenAt: '2026-10-31T14:18:00Z',
-    },
-  ]);
-
-  const [subscription, setSubscription] = useState<SubscriptionInfo>({
-    planCode: 'basic_kirana',
-    status: 'active',
-    maxBranches: 2,
-    maxDevices: 5,
-    maxUsers: 10,
-    currentPeriodEnd: '2027-10-31T00:00:00Z',
+  // Customer Merge Modal State
+  const [mergeCustomerModal, setMergeCustomerModal] = useState<{
+    open: boolean;
+    sourceCustomer: Customer | null;
+    targetCustomerId: string;
+    reason: string;
+    isSubmitting: boolean;
+    error?: string;
+    successMessage?: string;
+  }>({
+    open: false,
+    sourceCustomer: null,
+    targetCustomerId: '',
+    reason: 'Duplicate customer account consolidation',
+    isSubmitting: false,
   });
 
-  const [repaymentModal, setRepaymentModal] = useState<{ open: boolean; customer: CustomerAccount | null; amount: string }>({
+  // Branch GSTIN & Configuration Modal State
+  const [branchModal, setBranchModal] = useState<{
+    open: boolean;
+    branch: Branch | null;
+    name: string;
+    gstin: string;
+    stateCode: string;
+    addressLine1: string;
+    city: string;
+    postalCode: string;
+    isSubmitting: boolean;
+    error?: string;
+    successMessage?: string;
+  }>({
+    open: false,
+    branch: null,
+    name: '',
+    gstin: '',
+    stateCode: '',
+    addressLine1: '',
+    city: '',
+    postalCode: '',
+    isSubmitting: false,
+  });
+
+  // Clean Dev Test Customers Modal State
+  const [cleanDevModal, setCleanDevModal] = useState<{
+    open: boolean;
+    loading: boolean;
+    result: { cleanedCount: number; skippedWithFinancialRecords: string[]; message: string } | null;
+    error?: string;
+  }>({
+    open: false,
+    loading: false,
+    result: null,
+  });
+
+  // Filter States
+  const [productSearch, setProductSearch] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [poStatusFilter, setPoStatusFilter] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+
+  // Supplier Create/Edit Modal State
+  const [supplierModal, setSupplierModal] = useState<{
+    open: boolean;
+    mode: 'create' | 'edit';
+    supplierId?: string;
+    name: string;
+    contactPerson: string;
+    phone: string;
+    email: string;
+    gstin: string;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    mode: 'create',
+    name: '',
+    contactPerson: '',
+    phone: '',
+    email: '',
+    gstin: '',
+  });
+
+  // Archive Supplier Modal State
+  const [archiveSupplierModal, setArchiveSupplierModal] = useState<{
+    open: boolean;
+    supplier: Supplier | null;
+    isSubmitting?: boolean;
+  }>({
+    open: false,
+    supplier: null,
+  });
+
+  // Create Purchase Order Modal State
+  const [poModal, setPoModal] = useState<{
+    open: boolean;
+    supplierId: string;
+    branchId: string;
+    orderNumber: string;
+    expectedDeliveryDate: string;
+    notes: string;
+    lines: { productId: string; quantityOrdered: string; unitCost: string; taxRatePercent: string }[];
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    supplierId: '',
+    branchId: '',
+    orderNumber: '',
+    expectedDeliveryDate: '',
+    notes: '',
+    lines: [],
+  });
+
+  // Inward GRN Modal State
+  const [grnModal, setGrnModal] = useState<{
+    open: boolean;
+    po: PurchaseOrder | null;
+    receivedItems: Record<string, string>;
+    notes: string;
+    isSubmitting?: boolean;
+    error?: string;
+    successMessage?: string;
+  }>({
+    open: false,
+    po: null,
+    receivedItems: {},
+    notes: '',
+  });
+
+  // Khata Modals
+  const [repaymentModal, setRepaymentModal] = useState<{
+    open: boolean;
+    customer: Customer | null;
+    amount: string;
+    paymentMethod: 'cash' | 'upi' | 'card' | 'bank_transfer';
+    notes: string;
+    error?: string;
+    isSubmitting?: boolean;
+  }>({
     open: false,
     customer: null,
     amount: '',
+    paymentMethod: 'cash',
+    notes: '',
   });
 
-  const [adjustmentModal, setAdjustmentModal] = useState<{ open: boolean; product: ProductItem | null; qty: string; reason: string }>({
+  const [repaymentReceiptModal, setRepaymentReceiptModal] = useState<{
+    open: boolean;
+    receipt: {
+      transactionId: string;
+      customerName: string;
+      customerPhone?: string | null;
+      amountPaid: string;
+      paymentMethod: string;
+      previousBalance: string;
+      remainingBalance: string;
+      timestamp: string;
+      notes?: string;
+    } | null;
+  }>({
+    open: false,
+    receipt: null,
+  });
+
+  const [statementModal, setStatementModal] = useState<{
+    open: boolean;
+    customer: Customer | null;
+    statement: CustomerStatementResponse | null;
+    from: string;
+    to: string;
+    branchId: string;
+    loading?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    customer: null,
+    statement: null,
+    from: '',
+    to: '',
+    branchId: '',
+  });
+
+  const [creditLimitModal, setCreditLimitModal] = useState<{
+    open: boolean;
+    customer: Customer | null;
+    newLimit: string;
+    reason: string;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    customer: null,
+    newLimit: '',
+    reason: '',
+  });
+
+  const [createCustomerModal, setCreateCustomerModal] = useState<{
+    open: boolean;
+    name: string;
+    phone: string;
+    email: string;
+    gstin: string;
+    creditLimit: string;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    name: '',
+    phone: '',
+    email: '',
+    gstin: '',
+    creditLimit: '0.00',
+  });
+
+  const [adjustmentModal, setAdjustmentModal] = useState<{
+    open: boolean;
+    product: Product | null;
+    qty: string;
+    reason: string;
+    error?: string;
+    isSubmitting?: boolean;
+  }>({
     open: false,
     product: null,
     qty: '',
-    reason: 'Restock / Purchase',
+    reason: 'Breakage / Discrepancy',
   });
 
-  // Handle Khata Repayment
-  const handleRecordRepayment = () => {
-    if (!repaymentModal.customer || !repaymentModal.amount || isNaN(Number(repaymentModal.amount))) return;
-    const paid = parseFloat(repaymentModal.amount);
-    setCustomers((prev) =>
-      prev.map((c) => {
-        if (c.id === repaymentModal.customer?.id) {
-          const newBal = Math.max(0, parseFloat(c.currentBalance) - paid);
-          return { ...c, currentBalance: newBal.toFixed(2) };
+  // Product Create/Edit Modal State
+  const [productModal, setProductModal] = useState<{
+    open: boolean;
+    mode: 'create' | 'edit';
+    productId?: string;
+    name: string;
+    sku: string;
+    barcodePrimary: string;
+    categoryId: string;
+    baseUnitId: string;
+    purchaseCost: string;
+    sellingPrice: string;
+    mrp: string;
+    hsnCode: string;
+    gstRatePercent: string;
+    packageSize: string;
+    openingStockQuantity: string;
+    openingStockBranchId: string;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    mode: 'create',
+    name: '',
+    sku: '',
+    barcodePrimary: '',
+    categoryId: '',
+    baseUnitId: '',
+    purchaseCost: '',
+    sellingPrice: '',
+    mrp: '',
+    hsnCode: '',
+    gstRatePercent: '5.00',
+    packageSize: '',
+    openingStockQuantity: '',
+    openingStockBranchId: '',
+  });
+
+  // Archive Product Confirmation Modal State
+  const [archiveModal, setArchiveModal] = useState<{
+    open: boolean;
+    product: Product | null;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    product: null,
+  });
+
+  // Category Create Modal State
+  const [categoryModal, setCategoryModal] = useState<{
+    open: boolean;
+    name: string;
+    code: string;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    name: '',
+    code: '',
+  });
+
+  // Unit Create Modal State
+  const [unitModal, setUnitModal] = useState<{
+    open: boolean;
+    name: string;
+    symbol: string;
+    decimalPlaces: number;
+    isSubmitting?: boolean;
+    error?: string;
+  }>({
+    open: false,
+    name: '',
+    symbol: '',
+    decimalPlaces: 0,
+  });
+
+  // Fetch all domain data from real backend endpoints
+  const fetchAllData = useCallback(async () => {
+    if (!activeTenant) return;
+    setLoading(true);
+    setError(null);
+
+    const tenantId = activeTenant.tenantId;
+    const branchId = activeBranch?.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      // 1. Products, Stock, Categories, Units, Suppliers & Purchase Orders
+      const [productList, balanceList, catList, unitList, supplierList, poList] = await Promise.all([
+        apiClient.getProducts(tenantId).catch(() => [] as Product[]),
+        branchId ? apiClient.getStockBalances(tenantId, branchId).catch(() => [] as StockBalance[]) : Promise.resolve([] as StockBalance[]),
+        apiClient.getCategories(tenantId).catch(() => [] as Category[]),
+        apiClient.getUnits(tenantId).catch(() => [] as Unit[]),
+        apiClient.getSuppliers(tenantId).catch(() => [] as Supplier[]),
+        apiClient.getPurchaseOrders(tenantId, branchId ? { branchId } : undefined).catch(() => [] as PurchaseOrder[]),
+      ]);
+      setProducts(productList);
+      setCategories(catList);
+      setUnits(unitList);
+      setSuppliers(supplierList);
+      setPurchaseOrders(poList);
+
+      const sMap = new Map<string, string>();
+      balanceList.forEach((b) => sMap.set(b.productId, b.quantityOnHand));
+      setStockMap(sMap);
+
+      // 2. Customers, Branches & Invoices
+      const [customerList, branchList, invoiceList] = await Promise.all([
+        apiClient.getCustomers(tenantId).catch(() => [] as Customer[]),
+        apiClient.getBranches(tenantId).catch(() => [] as Branch[]),
+        typeof apiClient.getInvoices === 'function' ? apiClient.getInvoices(tenantId, branchId).catch(() => [] as Invoice[]) : Promise.resolve([] as Invoice[]),
+      ]);
+      setCustomers(customerList);
+      setBranchesList(branchList);
+      setInvoices(invoiceList);
+
+      // 3. Shifts
+      const shiftList = await apiClient.getShifts(tenantId, branchId).catch(() => [] as CashierShift[]);
+      setShifts(shiftList);
+
+      // 4. Daily Sales Analytics
+      if (branchId) {
+        try {
+          const reportData = await apiClient.getDailySalesReport(tenantId, branchId, today);
+          setReport(reportData);
+        } catch {
+          setReport({
+            date: today,
+            totalSales: '0.00',
+            totalTax: '0.00',
+            invoiceCount: 0,
+            paymentBreakdown: {},
+          });
         }
-        return c;
-      })
-    );
-    // Add to cash collected in daily report
-    setReport((prev) => ({
-      ...prev,
-      cashCollected: prev.cashCollected + paid,
-    }));
-    setRepaymentModal({ open: false, customer: null, amount: '' });
+      }
+
+      // 5. Commercial Devices & Subscription (if permitted)
+      if (isOwner() || isBranchManager()) {
+        const devList = await apiClient.getDevices(tenantId).catch(() => [] as Device[]);
+        setDevices(devList);
+      }
+
+      if (isOwner()) {
+        const subData = await apiClient.getSubscription(tenantId).catch(() => null);
+        setSubscription(subData);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error fetching store administrative data');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTenant, activeBranch, isOwner, isBranchManager]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  // Filtered Products
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const q = productSearch.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (p.barcodePrimary && p.barcodePrimary.includes(q)) ||
+        (p.hsnCode && p.hsnCode.includes(q));
+
+      const matchesCat = !selectedCategoryFilter || p.categoryId === selectedCategoryFilter;
+      return matchesSearch && matchesCat;
+    });
+  }, [products, productSearch, selectedCategoryFilter]);
+
+  // Inventory Valuation Calculation
+  const inventoryStats = useMemo(() => {
+    let totalValuation = 0;
+    let lowStockCount = 0;
+    let outOfStockCount = 0;
+
+    products.forEach((p) => {
+      const stock = parseFloat(stockMap.get(p.id) || '0');
+      const cost = parseFloat(p.purchaseCost || '0');
+      totalValuation += stock * cost;
+
+      if (stock <= 0) {
+        outOfStockCount++;
+      } else if (stock <= 5) {
+        lowStockCount++;
+      }
+    });
+
+    return {
+      totalValuation: totalValuation.toFixed(2),
+      lowStockCount,
+      outOfStockCount,
+      totalCount: products.length,
+    };
+  }, [products, stockMap]);
+
+  // Filtered Customers & Khata Metrics
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((c) => {
+      const q = customerSearch.toLowerCase().trim();
+      if (!q) return true;
+      return c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q));
+    });
+  }, [customers, customerSearch]);
+
+  const khataMetrics = useMemo(() => {
+    let totalOutstanding = 0;
+    let totalCreditLimit = 0;
+    let overdueCount = 0;
+    let activeDebtors = 0;
+
+    customers.forEach((c) => {
+      const bal = parseFloat(c.currentBalance || '0');
+      const limit = parseFloat(c.creditLimit || '0');
+      if (bal > 0) {
+        totalOutstanding += bal;
+        activeDebtors++;
+      }
+      if (limit > 0) {
+        totalCreditLimit += limit;
+      }
+      if (limit > 0 && bal > limit) {
+        overdueCount++;
+      }
+    });
+
+    return {
+      totalOutstanding: totalOutstanding.toFixed(2),
+      totalCreditLimit: totalCreditLimit.toFixed(2),
+      activeDebtors,
+      overdueCount,
+      customerCount: customers.length,
+    };
+  }, [customers]);
+
+  // Open Product Modal (Create)
+  const handleOpenCreateProduct = () => {
+    setProductModal({
+      open: true,
+      mode: 'create',
+      name: '',
+      sku: '',
+      barcodePrimary: '',
+      categoryId: categories.length > 0 ? categories[0].id : '',
+      baseUnitId: units.length > 0 ? units[0].id : '',
+      purchaseCost: '',
+      sellingPrice: '',
+      mrp: '',
+      hsnCode: '',
+      gstRatePercent: '5.00',
+      packageSize: '',
+      openingStockQuantity: '',
+      openingStockBranchId: activeBranch ? activeBranch.id : '',
+      error: undefined,
+    });
   };
 
-  // Handle Stock Adjustment
-  const handleStockAdjustment = () => {
-    if (!adjustmentModal.product || !adjustmentModal.qty || isNaN(Number(adjustmentModal.qty))) return;
-    const delta = parseFloat(adjustmentModal.qty);
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === adjustmentModal.product?.id) {
-          const current = parseFloat(p.currentStock || '0');
-          const updated = Math.max(0, current + delta);
-          return { ...p, currentStock: updated.toFixed(3) };
+  // Open Product Modal (Edit)
+  const handleOpenEditProduct = (p: Product) => {
+    setProductModal({
+      open: true,
+      mode: 'edit',
+      productId: p.id,
+      name: p.name,
+      sku: p.sku,
+      barcodePrimary: p.barcodePrimary || '',
+      categoryId: p.categoryId || (categories.length > 0 ? categories[0].id : ''),
+      baseUnitId: p.baseUnitId || (units.length > 0 ? units[0].id : ''),
+      purchaseCost: p.purchaseCost,
+      sellingPrice: p.sellingPrice,
+      mrp: p.mrp,
+      hsnCode: p.hsnCode || '',
+      gstRatePercent: p.gstRatePercent || '5.00',
+      packageSize: p.packageSize || '',
+      openingStockQuantity: '',
+      openingStockBranchId: '',
+      error: undefined,
+    });
+  };
+
+  // Save Product (Create or Edit)
+  const handleSaveProduct = async () => {
+    if (!activeTenant) return;
+    const { name, sku, purchaseCost, sellingPrice, mrp } = productModal;
+
+    if (!name.trim()) {
+      setProductModal((prev) => ({ ...prev, error: 'Product name is required' }));
+      return;
+    }
+    if (!sku.trim()) {
+      setProductModal((prev) => ({ ...prev, error: 'SKU is required' }));
+      return;
+    }
+    const costNum = parseFloat(purchaseCost);
+    const priceNum = parseFloat(sellingPrice);
+    const mrpNum = parseFloat(mrp);
+
+    if (isNaN(costNum) || costNum < 0) {
+      setProductModal((prev) => ({ ...prev, error: 'Purchase cost must be a valid positive number' }));
+      return;
+    }
+    if (isNaN(priceNum) || priceNum < 0) {
+      setProductModal((prev) => ({ ...prev, error: 'Selling price must be a valid positive number' }));
+      return;
+    }
+    if (isNaN(mrpNum) || mrpNum < 0) {
+      setProductModal((prev) => ({ ...prev, error: 'MRP must be a valid positive number' }));
+      return;
+    }
+    if (mrpNum > 0 && priceNum > mrpNum) {
+      setProductModal((prev) => ({
+        ...prev,
+        error: `Selling price (₹${priceNum.toFixed(2)}) cannot exceed MRP (₹${mrpNum.toFixed(2)})`,
+      }));
+      return;
+    }
+
+    setProductModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+
+    try {
+      if (productModal.mode === 'create') {
+        await apiClient.createProduct(activeTenant.tenantId, {
+          name: name.trim(),
+          sku: sku.trim().toUpperCase(),
+          barcodePrimary: productModal.barcodePrimary.trim() || undefined,
+          categoryId: productModal.categoryId || undefined,
+          baseUnitId: productModal.baseUnitId || undefined,
+          purchaseCost: costNum.toFixed(2),
+          sellingPrice: priceNum.toFixed(2),
+          mrp: mrpNum.toFixed(2),
+          hsnCode: productModal.hsnCode.trim() || undefined,
+          gstRatePercent: productModal.gstRatePercent || '0.00',
+          packageSize: productModal.packageSize.trim() || undefined,
+          openingStockQuantity: productModal.openingStockQuantity ? parseFloat(productModal.openingStockQuantity).toFixed(3) : undefined,
+          openingStockBranchId: productModal.openingStockBranchId || undefined,
+        });
+      } else {
+        await apiClient.updateProduct(activeTenant.tenantId, productModal.productId!, {
+          name: name.trim(),
+          sku: sku.trim().toUpperCase(),
+          barcodePrimary: productModal.barcodePrimary.trim() || undefined,
+          categoryId: productModal.categoryId || undefined,
+          baseUnitId: productModal.baseUnitId || undefined,
+          purchaseCost: costNum.toFixed(2),
+          sellingPrice: priceNum.toFixed(2),
+          mrp: mrpNum.toFixed(2),
+          hsnCode: productModal.hsnCode.trim() || undefined,
+          gstRatePercent: productModal.gstRatePercent || '0.00',
+          packageSize: productModal.packageSize.trim() || undefined,
+        });
+      }
+
+      setProductModal((prev) => ({ ...prev, open: false }));
+      await fetchAllData();
+    } catch (err: any) {
+      setProductModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  // Archive / Delete Product
+  const handleConfirmArchiveProduct = async () => {
+    if (!activeTenant || !archiveModal.product) return;
+    setArchiveModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+
+    try {
+      await apiClient.deleteProduct(activeTenant.tenantId, archiveModal.product.id);
+      setArchiveModal({ open: false, product: null });
+      await fetchAllData();
+    } catch (err: any) {
+      setArchiveModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  // Create Category
+  const handleCreateCategory = async () => {
+    if (!activeTenant) return;
+    if (!categoryModal.name.trim() || !categoryModal.code.trim()) {
+      setCategoryModal((prev) => ({ ...prev, error: 'Name and Code are required' }));
+      return;
+    }
+
+    setCategoryModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      await apiClient.createCategory(activeTenant.tenantId, {
+        name: categoryModal.name.trim(),
+        code: categoryModal.code.trim().toUpperCase(),
+      });
+      setCategoryModal({ open: false, name: '', code: '' });
+      const cats = await apiClient.getCategories(activeTenant.tenantId);
+      setCategories(cats);
+    } catch (err: any) {
+      setCategoryModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  // Create Unit
+  const handleCreateUnit = async () => {
+    if (!activeTenant) return;
+    if (!unitModal.name.trim() || !unitModal.symbol.trim()) {
+      setUnitModal((prev) => ({ ...prev, error: 'Name and Symbol are required' }));
+      return;
+    }
+
+    setUnitModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      await apiClient.createUnit(activeTenant.tenantId, {
+        name: unitModal.name.trim(),
+        symbol: unitModal.symbol.trim().toUpperCase(),
+        decimalPlaces: unitModal.decimalPlaces,
+      });
+      setUnitModal({ open: false, name: '', symbol: '', decimalPlaces: 0 });
+      const unList = await apiClient.getUnits(activeTenant.tenantId);
+      setUnits(unList);
+    } catch (err: any) {
+      setUnitModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  // --- Supplier Handlers ---
+
+  const handleOpenCreateSupplier = () => {
+    setSupplierModal({
+      open: true,
+      mode: 'create',
+      name: '',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      gstin: '',
+      isSubmitting: false,
+      error: undefined,
+    });
+  };
+
+  const handleOpenEditSupplier = (s: Supplier) => {
+    setSupplierModal({
+      open: true,
+      mode: 'edit',
+      supplierId: s.id,
+      name: s.name,
+      contactPerson: s.contactPerson || '',
+      phone: s.phone || '',
+      email: s.email || '',
+      gstin: s.gstin || '',
+      isSubmitting: false,
+      error: undefined,
+    });
+  };
+
+  const handleSaveSupplier = async () => {
+    if (!activeTenant) return;
+    const { mode, supplierId, name, contactPerson, phone, email, gstin } = supplierModal;
+    if (!name.trim()) {
+      setSupplierModal((prev) => ({ ...prev, error: 'Supplier company/vendor name is required' }));
+      return;
+    }
+
+    setSupplierModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      if (mode === 'create') {
+        await apiClient.createSupplier(activeTenant.tenantId, {
+          name: name.trim(),
+          contactPerson: contactPerson.trim() || undefined,
+          phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
+          gstin: gstin.trim() || undefined,
+        });
+      } else if (mode === 'edit' && supplierId) {
+        await apiClient.updateSupplier(activeTenant.tenantId, supplierId, {
+          name: name.trim(),
+          contactPerson: contactPerson.trim() || undefined,
+          phone: phone.trim() || undefined,
+          email: email.trim() || undefined,
+          gstin: gstin.trim() || undefined,
+        });
+      }
+
+      setSupplierModal((prev) => ({ ...prev, open: false }));
+      const sups = await apiClient.getSuppliers(activeTenant.tenantId);
+      setSuppliers(sups);
+    } catch (err: any) {
+      setSupplierModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  const handleConfirmArchiveSupplier = async () => {
+    if (!activeTenant || !archiveSupplierModal.supplier) return;
+    setArchiveSupplierModal((prev) => ({ ...prev, isSubmitting: true }));
+    try {
+      await apiClient.deleteSupplier(activeTenant.tenantId, archiveSupplierModal.supplier.id);
+      setArchiveSupplierModal({ open: false, supplier: null, isSubmitting: false });
+      const sups = await apiClient.getSuppliers(activeTenant.tenantId);
+      setSuppliers(sups);
+    } catch (err: any) {
+      alert(err.message || 'Failed to archive supplier');
+      setArchiveSupplierModal((prev) => ({ ...prev, isSubmitting: false }));
+    }
+  };
+
+  // --- Purchase Order & GRN Handlers ---
+
+  const handleOpenCreatePo = () => {
+    const defaultBranchId = activeBranch?.id || branches[0]?.id || '';
+    const defaultSupplierId = suppliers[0]?.id || '';
+    const initialLines =
+      products.length > 0
+        ? [
+            {
+              productId: products[0].id,
+              quantityOrdered: '10.000',
+              unitCost: products[0].purchaseCost || '0.00',
+              taxRatePercent: products[0].gstRatePercent || '0.00',
+            },
+          ]
+        : [];
+
+    setPoModal({
+      open: true,
+      supplierId: defaultSupplierId,
+      branchId: defaultBranchId,
+      orderNumber: `PO-${Date.now().toString().slice(-6)}`,
+      expectedDeliveryDate: '',
+      notes: '',
+      lines: initialLines,
+      isSubmitting: false,
+      error: undefined,
+    });
+  };
+
+  const handleSavePo = async () => {
+    if (!activeTenant) return;
+    const { supplierId, branchId, orderNumber, expectedDeliveryDate, notes, lines } = poModal;
+    if (!supplierId) {
+      setPoModal((prev) => ({ ...prev, error: 'Please select a supplier' }));
+      return;
+    }
+    if (!branchId) {
+      setPoModal((prev) => ({ ...prev, error: 'Please select a destination branch' }));
+      return;
+    }
+    if (!lines || lines.length === 0) {
+      setPoModal((prev) => ({ ...prev, error: 'Please add at least one line item' }));
+      return;
+    }
+
+    for (const l of lines) {
+      const q = parseFloat(l.quantityOrdered);
+      const c = parseFloat(l.unitCost);
+      if (isNaN(q) || q <= 0) {
+        setPoModal((prev) => ({ ...prev, error: 'Quantity must be a positive number' }));
+        return;
+      }
+      if (isNaN(c) || c < 0) {
+        setPoModal((prev) => ({ ...prev, error: 'Unit cost must be a non-negative number' }));
+        return;
+      }
+    }
+
+    setPoModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      await apiClient.createPurchaseOrder(activeTenant.tenantId, {
+        branchId,
+        supplierId,
+        orderNumber: orderNumber.trim() || undefined,
+        expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate).toISOString() : undefined,
+        notes: notes.trim() || undefined,
+        lines: lines.map((l) => ({
+          productId: l.productId,
+          quantityOrdered: l.quantityOrdered,
+          unitCost: l.unitCost,
+          taxRatePercent: l.taxRatePercent || '0.00',
+        })),
+      });
+
+      setPoModal((prev) => ({ ...prev, open: false }));
+      const poList = await apiClient.getPurchaseOrders(activeTenant.tenantId, activeBranch?.id ? { branchId: activeBranch.id } : undefined);
+      setPurchaseOrders(poList);
+    } catch (err: any) {
+      setPoModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  const handleOpenGrnModal = (po: PurchaseOrder) => {
+    const initialReceipt: Record<string, string> = {};
+    (po.lines || []).forEach((l) => {
+      const remaining = Math.max(0, parseFloat(l.quantityOrdered) - parseFloat(l.quantityReceived || '0'));
+      initialReceipt[l.id] = remaining.toFixed(3);
+    });
+    setGrnModal({
+      open: true,
+      po,
+      receivedItems: initialReceipt,
+      notes: `GRN for ${po.orderNumber}`,
+      isSubmitting: false,
+      error: undefined,
+      successMessage: undefined,
+    });
+  };
+
+  const handleConfirmGrn = async () => {
+    if (!activeTenant || !grnModal.po) return;
+    const po = grnModal.po;
+    const itemsToReceive: { lineId: string; quantityReceived: string }[] = [];
+
+    for (const line of po.lines || []) {
+      const qtyStr = grnModal.receivedItems[line.id];
+      const qty = parseFloat(qtyStr || '0');
+      if (qty > 0) {
+        itemsToReceive.push({ lineId: line.id, quantityReceived: qty.toFixed(3) });
+      }
+    }
+
+    if (itemsToReceive.length === 0) {
+      setGrnModal((prev) => ({ ...prev, error: 'Please enter a received quantity > 0 for at least one item' }));
+      return;
+    }
+
+    setGrnModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      await apiClient.receivePurchaseOrder(activeTenant.tenantId, po.id, {
+        items: itemsToReceive,
+        idempotencyKey: `grn-${po.id}-${Date.now()}`,
+        notes: grnModal.notes.trim() || undefined,
+      });
+
+      setGrnModal((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        successMessage: '✅ Goods successfully received! Inward stock ledger recorded and branch stock balances updated.',
+      }));
+
+      await fetchAllData();
+      setTimeout(() => {
+        setGrnModal({ open: false, po: null, receivedItems: {}, notes: '' });
+      }, 1500);
+    } catch (err: any) {
+      setGrnModal((prev) => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to record GRN inward' }));
+    }
+  };
+
+  // --- Khata Handlers ---
+
+  const handleOpenStatement = async (c: Customer) => {
+    if (!activeTenant) return;
+    setStatementModal({
+      open: true,
+      customer: c,
+      statement: null,
+      from: '',
+      to: '',
+      branchId: activeBranch ? activeBranch.id : '',
+      loading: true,
+      error: undefined,
+    });
+
+    try {
+      const res = await apiClient.getCustomerStatement(activeTenant.tenantId, c.id);
+      setStatementModal((prev) => ({ ...prev, statement: res, loading: false }));
+    } catch (err: any) {
+      setStatementModal((prev) => ({ ...prev, loading: false, error: err.message || 'Failed to load statement' }));
+    }
+  };
+
+  const handleFilterStatement = async () => {
+    if (!activeTenant || !statementModal.customer) return;
+    setStatementModal((prev) => ({ ...prev, loading: true, error: undefined }));
+
+    try {
+      const res = await apiClient.getCustomerStatement(activeTenant.tenantId, statementModal.customer.id, {
+        from: statementModal.from ? new Date(statementModal.from).toISOString() : undefined,
+        to: statementModal.to ? new Date(statementModal.to).toISOString() : undefined,
+        branchId: statementModal.branchId || undefined,
+      });
+      setStatementModal((prev) => ({ ...prev, statement: res, loading: false }));
+    } catch (err: any) {
+      setStatementModal((prev) => ({ ...prev, loading: false, error: err.message || 'Failed to filter statement' }));
+    }
+  };
+
+  const handlePrintStatement = () => {
+    window.print();
+  };
+
+  const handleExportStatementCsv = () => {
+    if (!statementModal.customer || !statementModal.statement) return;
+    const { customer, statement } = statementModal.statement;
+    const rows = [
+      ['Date & Time', 'Entry Type', 'Reference / Invoice', 'Payment Method', 'Debit (₹)', 'Credit (₹)', 'Running Balance (₹)', 'Notes'],
+      [statement.from || 'Opening', 'OPENING_BALANCE', '—', '—', '0.00', '0.00', statement.openingBalance, 'Opening Balance'],
+      ...statement.entries.map((e) => [
+        new Date(e.occurredAt).toLocaleString('en-IN'),
+        e.entryType,
+        e.sourceId || e.idempotencyKey || '—',
+        e.paymentMethod || '—',
+        e.debit,
+        e.credit,
+        e.runningBalance,
+        `"${(e.notes || '').replace(/"/g, '""')}"`,
+      ]),
+      ['Closing', 'CLOSING_BALANCE', '—', '—', statement.totalDebits, statement.totalCredits, statement.closingBalance, 'Closing Balance'],
+    ];
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((r) => r.join(',')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Statement_${customer.name.replace(/\s+/g, '_')}_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleOpenCreditLimitModal = (c: Customer) => {
+    setCreditLimitModal({
+      open: true,
+      customer: c,
+      newLimit: c.creditLimit,
+      reason: '',
+      isSubmitting: false,
+      error: undefined,
+    });
+  };
+
+  const handleSaveCreditLimit = async () => {
+    if (!activeTenant || !creditLimitModal.customer) return;
+    const limitNum = parseFloat(creditLimitModal.newLimit);
+    if (isNaN(limitNum) || limitNum < 0) {
+      setCreditLimitModal((prev) => ({ ...prev, error: 'Credit limit must be a non-negative number' }));
+      return;
+    }
+
+    setCreditLimitModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      await apiClient.updateCustomerCreditLimit(activeTenant.tenantId, creditLimitModal.customer.id, {
+        creditLimit: limitNum.toFixed(2),
+        reason: creditLimitModal.reason.trim() || undefined,
+      });
+
+      setCreditLimitModal({ open: false, customer: null, newLimit: '', reason: '' });
+      const updatedCustomers = await apiClient.getCustomers(activeTenant.tenantId);
+      setCustomers(updatedCustomers);
+    } catch (err: any) {
+      setCreditLimitModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    if (!activeTenant) return;
+    const { name, phone, email, gstin, creditLimit } = createCustomerModal;
+    if (!name.trim()) {
+      setCreateCustomerModal((prev) => ({ ...prev, error: 'Customer name is required' }));
+      return;
+    }
+
+    const limitNum = parseFloat(creditLimit || '0');
+    if (isNaN(limitNum) || limitNum < 0) {
+      setCreateCustomerModal((prev) => ({ ...prev, error: 'Credit limit must be a positive number' }));
+      return;
+    }
+
+    setCreateCustomerModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      await apiClient.createCustomer(activeTenant.tenantId, {
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        gstin: gstin.trim() || undefined,
+        creditLimit: limitNum.toFixed(2),
+      });
+
+      setCreateCustomerModal({ open: false, name: '', phone: '', email: '', gstin: '', creditLimit: '0.00' });
+      const updated = await apiClient.getCustomers(activeTenant.tenantId);
+      setCustomers(updated);
+    } catch (err: any) {
+      setCreateCustomerModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  // Handle Khata Repayment via real API
+  const handleRecordRepayment = async () => {
+    if (!activeTenant || !repaymentModal.customer || !repaymentModal.amount) return;
+    const amountNum = parseFloat(repaymentModal.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setRepaymentModal((prev) => ({ ...prev, error: 'Please enter a valid positive amount' }));
+      return;
+    }
+
+    const currentBal = parseFloat(repaymentModal.customer.currentBalance);
+    if (amountNum > currentBal) {
+      setRepaymentModal((prev) => ({
+        ...prev,
+        error: `Repayment amount (₹${amountNum.toFixed(2)}) cannot exceed outstanding balance (₹${currentBal.toFixed(2)})`,
+      }));
+      return;
+    }
+
+    setRepaymentModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+
+    try {
+      const idempotencyKey = generateUuid();
+      const res = await apiClient.recordCustomerPayment(activeTenant.tenantId, repaymentModal.customer.id, {
+        branchId: activeBranch ? activeBranch.id : undefined,
+        amount: amountNum.toFixed(2),
+        paymentMethod: repaymentModal.paymentMethod,
+        idempotencyKey,
+        notes: repaymentModal.notes.trim() || `${repaymentModal.paymentMethod.toUpperCase()} counter settlement`,
+      });
+
+      const updatedCustomers = await apiClient.getCustomers(activeTenant.tenantId);
+      setCustomers(updatedCustomers);
+
+      // If statement modal is open for this customer, refresh statement seamlessly
+      if (statementModal.open && statementModal.customer?.id === repaymentModal.customer.id) {
+        try {
+          const updatedStatement = await apiClient.getCustomerStatement(activeTenant.tenantId, repaymentModal.customer.id, {
+            from: statementModal.from ? new Date(statementModal.from).toISOString() : undefined,
+            to: statementModal.to ? new Date(statementModal.to).toISOString() : undefined,
+            branchId: statementModal.branchId || undefined,
+          });
+          setStatementModal((prev) => ({
+            ...prev,
+            customer: res.customer,
+            statement: updatedStatement,
+          }));
+        } catch {
+          // Non-blocking refresh
         }
-        return p;
-      })
-    );
-    setAdjustmentModal({ open: false, product: null, qty: '', reason: 'Restock / Purchase' });
+      }
+
+      // Show confirmed repayment receipt modal with reference and balances
+      setRepaymentReceiptModal({
+        open: true,
+        receipt: {
+          transactionId: res.ledger.id,
+          customerName: repaymentModal.customer.name,
+          customerPhone: repaymentModal.customer.phone,
+          amountPaid: amountNum.toFixed(2),
+          paymentMethod: repaymentModal.paymentMethod,
+          previousBalance: currentBal.toFixed(2),
+          remainingBalance: res.customer.currentBalance,
+          timestamp: new Date().toISOString(),
+          notes: repaymentModal.notes.trim() || undefined,
+        },
+      });
+
+      setRepaymentModal({ open: false, customer: null, amount: '', paymentMethod: 'cash', notes: '' });
+    } catch (err: any) {
+      setRepaymentModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
+  };
+
+  // Customer Lifetime History Handler
+  const handleOpenCustomerHistory = async (c: Customer) => {
+    if (!activeTenant) return;
+    setCustomerHistoryModal({
+      open: true,
+      customer: c,
+      loading: true,
+      data: null,
+      error: undefined,
+    });
+
+    try {
+      const data = await apiClient.getCustomerHistory(activeTenant.tenantId, c.id);
+      setCustomerHistoryModal((prev) => ({ ...prev, loading: false, data }));
+    } catch (err: any) {
+      setCustomerHistoryModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: err.message || 'Failed to load customer history',
+      }));
+    }
+  };
+
+  // Customer Merge Handlers
+  const handleOpenMergeCustomer = (c: Customer) => {
+    const targetCandidates = customers.filter((other) => other.id !== c.id);
+    setMergeCustomerModal({
+      open: true,
+      sourceCustomer: c,
+      targetCustomerId: targetCandidates[0]?.id || '',
+      reason: 'Consolidating duplicate customer profile',
+      isSubmitting: false,
+      error: undefined,
+      successMessage: undefined,
+    });
+  };
+
+  const handleMergeCustomers = async () => {
+    if (!activeTenant || !mergeCustomerModal.sourceCustomer) return;
+    if (!mergeCustomerModal.targetCustomerId) {
+      setMergeCustomerModal((prev) => ({ ...prev, error: 'Please select a target customer to merge into' }));
+      return;
+    }
+    if (!mergeCustomerModal.reason.trim()) {
+      setMergeCustomerModal((prev) => ({ ...prev, error: 'Please provide an audit reason for the merge' }));
+      return;
+    }
+
+    setMergeCustomerModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      const res = await apiClient.mergeCustomers(
+        activeTenant.tenantId,
+        mergeCustomerModal.sourceCustomer.id,
+        {
+          targetCustomerId: mergeCustomerModal.targetCustomerId,
+          reason: mergeCustomerModal.reason.trim(),
+        },
+      );
+
+      setMergeCustomerModal((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        successMessage: res.message,
+      }));
+
+      const updatedCustomers = await apiClient.getCustomers(activeTenant.tenantId);
+      setCustomers(updatedCustomers);
+    } catch (err: any) {
+      setMergeCustomerModal((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        error: err.message || 'Failed to merge customers',
+      }));
+    }
+  };
+
+  // Clean Non-Financial Dev Test Customers
+  const handleCleanDevTestCustomers = async () => {
+    if (!activeTenant) return;
+    setCleanDevModal({ open: true, loading: true, result: null, error: undefined });
+    try {
+      const res = await apiClient.cleanupDevTestCustomers(activeTenant.tenantId);
+      setCleanDevModal({ open: true, loading: false, result: res, error: undefined });
+      const updatedCustomers = await apiClient.getCustomers(activeTenant.tenantId);
+      setCustomers(updatedCustomers);
+    } catch (err: any) {
+      setCleanDevModal({
+        open: true,
+        loading: false,
+        result: null,
+        error: err.message || 'Failed to clean test customers',
+      });
+    }
+  };
+
+  // Branch Configuration Handlers
+  const handleOpenEditBranch = (b: Branch) => {
+    setBranchModal({
+      open: true,
+      branch: b,
+      name: b.name || '',
+      gstin: b.gstin || '',
+      stateCode: b.stateCode || (b.gstin ? b.gstin.slice(0, 2) : ''),
+      addressLine1: b.addressLine1 || '',
+      city: b.city || '',
+      postalCode: b.postalCode || '',
+      isSubmitting: false,
+      error: undefined,
+      successMessage: undefined,
+    });
+  };
+
+  const handleUpdateBranch = async () => {
+    if (!activeTenant || !branchModal.branch) return;
+    const gstinClean = branchModal.gstin.trim().toUpperCase();
+    if (gstinClean) {
+      const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstinRegex.test(gstinClean)) {
+        setBranchModal((prev) => ({
+          ...prev,
+          error: 'Invalid 15-character GSTIN format (e.g. 27AABCK1234F1Z5)',
+        }));
+        return;
+      }
+      const gstinState = gstinClean.slice(0, 2);
+      if (branchModal.stateCode && /^[0-9]{2}$/.test(branchModal.stateCode) && branchModal.stateCode !== gstinState) {
+        setBranchModal((prev) => ({
+          ...prev,
+          error: `GSTIN state prefix (${gstinState}) must match branch state code (${branchModal.stateCode})`,
+        }));
+        return;
+      }
+    }
+
+    setBranchModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+    try {
+      const updated = await apiClient.updateBranch(activeTenant.tenantId, branchModal.branch.id, {
+        name: branchModal.name.trim() || undefined,
+        gstin: gstinClean || undefined,
+        stateCode: branchModal.stateCode.trim() || undefined,
+        addressLine1: branchModal.addressLine1.trim() || undefined,
+        city: branchModal.city.trim() || undefined,
+        postalCode: branchModal.postalCode.trim() || undefined,
+      });
+
+      setBranchModal((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        successMessage: `Branch "${updated.name}" updated with GSTIN ${updated.gstin || 'UNREGISTERED'}.`,
+      }));
+
+      const refreshedBranches = await apiClient.getBranches(activeTenant.tenantId);
+      setBranchesList(refreshedBranches);
+    } catch (err: any) {
+      setBranchModal((prev) => ({ ...prev, isSubmitting: false, error: err.message || 'Failed to update branch' }));
+    }
+  };
+
+  // Handle Stock Adjustment via real API
+  const handleRecordStockAdjustment = async () => {
+    if (!activeTenant || !activeBranch || !adjustmentModal.product || !adjustmentModal.qty) return;
+    const deltaNum = parseFloat(adjustmentModal.qty);
+    if (isNaN(deltaNum) || deltaNum === 0) {
+      setAdjustmentModal((prev) => ({ ...prev, error: 'Enter a valid non-zero adjustment quantity' }));
+      return;
+    }
+
+    if (!adjustmentModal.reason.trim()) {
+      setAdjustmentModal((prev) => ({ ...prev, error: 'Audit reason is required for manual stock adjustment' }));
+      return;
+    }
+
+    setAdjustmentModal((prev) => ({ ...prev, isSubmitting: true, error: undefined }));
+
+    try {
+      const idempotencyKey = generateUuid();
+      await apiClient.recordStockMovement(activeTenant.tenantId, {
+        branchId: activeBranch.id,
+        productId: adjustmentModal.product.id,
+        movementType: StockMovementType.ADJUSTMENT,
+        quantityDelta: deltaNum.toFixed(3),
+        unitCost: adjustmentModal.product.purchaseCost,
+        sourceType: 'manual_adjustment',
+        sourceId: `adj-${Date.now()}`,
+        idempotencyKey,
+        reason: adjustmentModal.reason.trim(),
+      });
+
+      const balances = await apiClient.getStockBalances(activeTenant.tenantId, activeBranch.id);
+      const sMap = new Map<string, string>();
+      balances.forEach((b) => sMap.set(b.productId, b.quantityOnHand));
+      setStockMap(sMap);
+
+      setAdjustmentModal({ open: false, product: null, qty: '', reason: 'Breakage / Discrepancy' });
+    } catch (err: any) {
+      setAdjustmentModal((prev) => ({ ...prev, error: err.message, isSubmitting: false }));
+    }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 text-slate-800" data-testid="admin-dashboard">
+    <div className="flex flex-col h-[calc(100vh-50px)] bg-slate-100 text-slate-800 overflow-hidden" data-testid="admin-dashboard">
       {/* Top Admin Sub-navigation Header */}
-      <div className="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between border-b border-slate-800">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xl border border-emerald-500/30">
-            KM
-          </div>
+      <div className="bg-white border-b border-slate-200/90 px-6 py-3 flex flex-wrap items-center justify-between shrink-0 gap-3">
+        <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              Kirana Supermart <span className="text-xs px-2 py-0.5 bg-emerald-700 text-white rounded font-normal">Store Owner Portal</span>
+            <h1 className="text-base font-bold text-slate-900 tracking-tight">
+              {activeTab === 'inventory' && 'Products & Inventory'}
+              {activeTab === 'invoices' && 'Bills & Invoices Register'}
+              {activeTab === 'analytics' && 'Executive Analytics & Performance'}
+              {activeTab === 'gst' && 'GST Returns & Statutory Reports'}
+              {activeTab === 'khata' && 'Customer Khata & Receivables'}
+              {activeTab === 'shifts' && 'Cashier Shift Logs'}
+              {activeTab === 'devices' && 'Hardware & POS Terminals'}
+              {activeTab === 'branches' && 'Store Branches & GSTIN Config'}
+              {activeTab === 'subscription' && 'Subscription & Account Plan'}
             </h1>
-            <p className="text-xs text-slate-400">Branch: Andheri West (BR-001) | GSTIN: 27AABCU9603R1ZM</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {activeTenant?.tenantName || 'Kirana Supermart'} &bull; {activeBranch?.name || 'Main Branch'} ({activeBranch?.code || 'MAIN'})
+            </p>
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex space-x-1 bg-slate-800 p-1 rounded-lg">
+        {/* Tab Switcher - Sleek Segmented Control */}
+        <div className="flex flex-wrap gap-1 bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+          <button
+            onClick={() => setActiveTab('inventory')}
+            data-testid="admin-tab-inventory"
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'inventory' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Products & Inventory
+          </button>
+          <button
+            onClick={() => setActiveTab('invoices')}
+            data-testid="tab-invoices"
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'invoices' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Bills & Invoices
+          </button>
           <button
             onClick={() => setActiveTab('analytics')}
             data-testid="tab-analytics"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-              activeTab === 'analytics' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'analytics' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            📊 Analytics & Tax
+            Analytics
           </button>
           <button
-            onClick={() => setActiveTab('inventory')}
-            data-testid="tab-inventory"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-              activeTab === 'inventory' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'
+            onClick={() => setActiveTab('gst')}
+            data-testid="admin-tab-gst"
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'gst' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            📦 Inventory ({products.filter((p) => parseFloat(p.currentStock || '0') < 5).length} Low)
+            GST Returns
           </button>
           <button
             onClick={() => setActiveTab('khata')}
-            data-testid="tab-khata"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-              activeTab === 'khata' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'
+            data-testid="admin-tab-customers"
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'khata' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            📒 Khata Ledger
+            Customer Khata
           </button>
           <button
             onClick={() => setActiveTab('shifts')}
             data-testid="tab-shifts"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-              activeTab === 'shifts' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'shifts' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            ⏱️ Cashier Shifts
+            Shifts
           </button>
           <button
             onClick={() => setActiveTab('devices')}
             data-testid="tab-devices"
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-              activeTab === 'devices' ? 'bg-emerald-600 text-white shadow' : 'text-slate-300 hover:text-white'
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'devices' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            📱 Devices & Plan
+            Devices
           </button>
+          <button
+            onClick={() => setActiveTab('branches')}
+            data-testid="tab-branches"
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+              activeTab === 'branches' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Branches & GSTIN
+          </button>
+          {isOwner() && (
+            <button
+              onClick={() => setActiveTab('subscription')}
+              data-testid="tab-subscription"
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'subscription' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Plan
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="p-6 flex-1 overflow-y-auto">
-        {/* TAB 1: ANALYTICS & GST TAX REPORT */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Today&apos;s Store Performance</h2>
-                <p className="text-xs text-slate-500">Live operational ledger for {report.date}</p>
-              </div>
-              <span className="px-3 py-1 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Store Synced
-              </span>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gross Sales</p>
-                <p className="text-2xl font-black text-slate-900 mt-1">₹{report.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                <p className="text-xs text-emerald-600 font-medium mt-1">{report.invoiceCount} invoices generated today</p>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Cash Collected</p>
-                <p className="text-2xl font-black text-emerald-700 mt-1">₹{report.cashCollected.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                <p className="text-xs text-slate-500 mt-1">In register / drawer</p>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">UPI & Digital Collections</p>
-                <p className="text-2xl font-black text-blue-700 mt-1">₹{(report.upiCollected + report.cardCollected).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                <p className="text-xs text-slate-500 mt-1">UPI: ₹{report.upiCollected} | Card: ₹{report.cardCollected}</p>
-              </div>
-
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Khata Credit Extended</p>
-                <p className="text-2xl font-black text-amber-700 mt-1">₹{report.khataCreditGiven.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
-                <p className="text-xs text-amber-600 font-medium mt-1">Unpaid customer debt</p>
-              </div>
-            </div>
-
-            {/* GST Tax Reconciliation */}
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider mb-4">GST Tax Breakdown (Government Compliant)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <p className="text-xs font-bold text-slate-600">CGST (Central Tax 50%)</p>
-                  <p className="text-xl font-bold text-slate-900 mt-1">₹{report.totalCgst.toFixed(2)}</p>
-                  <p className="text-xs text-slate-500 mt-1">Intra-state sales within MH (27)</p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <p className="text-xs font-bold text-slate-600">SGST (State Tax 50%)</p>
-                  <p className="text-xl font-bold text-slate-900 mt-1">₹{report.totalSgst.toFixed(2)}</p>
-                  <p className="text-xs text-slate-500 mt-1">Maharashtra State GST component</p>
-                </div>
-                <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                  <p className="text-xs font-bold text-slate-600">Total Tax Collected</p>
-                  <p className="text-xl font-bold text-emerald-800 mt-1">₹{(report.totalCgst + report.totalSgst + report.totalIgst).toFixed(2)}</p>
-                  <p className="text-xs text-slate-500 mt-1">Eligible for GSTR-1 & GSTR-3B filing</p>
-                </div>
-              </div>
-            </div>
+      <div className="flex-1 overflow-y-auto p-6">
+        {loading && (
+          <div className="flex items-center justify-center p-12 text-slate-500 gap-2">
+            <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm font-medium">Loading store management data from PostgreSQL...</span>
           </div>
         )}
 
-        {/* TAB 2: INVENTORY MANAGEMENT */}
-        {activeTab === 'inventory' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Grocery Catalogue & Stock Balances</h2>
-                <p className="text-xs text-slate-500">Real-time stock ledger movements and reorder thresholds</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium px-2.5 py-1 bg-amber-100 text-amber-800 rounded">
-                  ⚠️ Threshold Alert: &lt; 5 Units
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left text-sm" data-testid="inventory-table">
-                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Product Name</th>
-                    <th className="px-4 py-3">SKU / Barcode</th>
-                    <th className="px-4 py-3">HSN Code</th>
-                    <th className="px-4 py-3">Cost Price</th>
-                    <th className="px-4 py-3">Selling Price</th>
-                    <th className="px-4 py-3">Stock On Hand</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {products.map((p) => {
-                    const stock = parseFloat(p.currentStock || '0');
-                    const isLow = stock < 5;
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-900">{p.name}</td>
-                        <td className="px-4 py-3 text-xs text-slate-500">
-                          <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded">{p.sku}</span>
-                          <span className="block text-slate-400 mt-0.5">{p.barcodePrimary || 'No Barcode'}</span>
-                        </td>
-                        <td className="px-4 py-3 text-xs font-mono text-slate-600">{p.hsnCode}</td>
-                        <td className="px-4 py-3 text-xs font-mono text-slate-600">₹{p.purchaseCost}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900">₹{p.sellingPrice}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                              isLow ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
-                            }`}
-                          >
-                            {stock.toFixed(1)} {isLow ? '⚠️ LOW' : 'OK'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => setAdjustmentModal({ open: true, product: p, qty: '', reason: 'Restock / Purchase' })}
-                            className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition-colors"
-                          >
-                            Adjust Stock
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs mb-6">
+            ⚠️ {error}
           </div>
         )}
 
-        {/* TAB 3: KHATA (CUSTOMER CREDIT) */}
-        {activeTab === 'khata' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Customer Khata (Credit Ledger)</h2>
-                <p className="text-xs text-slate-500">Track informal udhaar, credit limits, and record repayments</p>
-              </div>
-              <div className="text-xs font-semibold bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg border border-emerald-200">
-                Total Debt Outstanding: ₹{customers.reduce((acc, c) => acc + parseFloat(c.currentBalance), 0).toFixed(2)}
-              </div>
-            </div>
+        {!loading && (
+          <>
+            {/* 0. Bills & Invoices Register Tab */}
+            {activeTab === 'invoices' && (
+              <InvoicesListView
+                invoices={invoices}
+                branches={branchesList}
+                customers={customers}
+                activeBranchId={activeBranch?.id}
+                tenantName={activeTenant?.tenantName}
+                tenantId={activeTenant?.tenantId}
+                onRefresh={fetchAllData}
+                isLoading={loading}
+              />
+            )}
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left text-sm" data-testid="khata-table">
-                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Customer Name</th>
-                    <th className="px-4 py-3">Phone Number</th>
-                    <th className="px-4 py-3">Credit Limit</th>
-                    <th className="px-4 py-3">Balance Owed (Debit)</th>
-                    <th className="px-4 py-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {customers.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-bold text-slate-900">{c.name}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{c.phone}</td>
-                      <td className="px-4 py-3 text-xs font-mono text-slate-600">₹{parseFloat(c.creditLimit).toFixed(2)}</td>
-                      <td className="px-4 py-3 font-bold text-red-600">₹{parseFloat(c.currentBalance).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right">
+            {/* 1. Products & Inventory Tab */}
+            {activeTab === 'inventory' && (
+              <div className="space-y-5" data-testid="inventory-content">
+                {/* Sub-tab Navigation */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200/80 pb-3">
+                  <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+                    <button
+                      onClick={() => setInventorySubTab('products')}
+                      data-testid="subtab-products"
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        inventorySubTab === 'products' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Product Catalogue ({products.length})
+                    </button>
+                    <button
+                      onClick={() => setInventorySubTab('stock')}
+                      data-testid="subtab-stock"
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        inventorySubTab === 'stock' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Stock Balances
+                    </button>
+                    <button
+                      onClick={() => setInventorySubTab('suppliers')}
+                      data-testid="subtab-suppliers"
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        inventorySubTab === 'suppliers' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Suppliers ({suppliers.length})
+                    </button>
+                    <button
+                      onClick={() => setInventorySubTab('purchases')}
+                      data-testid="subtab-purchases"
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        inventorySubTab === 'purchases' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Purchase Orders & GRN ({purchaseOrders.length})
+                    </button>
+                    <button
+                      onClick={() => setInventorySubTab('categories')}
+                      data-testid="subtab-categories"
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        inventorySubTab === 'categories' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Categories & Units
+                    </button>
+                    <button
+                      onClick={() => setInventorySubTab('transfers')}
+                      data-testid="subtab-transfers"
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        inventorySubTab === 'transfers' ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Branch Transfers
+                    </button>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    {inventorySubTab === 'categories' && (
+                      <div className="flex space-x-2">
                         <button
-                          onClick={() => setRepaymentModal({ open: true, customer: c, amount: '' })}
-                          className="px-3 py-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded transition-colors shadow-sm"
+                          onClick={() => setCategoryModal({ open: true, name: '', code: '' })}
+                          data-testid="add-category-btn"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer"
                         >
-                          Record Repayment
+                          ➕ Add Category
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: CASHIER SHIFTS */}
-        {activeTab === 'shifts' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Cashier Shifts & Cash Reconciliation</h2>
-                <p className="text-xs text-slate-500">Monitor cash in drawer, float amount, and end-of-shift variances</p>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Cashier</th>
-                    <th className="px-4 py-3">Shift Status</th>
-                    <th className="px-4 py-3">Opening Float</th>
-                    <th className="px-4 py-3">Expected Cash</th>
-                    <th className="px-4 py-3">Closing Cash</th>
-                    <th className="px-4 py-3">Variance</th>
-                    <th className="px-4 py-3">Opened At</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {shifts.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-bold text-slate-900">{s.cashierUserId}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800 uppercase">
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-slate-600">₹{s.openingCash}</td>
-                      <td className="px-4 py-3 font-mono font-bold text-slate-900">₹{s.expectedCash}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500">{s.closingCash ? `₹${s.closingCash}` : 'In Progress'}</td>
-                      <td className="px-4 py-3 font-mono text-slate-600">₹{s.variance}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{new Date(s.openedAt).toLocaleTimeString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: DEVICES & SUBSCRIPTIONS */}
-        {activeTab === 'devices' && (
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">Subscription Plan: {subscription.planCode.replace('_', ' ').toUpperCase()}</h3>
-                  <p className="text-xs text-slate-500">Plan renewal date: {new Date(subscription.currentPeriodEnd || '').toLocaleDateString()}</p>
-                </div>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 font-bold text-xs rounded-full uppercase">
-                  {subscription.status}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                  <p className="text-xs text-slate-500 font-medium">Max Branches Allowed</p>
-                  <p className="text-xl font-bold text-slate-900">{subscription.maxBranches}</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                  <p className="text-xs text-slate-500 font-medium">Active Devices</p>
-                  <p className="text-xl font-bold text-slate-900">{devices.length} / {subscription.maxDevices}</p>
-                </div>
-                <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                  <p className="text-xs text-slate-500 font-medium">Max Cashier Users</p>
-                  <p className="text-xl font-bold text-slate-900">{subscription.maxUsers}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100">
-                <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider">Registered Hardware & Terminals</h3>
-              </div>
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <tr>
-                    <th className="px-4 py-3">Device Name</th>
-                    <th className="px-4 py-3">Device Identifier</th>
-                    <th className="px-4 py-3">Platform</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {devices.map((d) => (
-                    <tr key={d.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-bold text-slate-900">{d.deviceName}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{d.deviceIdentifier}</td>
-                      <td className="px-4 py-3 text-xs uppercase font-medium text-slate-600">{d.platform}</td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800">
-                          {d.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => {
-                            setDevices((prev) => prev.map((dev) => dev.id === d.id ? { ...dev, status: 'revoked' } : dev));
-                          }}
-                          className="px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 rounded transition-colors"
+                          onClick={() => setUnitModal({ open: true, name: '', symbol: '', decimalPlaces: 0 })}
+                          data-testid="add-unit-btn"
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm cursor-pointer"
                         >
-                          Revoke
+                          ➕ Add Unit
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      </div>
+                    )}
+                    <button
+                      onClick={fetchAllData}
+                      className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium hover:bg-slate-50 cursor-pointer shadow-sm"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-view 1: Product Catalogue & SKUs */}
+                {inventorySubTab === 'products' && (
+                  <ProductListView
+                    products={products}
+                    stockMap={stockMap}
+                    categories={categories}
+                    units={units}
+                    searchQuery={productSearch}
+                    onSearchChange={setProductSearch}
+                    selectedCategory={selectedCategoryFilter}
+                    onCategoryChange={setSelectedCategoryFilter}
+                    onAddProduct={handleOpenCreateProduct}
+                    onEditProduct={handleOpenEditProduct}
+                    onArchiveProduct={(p) => setArchiveModal({ open: true, product: p })}
+                  />
+                )}
+
+                {/* Sub-view 2: Stock Balances & Adjustments */}
+                {inventorySubTab === 'stock' && (
+                  <StockBalancesView
+                    products={products}
+                    stockMap={stockMap}
+                    branchName={activeBranch?.name || 'Default Branch'}
+                    onOpenTransfers={() => setInventorySubTab('transfers')}
+                    onOpenAdjust={(p) =>
+                      setAdjustmentModal({
+                        open: true,
+                        product: p,
+                        qty: '',
+                        reason: 'Physical Inventory Count Discrepancy',
+                      })
+                    }
+                  />
+                )}
+
+                {/* Sub-view 3: Suppliers */}
+                {inventorySubTab === 'suppliers' && (
+                  <SupplierDirectory
+                    suppliers={suppliers}
+                    onAddSupplier={handleOpenCreateSupplier}
+                    onEditSupplier={handleOpenEditSupplier}
+                    onArchiveSupplier={(s) => setArchiveSupplierModal({ open: true, supplier: s })}
+                  />
+                )}
+
+                {/* Sub-view 4: Purchase Orders & GRN */}
+                {inventorySubTab === 'purchases' && (
+                  <PurchaseOrderList
+                    purchaseOrders={purchaseOrders}
+                    onCreatePo={handleOpenCreatePo}
+                    onReceivePo={handleOpenGrnModal}
+                  />
+                )}
+
+                {/* Sub-view 5: Categories & Units */}
+                {inventorySubTab === 'categories' && (
+                  <CategoryManager
+                    categories={categories}
+                    units={units}
+                    onAddCategory={() => setCategoryModal({ open: true, name: '', code: '' })}
+                    onAddUnit={() => setUnitModal({ open: true, name: '', symbol: '', decimalPlaces: 0 })}
+                  />
+                )}
+
+                {/* Sub-view 6: Inter-Branch Stock Transfers */}
+                {inventorySubTab === 'transfers' && activeTenant && (
+                  <StockTransfersView
+                    tenantId={activeTenant.tenantId}
+                    currentBranchId={activeBranch?.id || branches[0]?.id || ''}
+                    branches={branches}
+                    products={products}
+                    stockMap={stockMap}
+                    onRefreshStock={fetchAllData}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* 2. Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <div className="space-y-4" data-testid="analytics-content">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Live Sales & Tax Audit Summary</h2>
+                    <p className="text-xs text-slate-500">Real-time daily aggregates from posted PostgreSQL invoices</p>
+                  </div>
+                  <button
+                    onClick={fetchAllData}
+                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium hover:bg-slate-50 cursor-pointer shadow-sm"
+                  >
+                    🔄 Refresh Live
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gross Turnover</p>
+                    <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-turnover">
+                      ₹{report?.totalSales || '0.00'}
+                    </p>
+                    <p className="text-[11px] text-emerald-600 mt-1 font-medium">Authoritative server snapshot</p>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Invoices Issued</p>
+                    <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-invoices">
+                      {report?.invoiceCount || 0}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">Non-repudiable receipts</p>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total GST Tax</p>
+                    <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-tax">
+                      ₹{report?.totalTax || '0.00'}
+                    </p>
+                    <p className="text-[11px] text-blue-600 mt-1 font-medium">CGST + SGST + IGST</p>
+                  </div>
+
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cash Collected</p>
+                    <p className="text-2xl font-black text-emerald-700 mt-2">
+                      ₹{report?.paymentBreakdown?.['cash'] || '0.00'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">UPI: ₹{report?.paymentBreakdown?.['upi'] || '0.00'}</p>
+                  </div>
+                </div>
+
+                {/* Tender Breakdown Table */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                  <h3 className="font-bold text-sm text-slate-900 mb-3">Tender Method Breakdown (Live PostgreSQL)</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {['cash', 'upi', 'card', 'credit'].map((method) => (
+                      <div key={method} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="text-[11px] uppercase font-bold text-slate-500">{method}</span>
+                        <p className="text-base font-black text-slate-900 mt-1">
+                          ₹{report?.paymentBreakdown?.[method] || '0.00'}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Customer Khata Tab */}
+            {activeTab === 'khata' && (
+              <CustomerDirectory
+                customers={customers}
+                onAddCustomer={() =>
+                  setCreateCustomerModal({
+                    open: true,
+                    name: '',
+                    phone: '',
+                    email: '',
+                    gstin: '',
+                    creditLimit: '5000.00',
+                    error: undefined,
+                  })
+                }
+                onCleanDevCustomers={handleCleanDevTestCustomers}
+                onRefresh={fetchAllData}
+                onOpenStatement={handleOpenStatement}
+                onOpenHistory={handleOpenCustomerHistory}
+                onOpenMerge={handleOpenMergeCustomer}
+                onOpenRepayment={(c) =>
+                  setRepaymentModal({
+                    open: true,
+                    customer: c,
+                    amount: '',
+                    paymentMethod: 'cash',
+                    notes: '',
+                    error: undefined,
+                  })
+                }
+                onOpenCreditLimit={(c) =>
+                  setCreditLimitModal({
+                    open: true,
+                    customer: c,
+                    newLimit: c.creditLimit,
+                    reason: '',
+                    error: undefined,
+                  })
+                }
+              />
+            )}
+
+            {/* 4. Cashier Shifts Tab */}
+            {activeTab === 'shifts' && (
+              <ShiftsView shifts={shifts} onRefresh={fetchAllData} />
+            )}
+
+            {/* 5. Devices Tab */}
+            {activeTab === 'devices' && (
+              <DevicesView devices={devices} onRefresh={fetchAllData} />
+            )}
+
+            {/* 6. Subscription Tab */}
+            {activeTab === 'subscription' && isOwner() && (
+              <SubscriptionView subscription={subscription} />
+            )}
+
+            {/* 7. GST Statutory Reports & Filing Preparation */}
+            {activeTab === 'gst' && activeTenant && (
+              <GstReportsView
+                tenantId={activeTenant.tenantId}
+                branches={branches}
+                suppliers={suppliers}
+                products={products}
+                activeBranchId={activeBranch?.id}
+              />
+            )}
+
+            {/* 8. Branches & GSTIN Configuration Tab */}
+            {activeTab === 'branches' && (
+              <BranchesView
+                branches={branchesList}
+                onRefresh={fetchAllData}
+                onEditBranch={handleOpenEditBranch}
+              />
+            )}
+          </>
         )}
       </div>
 
-      {/* MODAL: KHATA REPAYMENT */}
-      {repaymentModal.open && repaymentModal.customer && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
-            <h3 className="font-bold text-slate-900 text-base">Record Debt Repayment</h3>
-            <p className="text-xs text-slate-600">
-              Customer: <span className="font-semibold text-slate-800">{repaymentModal.customer.name}</span>
-              <br />
-              Current Outstanding: <span className="font-bold text-red-600">₹{parseFloat(repaymentModal.customer.currentBalance).toFixed(2)}</span>
+      {/* --- MODAL 1: Create or Edit Product (Shadcn Progressive Disclosure Drawer) --- */}
+      <ProductDrawer
+        open={productModal.open}
+        onClose={() => setProductModal((prev) => ({ ...prev, open: false }))}
+        data={productModal}
+        setData={setProductModal}
+        categories={categories}
+        units={units}
+        branches={branches}
+        activeBranch={activeBranch}
+        onSave={handleSaveProduct}
+      />
+
+      {/* --- MODAL 2: Archive Product Confirmation --- */}
+      {archiveModal.open && archiveModal.product && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" data-testid="archive-modal">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-slate-800 border border-slate-200">
+            <h3 className="font-bold text-base text-slate-900 mb-2">🗑️ Archive Product?</h3>
+            <p className="text-xs text-slate-600 mb-4">
+              Are you sure you want to deactivate <strong className="text-slate-900">{archiveModal.product.name}</strong> ({archiveModal.product.sku})?
+              This will remove it from the active cashier catalogue while preserving historical sales and stock ledger movements (Rule 9).
             </p>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Repayment Amount (₹)</label>
-              <input
-                type="number"
-                placeholder="Enter amount paid"
-                value={repaymentModal.amount}
-                onChange={(e) => setRepaymentModal({ ...repaymentModal, amount: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-              />
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
+
+            {archiveModal.error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl text-xs mb-4">
+                ⚠️ {archiveModal.error}
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2">
               <button
-                onClick={() => setRepaymentModal({ open: false, customer: null, amount: '' })}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                onClick={() => setArchiveModal({ open: false, product: null })}
+                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                onClick={handleRecordRepayment}
-                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
+                onClick={handleConfirmArchiveProduct}
+                disabled={archiveModal.isSubmitting}
+                data-testid="confirm-archive-btn"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold cursor-pointer disabled:opacity-50 shadow-sm"
               >
-                Confirm Repayment
+                {archiveModal.isSubmitting ? 'Archiving...' : 'Yes, Archive Product'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: STOCK ADJUSTMENT */}
-      {adjustmentModal.open && adjustmentModal.product && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
-            <h3 className="font-bold text-slate-900 text-base">Adjust Inventory Quantity</h3>
-            <p className="text-xs text-slate-600">
-              Product: <span className="font-semibold text-slate-800">{adjustmentModal.product.name}</span>
-              <br />
-              Current Stock: <span className="font-bold text-slate-900">{parseFloat(adjustmentModal.product.currentStock || '0').toFixed(3)} units</span>
-            </p>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Quantity Delta (+ or -)</label>
-              <input
-                type="number"
-                placeholder="e.g. 20 to add, -5 to reduce"
-                value={adjustmentModal.qty}
-                onChange={(e) => setAdjustmentModal({ ...adjustmentModal, qty: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
-              />
+      {/* --- MODAL 3: Create Category --- */}
+      {categoryModal.open && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 text-slate-800 border border-slate-200">
+            <h3 className="font-bold text-base text-slate-900 mb-3">➕ Add Product Category</h3>
+            {categoryModal.error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-2.5 rounded-lg text-xs mb-3">
+                ⚠️ {categoryModal.error}
+              </div>
+            )}
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Spices & Masalas"
+                  value={categoryModal.name}
+                  onChange={(e) => setCategoryModal((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Code *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. CAT-SPICE"
+                  value={categoryModal.code}
+                  onChange={(e) => setCategoryModal((prev) => ({ ...prev, code: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono uppercase"
+                />
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end space-x-2 mt-5">
               <button
-                onClick={() => setAdjustmentModal({ open: false, product: null, qty: '', reason: 'Restock / Purchase' })}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                onClick={() => setCategoryModal({ open: false, name: '', code: '' })}
+                className="px-3.5 py-1.5 border border-slate-300 text-slate-700 rounded-xl text-xs"
               >
                 Cancel
               </button>
               <button
-                onClick={handleStockAdjustment}
-                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
+                onClick={handleCreateCategory}
+                disabled={categoryModal.isSubmitting}
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold"
               >
-                Record Stock Movement
+                {categoryModal.isSubmitting ? 'Saving...' : 'Create Category'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* --- MODAL 4: Create Unit --- */}
+      {unitModal.open && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 text-slate-800 border border-slate-200">
+            <h3 className="font-bold text-base text-slate-900 mb-3">➕ Add Unit of Measurement</h3>
+            {unitModal.error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-2.5 rounded-lg text-xs mb-3">
+                ⚠️ {unitModal.error}
+              </div>
+            )}
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Unit Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Gram"
+                  value={unitModal.name}
+                  onChange={(e) => setUnitModal((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Symbol (Short Code) *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. GM, BOX, BNDL"
+                  value={unitModal.symbol}
+                  onChange={(e) => setUnitModal((prev) => ({ ...prev, symbol: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono uppercase"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Decimal Places (0 to 3)</label>
+                <select
+                  value={unitModal.decimalPlaces}
+                  onChange={(e) => setUnitModal((prev) => ({ ...prev, decimalPlaces: parseInt(e.target.value) || 0 }))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white"
+                >
+                  <option value={0}>0 (Whole items only, e.g. PCS, PKT)</option>
+                  <option value={1}>1 (e.g. 0.5)</option>
+                  <option value={2}>2 (e.g. 0.25)</option>
+                  <option value={3}>3 (Weighing scales, e.g. 0.125 KG)</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 mt-5">
+              <button
+                onClick={() => setUnitModal({ open: false, name: '', symbol: '', decimalPlaces: 0 })}
+                className="px-3.5 py-1.5 border border-slate-300 text-slate-700 rounded-xl text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateUnit}
+                disabled={unitModal.isSubmitting}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold"
+              >
+                {unitModal.isSubmitting ? 'Saving...' : 'Create Unit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 5: Khata Repayment Modal (Shadcn Dialog) --- */}
+      <RepaymentModal
+        open={repaymentModal.open && !!repaymentModal.customer}
+        onClose={() => setRepaymentModal({ open: false, customer: null, amount: '', paymentMethod: 'cash', notes: '', error: undefined })}
+        data={repaymentModal}
+        setData={setRepaymentModal}
+        onSave={handleRecordRepayment}
+      />
+
+      {/* --- MODAL 5B: Khata Repayment Receipt Confirmation Modal (Shadcn Dialog) --- */}
+      <RepaymentReceiptModal
+        open={repaymentReceiptModal.open && !!repaymentReceiptModal.receipt}
+        onClose={() => setRepaymentReceiptModal({ open: false, receipt: null })}
+        receipt={repaymentReceiptModal.receipt}
+      />
+
+      {/* --- MODAL: Customer Statement Timeline Modal (Shadcn Dialog) --- */}
+      <CustomerStatementModal
+        open={statementModal.open && !!statementModal.customer}
+        onClose={() => setStatementModal({ open: false, customer: null, statement: null, from: '', to: '', branchId: '' })}
+        customer={statementModal.customer}
+        statement={statementModal.statement}
+        loading={statementModal.loading}
+        error={statementModal.error}
+        from={statementModal.from}
+        to={statementModal.to}
+        setFrom={(val) => setStatementModal((prev) => ({ ...prev, from: val }))}
+        setTo={(val) => setStatementModal((prev) => ({ ...prev, to: val }))}
+        onFilter={handleFilterStatement}
+        onOpenRepayment={(c) =>
+          setRepaymentModal({
+            open: true,
+            customer: c,
+            amount: parseFloat(c.currentBalance) > 0 ? c.currentBalance : '',
+            paymentMethod: 'cash',
+            notes: '',
+            error: undefined,
+          })
+        }
+        onPrint={handlePrintStatement}
+        onExportCsv={handleExportStatementCsv}
+      />
+
+      {/* --- MODAL: Edit Credit Limit Modal (Shadcn Dialog) --- */}
+      <CreditLimitModal
+        open={creditLimitModal.open && !!creditLimitModal.customer}
+        onClose={() => setCreditLimitModal({ open: false, customer: null, newLimit: '', reason: '', error: undefined })}
+        data={creditLimitModal}
+        setData={setCreditLimitModal}
+        onSave={handleSaveCreditLimit}
+      />
+
+      {/* --- MODAL: Create Customer Account Modal (Shadcn Dialog) --- */}
+      <CreateCustomerModal
+        open={createCustomerModal.open}
+        onClose={() => setCreateCustomerModal({ open: false, name: '', phone: '', email: '', gstin: '', creditLimit: '5000.00', error: undefined })}
+        data={createCustomerModal}
+        setData={setCreateCustomerModal}
+        onSave={handleCreateCustomer}
+      />
+
+      {/* --- MODAL 6: Stock Adjustment Modal (Shadcn Dialog) --- */}
+      <StockAdjustmentDialog
+        open={adjustmentModal.open && !!adjustmentModal.product}
+        onClose={() => setAdjustmentModal({ open: false, product: null, qty: '', reason: 'Breakage / Discrepancy' })}
+        product={adjustmentModal.product}
+        currentStock={adjustmentModal.product ? stockMap.get(adjustmentModal.product.id) || '0.000' : '0.000'}
+        qty={adjustmentModal.qty}
+        setQty={(qty) => setAdjustmentModal((prev) => ({ ...prev, qty }))}
+        reason={adjustmentModal.reason}
+        setReason={(reason) => setAdjustmentModal((prev) => ({ ...prev, reason }))}
+        error={adjustmentModal.error}
+        isSubmitting={adjustmentModal.isSubmitting}
+        onConfirm={handleRecordStockAdjustment}
+      />
+
+      {/* --- MODAL 7: Supplier Create/Edit Modal (Shadcn Dialog) --- */}
+      <SupplierModal
+        open={supplierModal.open}
+        onClose={() => setSupplierModal((prev) => ({ ...prev, open: false }))}
+        data={supplierModal}
+        setData={setSupplierModal}
+        onSave={handleSaveSupplier}
+      />
+
+      {/* --- MODAL 8: Archive Supplier Confirmation Modal --- */}
+      {archiveSupplierModal.open && archiveSupplierModal.supplier && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+            <h3 className="text-base font-bold text-red-600 mb-2">🗑️ Archive Supplier?</h3>
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Are you sure you want to deactivate <strong className="text-slate-900">{archiveSupplierModal.supplier.name}</strong>?
+              Past purchase orders and tax statements will be preserved.
+            </p>
+
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setArchiveSupplierModal({ open: false, supplier: null })}
+                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmArchiveSupplier}
+                disabled={archiveSupplierModal.isSubmitting}
+                data-testid="confirm-archive-supplier-btn"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold cursor-pointer disabled:opacity-50"
+              >
+                {archiveSupplierModal.isSubmitting ? 'Archiving...' : 'Yes, Archive'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 9: Create Purchase Order Modal (Shadcn Dialog) --- */}
+      <CreatePoModal
+        open={poModal.open}
+        onClose={() => setPoModal((prev) => ({ ...prev, open: false }))}
+        data={poModal}
+        setData={setPoModal}
+        suppliers={suppliers}
+        branches={branches}
+        products={products}
+        activeBranch={activeBranch}
+        onSave={handleSavePo}
+      />
+
+      {/* --- MODAL 10: Inward GRN Receiving Modal (Shadcn Dialog) --- */}
+      <GrnReceiptModal
+        open={grnModal.open && !!grnModal.po}
+        onClose={() => setGrnModal({ open: false, po: null, receivedItems: {}, notes: '' })}
+        data={grnModal}
+        setData={setGrnModal}
+        onConfirm={handleConfirmGrn}
+      />
+
+      {/* --- MODAL 11: Customer Lifetime History Modal (Shadcn Dialog) --- */}
+      <CustomerDossierModal
+        open={customerHistoryModal.open && !!customerHistoryModal.customer}
+        onClose={() => setCustomerHistoryModal({ open: false, customer: null, loading: false, data: null, error: undefined })}
+        customer={customerHistoryModal.customer}
+        loading={customerHistoryModal.loading}
+        data={customerHistoryModal.data}
+        error={customerHistoryModal.error}
+      />
+
+      {/* --- MODAL 12: Controlled Customer Merge Modal (Shadcn Dialog) --- */}
+      <CustomerMergeDialog
+        open={mergeCustomerModal.open && !!mergeCustomerModal.sourceCustomer}
+        onClose={() => setMergeCustomerModal({ open: false, sourceCustomer: null, targetCustomerId: '', reason: '', isSubmitting: false, error: undefined, successMessage: undefined })}
+        data={mergeCustomerModal}
+        setData={setMergeCustomerModal}
+        customers={customers}
+        onMerge={handleMergeCustomers}
+      />
+
+      {/* --- MODAL 13: Dev Test Data Cleanup Modal (Shadcn Dialog) --- */}
+      <DevCleanupModal
+        open={cleanDevModal.open}
+        onClose={() => setCleanDevModal({ open: false, loading: false, result: null, error: undefined })}
+        loading={cleanDevModal.loading}
+        result={cleanDevModal.result}
+        error={cleanDevModal.error}
+      />
+
+      {/* --- MODAL 14: Branch GSTIN & Address Configuration Modal (Shadcn Dialog) --- */}
+      <BranchGstinModal
+        open={branchModal.open && !!branchModal.branch}
+        onClose={() => setBranchModal({ open: false, branch: null, name: '', gstin: '', stateCode: '', addressLine1: '', city: '', postalCode: '', isSubmitting: false, error: undefined, successMessage: undefined })}
+        data={branchModal}
+        setData={setBranchModal}
+        onSave={handleUpdateBranch}
+      />
     </div>
   );
 }
-

@@ -7,6 +7,8 @@ import { TenantMembershipEntity } from './entities/tenant-membership.entity';
 import { BranchEntity } from './entities/branch.entity';
 import { AuditLogEntity } from './entities/audit-log.entity';
 import { TenantGuard } from './guards/tenant.guard';
+import { PermissionsGuard } from './guards/permissions.guard';
+import { AuditService } from './audit.service';
 
 @Module({
   imports: [
@@ -18,8 +20,8 @@ import { TenantGuard } from './guards/tenant.guard';
     ]),
   ],
   controllers: [TenantsController],
-  providers: [TenantsService, TenantGuard],
-  exports: [TenantsService, TenantGuard],
+  providers: [TenantsService, TenantGuard, PermissionsGuard, AuditService],
+  exports: [TenantsService, TenantGuard, PermissionsGuard, AuditService],
 })
 export class TenantsModule {}
 

@@ -111,3 +111,11 @@ export enum SubscriptionStatus {
   PAST_DUE = 'past_due',
   CANCELLED = 'cancelled',
 }
+
+export enum StockTransferStatus {
+  DRAFT = 'draft',
+  DISPATCHED = 'dispatched',
+  IN_TRANSIT = 'in_transit',
+  RECEIVED = 'received',
+  CANCELLED = 'cancelled',
+}

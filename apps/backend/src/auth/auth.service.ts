@@ -12,7 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { UserEntity } from '../tenants/entities/user.entity';
 import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
-import { UserStatus } from '@pos/shared-types';
+import { UserStatus, Role, getPermissionsForRoles } from '@pos/shared-types';
 
 export interface JwtPayload {
   sub: string;
@@ -114,12 +114,22 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       phone: user.phone,
-      memberships: (user.memberships || []).map((m) => ({
-        tenantId: m.tenantId,
-        tenantName: m.tenant?.displayName ?? '',
-        role: m.role,
-        status: m.status,
-      })),
+      memberships: (user.memberships || []).map((m) => {
+        const rawRoles = m.roles && m.roles.length > 0 ? m.roles : [m.role as Role];
+        const roles = rawRoles.map((r) => r as Role);
+        const isOwner = roles.includes(Role.OWNER) || m.role === Role.OWNER;
+        const permissions = getPermissionsForRoles(roles);
+        return {
+          tenantId: m.tenantId,
+          tenantName: m.tenant?.displayName ?? '',
+          branchId: m.branchId ?? null,
+          role: m.role,
+          roles,
+          status: m.status,
+          permissions,
+          isOwner,
+        };
+      }),
     };
   }
 
