@@ -180,6 +180,24 @@ class LocalBillingRepository {
         ),
       );
 
+      // 4b. If Khata credit sale, atomically update customer outstanding balance (Rule 13)
+      if (paymentMethod.toLowerCase() == 'khata' && customerId != null) {
+        final existingCust = await (_db.select(_db.localCustomers)
+              ..where((c) => c.id.equals(customerId)))
+            .getSingleOrNull();
+        if (existingCust != null) {
+          final updatedBal = existingCust.currentBalancePaisa + grandTotalPaisa;
+          await (_db.update(_db.localCustomers)
+                ..where((c) => c.id.equals(customerId)))
+              .write(
+            LocalCustomersCompanion(
+              currentBalancePaisa: Value(updatedBal),
+              updatedAt: Value(now),
+            ),
+          );
+        }
+      }
+
       // 5. Insert SyncOutbox operation for background synchronizer
       final outboxOpId = const Uuid().v4();
       await _db.into(_db.syncOutbox).insert(
@@ -341,5 +359,53 @@ class LocalBillingRepository {
         lastError: Value(error),
       ),
     );
+  }
+
+  /// Compute live daily performance metrics for today from local SQLite tables
+  Future<Map<String, dynamic>> getTodayMetrics() async {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final tomorrowStart = todayStart.add(const Duration(days: 1));
+
+    final todayInvoices = await (_db.select(_db.localInvoices)
+          ..where((i) =>
+              i.createdAt.isBiggerOrEqualValue(todayStart) &
+              i.createdAt.isSmallerThanValue(tomorrowStart)))
+        .get();
+
+    final billCount = todayInvoices.length;
+    final grossSalesPaisa = todayInvoices.fold<int>(0, (sum, i) => sum + i.grandTotalPaisa);
+
+    int cashPaisa = 0;
+    int upiPaisa = 0;
+    int khataPaisa = 0;
+
+    for (final inv in todayInvoices) {
+      final method = inv.paymentMethod.toLowerCase();
+      if (method == 'cash') {
+        cashPaisa += inv.grandTotalPaisa;
+      } else if (method == 'upi' || method == 'card') {
+        upiPaisa += inv.grandTotalPaisa;
+      } else if (method == 'khata') {
+        khataPaisa += inv.grandTotalPaisa;
+      }
+    }
+
+    final allCustomers = await (_db.select(_db.localCustomers)).get();
+    final totalKhataDuePaisa = allCustomers.fold<int>(0, (sum, c) => sum + c.currentBalancePaisa);
+
+    final lowStockRows = await (_db.select(_db.localProducts)
+          ..where((p) => p.stockQuantity.isSmallerOrEqualValue(5.0)))
+        .get();
+
+    return {
+      'billCount': billCount,
+      'grossSalesPaisa': grossSalesPaisa,
+      'cashPaisa': cashPaisa,
+      'upiPaisa': upiPaisa,
+      'khataPaisa': khataPaisa,
+      'totalKhataDuePaisa': totalKhataDuePaisa,
+      'lowStockCount': lowStockRows.length,
+    };
   }
 }

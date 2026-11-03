@@ -118,6 +118,7 @@ class SyncRepository {
           hasMore: false,
           categories: const [],
           products: const [],
+          customers: const [],
         );
       }
     }

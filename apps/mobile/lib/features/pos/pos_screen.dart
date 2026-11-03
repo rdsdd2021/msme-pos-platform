@@ -6,7 +6,9 @@ import '../../core/models/receipt_document.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/cart_provider.dart';
 import '../../core/providers/catalog_provider.dart';
+import '../../core/providers/customer_provider.dart';
 import '../../core/providers/printer_provider.dart';
+import '../../core/services/printer_service.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/barcode_scanner_listener.dart';
 import '../../core/services/escpos_builder.dart';
@@ -22,23 +24,6 @@ class MobilePosScreen extends ConsumerStatefulWidget {
 class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Customer> _sampleCustomers = const [
-    Customer(
-      id: 'c-1',
-      name: 'Ramesh Sharma',
-      phone: '+919876543210',
-      creditLimitPaisa: 500000,
-      currentBalancePaisa: 125000,
-    ),
-    Customer(
-      id: 'c-2',
-      name: 'Pooja Verma',
-      phone: '+919876543211',
-      creditLimitPaisa: 300000,
-      currentBalancePaisa: 42000,
-    ),
-  ];
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -47,6 +32,8 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
 
   void _showCheckoutSheet(BuildContext context, CartState cart) {
     if (cart.isEmpty) return;
+
+    final customerList = ref.read(customerProvider).allCustomers;
 
     showModalBottomSheet(
       context: context,
@@ -58,18 +45,26 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
       builder: (ctx) {
         return _CheckoutBottomSheet(
           cart: cart,
-          customers: _sampleCustomers,
-          onComplete: (paymentMethod, customerName) async {
+          customers: customerList,
+          onAddCustomer: (name, phone) async {
+            final newC = await ref.read(customerProvider.notifier).addCustomer(
+              name: name,
+              phone: phone,
+            );
+            return newC;
+          },
+          onComplete: (paymentMethod, customerId, customerName) async {
             Navigator.pop(ctx);
             final result = await OfflineBillingService.processSale(
               items: cart.items,
               paymentMethod: paymentMethod,
+              customerId: customerId,
               customerName: customerName,
             );
 
             // Deduct stock in catalog
             for (final item in cart.items) {
-              ref.read(catalogProvider.notifier).deductStock(item.product.id, item.quantity);
+              await ref.read(catalogProvider.notifier).deductStock(item.product.id, item.quantity);
             }
 
             // Clear Cart
@@ -349,13 +344,27 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
   }
 
   void _showPrinterSettingsDialog(BuildContext context) {
+    List<BluetoothDeviceItem> pairedDevices = [];
+    bool isLoadingDevices = false;
+
     showDialog(
       context: context,
       builder: (ctx) {
-        return Consumer(
-          builder: (context, ref, _) {
+        return StatefulBuilder(
+          builder: (context, setDlgState) {
             final printer = ref.watch(printerProvider);
             final notifier = ref.read(printerProvider.notifier);
+
+            void loadDevices() async {
+              setDlgState(() => isLoadingDevices = true);
+              final devs = await BluetoothPrinterTransport.getPairedDevices();
+              if (ctx.mounted) {
+                setDlgState(() {
+                  pairedDevices = devs;
+                  isLoadingDevices = false;
+                });
+              }
+            }
 
             return AlertDialog(
               title: const Row(
@@ -365,94 +374,179 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                   Text('Thermal Printer Setup'),
                 ],
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.circle,
-                        size: 12,
-                        color: printer.isReady
-                            ? Colors.green
-                            : (printer.hasError ? Colors.red : Colors.grey),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 12,
+                            color: printer.isReady
+                                ? Colors.green
+                                : (printer.hasError ? Colors.red : Colors.grey),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Status: ${printer.status.label}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(height: 6),
                       Text(
-                        'Status: ${printer.status.label}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        'Device: ${printer.activeTransportName}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Device: ${printer.activeTransportName}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const Divider(height: 24),
-                  const Text('Paper Width Profile:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      ChoiceChip(
-                        label: const Text('58mm (32 cols)'),
-                        selected: printer.paperWidth == PaperWidth.mm58,
-                        onSelected: (val) {
-                          if (val) notifier.setPaperWidth(PaperWidth.mm58);
-                        },
+                      const Divider(height: 20),
+
+                      // Bluetooth Pairing Section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.bluetooth, size: 16, color: Colors.blue),
+                              SizedBox(width: 4),
+                              Text('Bluetooth Thermal Printers', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            ],
+                          ),
+                          TextButton.icon(
+                            onPressed: isLoadingDevices ? null : loadDevices,
+                            icon: isLoadingDevices
+                                ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.refresh, size: 14),
+                            label: const Text('Scan', style: TextStyle(fontSize: 11)),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      ChoiceChip(
-                        label: const Text('80mm (48 cols)'),
-                        selected: printer.paperWidth == PaperWidth.mm80,
-                        onSelected: (val) {
-                          if (val) notifier.setPaperWidth(PaperWidth.mm80);
-                        },
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final res = await notifier.printTestPage();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  res.success ? 'Test page printed!' : 'Test print error: ${res.errorMessage}',
+                      if (pairedDevices.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: pairedDevices.length,
+                          itemBuilder: (ctx, i) {
+                            final dev = pairedDevices[i];
+                            final isCurrent = printer.activeTransportName.contains(dev.address);
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                Icons.print,
+                                color: isCurrent ? Colors.green : Colors.grey,
+                                size: 18,
+                              ),
+                              title: Text(dev.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              subtitle: Text(dev.address, style: const TextStyle(fontSize: 10)),
+                              trailing: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isCurrent ? Colors.green : const Color(0xFF0F172A),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 ),
-                                backgroundColor: res.success ? Colors.green : Colors.red,
+                                onPressed: () async {
+                                  final transport = BluetoothPrinterTransport(address: dev.address, name: dev.name);
+                                  notifier.setTransport(transport);
+                                  final ok = await notifier.reconnect();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(ok ? 'Connected to ${dev.name}!' : 'Failed to connect to ${dev.name}'),
+                                        backgroundColor: ok ? Colors.green : Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: Text(isCurrent ? 'Connected' : 'Connect', style: const TextStyle(fontSize: 11)),
                               ),
                             );
                           },
-                          icon: const Icon(Icons.receipt, size: 16),
-                          label: const Text('Test Print', style: TextStyle(fontSize: 12)),
                         ),
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.blue.shade100),
+                          ),
+                          child: const Text(
+                            'Pair your 58mm/80mm Bluetooth printer in Android Phone Settings (PIN: 0000 or 1234), then tap "Scan" above to connect.',
+                            style: TextStyle(fontSize: 11, color: Colors.blueGrey),
+                          ),
+                        ),
+                      ],
+
+                      const Divider(height: 20),
+                      const Text('Paper Width Profile:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          ChoiceChip(
+                            label: const Text('58mm (32 cols)'),
+                            selected: printer.paperWidth == PaperWidth.mm58,
+                            onSelected: (val) {
+                              if (val) notifier.setPaperWidth(PaperWidth.mm58);
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          ChoiceChip(
+                            label: const Text('80mm (48 cols)'),
+                            selected: printer.paperWidth == PaperWidth.mm80,
+                            onSelected: (val) {
+                              if (val) notifier.setPaperWidth(PaperWidth.mm80);
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final ok = await notifier.kickCashDrawer();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(ok ? 'Cash drawer pulse sent!' : 'Drawer kick failed'),
-                                backgroundColor: ok ? Colors.green : Colors.red,
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.point_of_sale, size: 16),
-                          label: const Text('Kick Drawer', style: TextStyle(fontSize: 12)),
-                        ),
+                      const Divider(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final res = await notifier.printTestPage();
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      res.success ? 'Test page printed!' : 'Test print error: ${res.errorMessage}',
+                                    ),
+                                    backgroundColor: res.success ? Colors.green : Colors.red,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.receipt, size: 16),
+                              label: const Text('Test Print', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final ok = await notifier.kickCashDrawer();
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(ok ? 'Cash drawer pulse sent!' : 'Drawer kick failed'),
+                                    backgroundColor: ok ? Colors.green : Colors.red,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.point_of_sale, size: 16),
+                              label: const Text('Kick Drawer', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -469,14 +563,11 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
 
   void _showManualBarcodeDialog(BuildContext context) {
     final controller = TextEditingController();
-    final sampleBarcodes = [
-      {'name': 'Atta 5kg', 'barcode': '890103000001'},
-      {'name': 'Butter 500g', 'barcode': '890103000002'},
-      {'name': 'Tata Salt 1kg', 'barcode': '890103000003'},
-      {'name': 'Sunflower Oil 1L', 'barcode': '890103000004'},
-      {'name': 'Parle-G 800g', 'barcode': '890103000005'},
-      {'name': 'Maggi Masala', 'barcode': '890103000006'},
-    ];
+    final catalogState = ref.read(catalogProvider);
+    final popularWithBarcodes = catalogState.allProducts
+        .where((p) => p.barcode != null && p.barcode!.isNotEmpty)
+        .take(6)
+        .toList();
 
     showDialog(
       context: context,
@@ -493,36 +584,45 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'External USB/Bluetooth scanners scan automatically in background.\nOr enter/tap a barcode below:',
+              'External USB & Bluetooth scanners scan automatically in the background.\nOr enter an item barcode / SKU below:',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               autofocus: true,
-              keyboardType: TextInputType.number,
+              keyboardType: TextInputType.text,
               decoration: InputDecoration(
-                hintText: 'Enter Barcode (e.g. 890103000005)',
+                hintText: 'Enter Barcode or SKU (e.g. 890103000005)',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 isDense: true,
               ),
+              onSubmitted: (code) {
+                if (code.trim().isNotEmpty) {
+                  Navigator.pop(ctx);
+                  _onBarcodeScanned(code.trim());
+                }
+              },
             ),
-            const SizedBox(height: 12),
-            const Text('Quick Test Barcodes:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: sampleBarcodes.map((item) {
-                return ActionChip(
-                  label: Text('${item["name"]}', style: const TextStyle(fontSize: 11)),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _onBarcodeScanned(item['barcode']!);
-                  },
-                );
-              }).toList(),
-            ),
+            if (popularWithBarcodes.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text('Active Catalog Items with Barcode:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: popularWithBarcodes.map((item) {
+                  final label = item.name.contains('Parle-G') ? 'Parle-G 800g' : item.name;
+                  return ActionChip(
+                    label: Text(label, style: const TextStyle(fontSize: 11)),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _onBarcodeScanned(item.barcode!);
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -957,11 +1057,13 @@ class _BottomCartBar extends StatelessWidget {
 class _CheckoutBottomSheet extends StatefulWidget {
   final CartState cart;
   final List<Customer> customers;
-  final Function(String paymentMethod, String? customerName) onComplete;
+  final Future<Customer?> Function(String name, String phone)? onAddCustomer;
+  final Function(String paymentMethod, String? customerId, String? customerName) onComplete;
 
   const _CheckoutBottomSheet({
     required this.cart,
     required this.customers,
+    this.onAddCustomer,
     required this.onComplete,
   });
 
@@ -972,6 +1074,62 @@ class _CheckoutBottomSheet extends StatefulWidget {
 class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
   String _selectedMethod = 'cash';
   Customer? _selectedCustomer;
+
+  void _showNewCustomerDialog() {
+    final nameCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        title: const Text('Add Khata Customer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Customer Full Name *',
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Mobile Phone *',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dlgCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              final phone = phoneCtrl.text.trim();
+              if (name.isEmpty || phone.isEmpty) return;
+              Navigator.pop(dlgCtx);
+              if (widget.onAddCustomer != null) {
+                final created = await widget.onAddCustomer!(name, phone);
+                if (created != null && mounted) {
+                  setState(() {
+                    _selectedCustomer = created;
+                  });
+                }
+              }
+            },
+            child: const Text('Save Customer'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1033,7 +1191,17 @@ class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
 
           if (_selectedMethod == 'credit') ...[
             const SizedBox(height: 16),
-            const Text('Select Khata Customer:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Select Khata Customer:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                TextButton.icon(
+                  onPressed: _showNewCustomerDialog,
+                  icon: const Icon(Icons.person_add, size: 14),
+                  label: const Text('+ New Customer', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
             DropdownButtonFormField<Customer>(
               initialValue: _selectedCustomer,
@@ -1064,7 +1232,7 @@ class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
                   );
                   return;
                 }
-                widget.onComplete(_selectedMethod, _selectedCustomer?.name);
+                widget.onComplete(_selectedMethod, _selectedCustomer?.id, _selectedCustomer?.name);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),

@@ -1,7 +1,15 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/product.dart';
+import '../repositories/local_catalog_repository.dart';
+import 'sync_provider.dart';
 
-final initialProducts = [
+final localCatalogRepoProvider = Provider<LocalCatalogRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return LocalCatalogRepository(db);
+});
+
+const initialProducts = <Product>[
   const Product(
     id: 'prod-1',
     name: 'Aashirvaad Atta 5kg',
@@ -13,6 +21,7 @@ final initialProducts = [
     purchaseCostPaisa: 21000,
     gstRate: 5,
     currentStock: 50.0,
+    hsnCode: '11010000',
   ),
   const Product(
     id: 'prod-2',
@@ -25,6 +34,7 @@ final initialProducts = [
     purchaseCostPaisa: 24500,
     gstRate: 12,
     currentStock: 4.0, // Low stock demo
+    hsnCode: '04051000',
   ),
   const Product(
     id: 'prod-3',
@@ -37,6 +47,7 @@ final initialProducts = [
     purchaseCostPaisa: 2200,
     gstRate: 0,
     currentStock: 100.0,
+    hsnCode: '25010010',
   ),
   const Product(
     id: 'prod-4',
@@ -49,6 +60,7 @@ final initialProducts = [
     purchaseCostPaisa: 14000,
     gstRate: 5,
     currentStock: 60.0,
+    hsnCode: '15121110',
   ),
   const Product(
     id: 'prod-5',
@@ -61,6 +73,7 @@ final initialProducts = [
     purchaseCostPaisa: 6800,
     gstRate: 18,
     currentStock: 80.0,
+    hsnCode: '19053100',
   ),
   const Product(
     id: 'prod-6',
@@ -73,6 +86,7 @@ final initialProducts = [
     purchaseCostPaisa: 4600,
     gstRate: 12,
     currentStock: 3.0, // Low stock demo
+    hsnCode: '19023010',
   ),
 ];
 
@@ -80,12 +94,24 @@ class CatalogState {
   final List<Product> allProducts;
   final String selectedCategory;
   final String searchQuery;
+  final bool isLoading;
 
   const CatalogState({
     required this.allProducts,
     this.selectedCategory = 'All',
     this.searchQuery = '',
+    this.isLoading = false,
   });
+
+  List<String> get availableCategories {
+    final cats = <String>{'All'};
+    for (final p in allProducts) {
+      if (p.category.isNotEmpty) {
+        cats.add(p.category);
+      }
+    }
+    return cats.toList();
+  }
 
   List<Product> get filteredProducts {
     return allProducts.where((p) {
@@ -98,28 +124,54 @@ class CatalogState {
       return matchesCategory && matchesQuery;
     }).toList();
   }
+
+  CatalogState copyWith({
+    List<Product>? allProducts,
+    String? selectedCategory,
+    String? searchQuery,
+    bool? isLoading,
+  }) {
+    return CatalogState(
+      allProducts: allProducts ?? this.allProducts,
+      selectedCategory: selectedCategory ?? this.selectedCategory,
+      searchQuery: searchQuery ?? this.searchQuery,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
 }
 
 class CatalogNotifier extends StateNotifier<CatalogState> {
-  CatalogNotifier() : super(CatalogState(allProducts: initialProducts));
+  final LocalCatalogRepository _repo;
+
+  CatalogNotifier(this._repo)
+      : super(const CatalogState(allProducts: initialProducts, isLoading: false)) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      // Seed SQLite if empty so offline installs have working data immediately
+      await _repo.seedInitialProductsIfEmpty();
+      final items = await _repo.getAllProducts();
+      if (items.isNotEmpty) {
+        state = state.copyWith(allProducts: items, isLoading: false);
+      }
+    } catch (_) {
+      // Fallback gracefully to memory defaults if database initialization is delayed
+      state = state.copyWith(isLoading: false);
+    }
+  }
 
   void selectCategory(String category) {
-    state = CatalogState(
-      allProducts: state.allProducts,
-      selectedCategory: category,
-      searchQuery: state.searchQuery,
-    );
+    state = state.copyWith(selectedCategory: category);
   }
 
   void updateSearch(String query) {
-    state = CatalogState(
-      allProducts: state.allProducts,
-      selectedCategory: state.selectedCategory,
-      searchQuery: query,
-    );
+    state = state.copyWith(searchQuery: query);
   }
 
-  void deductStock(String productId, int quantity) {
+  Future<void> deductStock(String productId, int quantity) async {
+    await _repo.deductStock(productId, quantity.toDouble());
     final updated = state.allProducts.map((p) {
       if (p.id == productId) {
         return Product(
@@ -133,20 +185,23 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
           purchaseCostPaisa: p.purchaseCostPaisa,
           gstRate: p.gstRate,
           currentStock: (p.currentStock - quantity).clamp(0.0, double.infinity),
+          hsnCode: p.hsnCode,
         );
       }
       return p;
     }).toList();
+    state = state.copyWith(allProducts: updated);
+  }
 
-    state = CatalogState(
-      allProducts: updated,
-      selectedCategory: state.selectedCategory,
-      searchQuery: state.searchQuery,
-    );
+  Future<void> reload() async {
+    final items = await _repo.getAllProducts();
+    if (items.isNotEmpty) {
+      state = state.copyWith(allProducts: items);
+    }
   }
 }
 
 final catalogProvider = StateNotifierProvider<CatalogNotifier, CatalogState>((ref) {
-  return CatalogNotifier();
+  final repo = ref.watch(localCatalogRepoProvider);
+  return CatalogNotifier(repo);
 });
-

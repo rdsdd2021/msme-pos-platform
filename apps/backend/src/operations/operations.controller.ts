@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   ParseUUIDPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
@@ -95,6 +96,9 @@ export class OperationsController {
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Request() req: { user: { userId: string } },
   ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Development test data cleanup is disabled in production environments');
+    }
     return this.opsService.cleanupDevTestCustomers(tenantId, req.user?.userId);
   }
 

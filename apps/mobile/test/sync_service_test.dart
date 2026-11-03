@@ -75,6 +75,17 @@ class MockSyncRepository extends SyncRepository {
           'updatedAt': '2026-11-01T19:55:00.000Z',
         },
       ],
+      customers: [
+        {
+          'id': 'cust-sync-201',
+          'tenantId': 'tenant-1',
+          'name': 'Sunita Rao',
+          'phone': '9876543210',
+          'currentBalance': '250.00',
+          'creditLimit': '5000.00',
+          'updatedAt': '2026-11-01T19:55:00.000Z',
+        },
+      ],
     );
   }
 }
@@ -157,6 +168,7 @@ void main() {
 
       expect(result.isSuccess, isTrue);
       expect(result.pulledProductsCount, equals(1));
+      expect(result.pulledCustomersCount, equals(1));
 
       // Verify new product was upserted into LocalProducts table
       final products = await db.select(db.localProducts).get();
@@ -165,6 +177,13 @@ void main() {
       final pulledBread = products.firstWhere((p) => p.id == 'prod-sync-101');
       expect(pulledBread.name, equals('Fresh Brown Bread 400g'));
       expect(pulledBread.sellingPricePaisa, equals(4500)); // ₹45.00 in Paisa
+
+      // Verify new customer was upserted into LocalCustomers table
+      final customers = await db.select(db.localCustomers).get();
+      expect(customers.any((c) => c.id == 'cust-sync-201'), isTrue);
+      final pulledCustomer = customers.firstWhere((c) => c.id == 'cust-sync-201');
+      expect(pulledCustomer.name, equals('Sunita Rao'));
+      expect(pulledCustomer.currentBalancePaisa, equals(25000)); // ₹250.00 in Paisa
 
       // Rule 14: Verify cursor advanced only after local transaction commit
       final updatedCursor = await syncWorker.getSyncCursor();

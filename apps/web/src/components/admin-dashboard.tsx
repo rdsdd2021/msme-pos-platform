@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
 import {
   apiClient,
@@ -44,7 +45,6 @@ import { RepaymentModal, RepaymentReceiptModal } from '@/features/customers/repa
 import { CustomerStatementModal } from '@/features/customers/customer-statement-modal';
 import { CustomerMergeDialog } from '@/features/customers/customer-merge-dialog';
 import { CustomerDossierModal } from '@/features/customers/customer-dossier-modal';
-import { DevCleanupModal } from '@/features/customers/dev-cleanup-modal';
 import { ShiftsView } from '@/features/settings/shifts-view';
 import { DevicesView } from '@/features/settings/devices-view';
 import { SubscriptionView } from '@/features/settings/subscription-view';
@@ -957,8 +957,9 @@ export default function AdminDashboard({
       setArchiveSupplierModal({ open: false, supplier: null, isSubmitting: false });
       const sups = await apiClient.getSuppliers(activeTenant.tenantId);
       setSuppliers(sups);
+      toast.success('Supplier archived successfully');
     } catch (err: any) {
-      alert(err.message || 'Failed to archive supplier');
+      toast.error(err.message || 'Failed to archive supplier');
       setArchiveSupplierModal((prev) => ({ ...prev, isSubmitting: false }));
     }
   };
@@ -1908,7 +1909,6 @@ export default function AdminDashboard({
                     error: undefined,
                   })
                 }
-                onCleanDevCustomers={handleCleanDevTestCustomers}
                 onRefresh={fetchAllData}
                 onOpenStatement={handleOpenStatement}
                 onOpenHistory={handleOpenCustomerHistory}
@@ -2294,15 +2294,6 @@ export default function AdminDashboard({
         setData={setMergeCustomerModal}
         customers={customers}
         onMerge={handleMergeCustomers}
-      />
-
-      {/* --- MODAL 13: Dev Test Data Cleanup Modal (Shadcn Dialog) --- */}
-      <DevCleanupModal
-        open={cleanDevModal.open}
-        onClose={() => setCleanDevModal({ open: false, loading: false, result: null, error: undefined })}
-        loading={cleanDevModal.loading}
-        result={cleanDevModal.result}
-        error={cleanDevModal.error}
       />
 
       {/* --- MODAL 14: Branch GSTIN & Address Configuration Modal (Shadcn Dialog) --- */}

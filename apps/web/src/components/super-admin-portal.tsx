@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import {
   apiClient,
   PlatformMetrics,
@@ -126,7 +127,7 @@ export default function SuperAdminPortal() {
       await apiClient.updatePlatformTenantStatus(tenant.id, newStatus);
       await loadData();
     } catch (err: any) {
-      alert(`Error updating tenant: ${err.message}`);
+      toast.error(`Error updating tenant: ${err.message}`);
     } finally {
       setActionInProgress(false);
     }
@@ -136,7 +137,7 @@ export default function SuperAdminPortal() {
   const handleCreateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTenant.legalName || !newTenant.displayName || !newTenant.ownerEmail) {
-      alert('Please fill in all required tenant details.');
+      toast.error('Please fill in all required tenant details.');
       return;
     }
 
@@ -166,7 +167,7 @@ export default function SuperAdminPortal() {
       });
       await loadData();
     } catch (err: any) {
-      alert(`Error onboarding tenant: ${err.message}`);
+      toast.error(`Error onboarding tenant: ${err.message}`);
     } finally {
       setActionInProgress(false);
     }
@@ -181,7 +182,7 @@ export default function SuperAdminPortal() {
       setShowRevokeDeviceModal(null);
       await loadData();
     } catch (err: any) {
-      alert(`Error revoking device: ${err.message}`);
+      toast.error(`Error revoking device: ${err.message}`);
     } finally {
       setActionInProgress(false);
     }

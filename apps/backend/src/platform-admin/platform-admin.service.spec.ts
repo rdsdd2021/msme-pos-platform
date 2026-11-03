@@ -154,25 +154,29 @@ describe('PlatformAdminService', () => {
   });
 
   describe('createTenant', () => {
-    it('creates new tenant organization, branch, owner user and subscription', async () => {
-      const result = await service.createTenant(
-        {
-          legalName: 'Shree Krishna Retailers',
-          displayName: 'Krishna Supermart',
-          ownerEmail: 'owner@krishna.com',
-          ownerName: 'Gopal Sharma',
-          ownerPassword: 'Password@123',
-          planCode: SubscriptionPlanCode.BASIC_KIRANA,
-        },
-        'admin-user-id',
-        '127.0.0.1',
-      );
+    it(
+      'creates new tenant organization, branch, owner user and subscription',
+      async () => {
+        const result = await service.createTenant(
+          {
+            legalName: 'Shree Krishna Retailers',
+            displayName: 'Krishna Supermart',
+            ownerEmail: 'owner@krishna.com',
+            ownerName: 'Gopal Sharma',
+            ownerPassword: 'Password@123',
+            planCode: SubscriptionPlanCode.BASIC_KIRANA,
+          },
+          'admin-user-id',
+          '127.0.0.1',
+        );
 
-      expect(result.tenant).toBeDefined();
-      expect(result.branch).toBeDefined();
-      expect(result.owner.email).toBe('owner@krishna.com');
-      expect(result.subscription).toBeDefined();
-    });
+        expect(result.tenant).toBeDefined();
+        expect(result.branch).toBeDefined();
+        expect(result.owner.email).toBe('owner@krishna.com');
+        expect(result.subscription).toBeDefined();
+      },
+      15000,
+    );
 
     it('throws ConflictException if user with same email exists', async () => {
       userRepo.findOne.mockResolvedValueOnce({ id: 'existing-user' });

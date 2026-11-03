@@ -13,7 +13,6 @@ import {
   GitMerge,
   Coins,
   Settings2,
-  Brush,
   RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,7 +31,7 @@ import {
 interface CustomerDirectoryProps {
   customers: Customer[];
   onAddCustomer: () => void;
-  onCleanDevCustomers: () => void;
+  onCleanDevCustomers?: () => void;
   onRefresh: () => void;
   onOpenStatement: (customer: Customer) => void;
   onOpenHistory: (customer: Customer) => void;
@@ -113,18 +112,6 @@ export function CustomerDirectory({
           >
             <Plus className="h-3.5 w-3.5" />
             <span>New Customer</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onCleanDevCustomers}
-            data-testid="clean-dev-test-customers-btn"
-            className="h-9 bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 font-semibold text-xs px-3 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-            title="Safely cleans test customers with ZERO financial records. Preserves all accounts with transactions."
-          >
-            <Brush className="h-3.5 w-3.5" />
-            <span>Dev Test Cleanup</span>
           </Button>
 
           <Button

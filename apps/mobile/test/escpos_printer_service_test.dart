@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_mobile/core/models/receipt_document.dart';
 import 'package:pos_mobile/core/services/escpos_builder.dart';
@@ -273,6 +274,73 @@ void main() {
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('Paper roll out'));
       expect(printerService.status, PrinterStatus.error);
+    });
+  });
+
+  group('BluetoothPrinterTransport Hardware MethodChannel Tests', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('in.assistt.pos/bluetooth_printer');
+    final log = <MethodCall>[];
+    bool isConnectedState = false;
+
+    setUp(() {
+      log.clear();
+      isConnectedState = false;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        log.add(methodCall);
+        switch (methodCall.method) {
+          case 'getPairedDevices':
+            return [
+              {'name': 'BT-Printer-58', 'address': '00:11:22:33:44:55'},
+              {'name': 'Thermal-80', 'address': 'AA:BB:CC:DD:EE:FF'},
+            ];
+          case 'connect':
+            isConnectedState = true;
+            return true;
+          case 'disconnect':
+            isConnectedState = false;
+            return true;
+          case 'isConnected':
+            return isConnectedState;
+          case 'sendBytes':
+            return true;
+          default:
+            return null;
+        }
+      });
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('lists paired bluetooth devices correctly', () async {
+      final devices = await BluetoothPrinterTransport.getPairedDevices();
+      expect(devices.length, 2);
+      expect(devices[0].name, 'BT-Printer-58');
+      expect(devices[0].address, '00:11:22:33:44:55');
+      expect(devices[1].name, 'Thermal-80');
+      expect(log.any((call) => call.method == 'getPairedDevices'), isTrue);
+    });
+
+    test('connects, checks connection status, sends bytes, and disconnects', () async {
+      final transport = BluetoothPrinterTransport(
+        name: 'BT-Printer-58',
+        address: '00:11:22:33:44:55',
+      );
+
+      final connected = await transport.connect();
+      expect(connected, isTrue);
+
+      expect(transport.isConnected, isTrue);
+
+      await transport.sendBytes([0x1B, 0x40, 0x0A]);
+      expect(log.any((call) => call.method == 'sendBytes'), isTrue);
+
+      await transport.disconnect();
+      expect(transport.isConnected, isFalse);
     });
   });
 }

@@ -117,9 +117,10 @@ class SyncWorker {
       }
     }
 
-    // 2. Pull server deltas (catalog & reference data)
+    // 2. Pull server deltas (catalog, customers & reference data)
     int pulledProducts = 0;
     int pulledCategories = 0;
+    int pulledCustomers = 0;
     String newCursor = '';
 
     try {
@@ -157,6 +158,28 @@ class SyncWorker {
           );
           pulledProducts++;
         }
+
+        for (final c in pullResult.customers) {
+          final custId = c['id'] as String? ?? '';
+          if (custId.isEmpty) continue;
+
+          await _db.into(_db.localCustomers).insertOnConflictUpdate(
+            LocalCustomersCompanion(
+              id: Value(custId),
+              tenantId: Value(c['tenantId'] as String? ?? tenantId),
+              name: Value(c['name'] as String? ?? 'Customer'),
+              phone: Value(c['phone']?.toString() ?? ''),
+              currentBalancePaisa: Value(
+                ((double.tryParse(c['currentBalance']?.toString() ?? '0') ?? 0) * 100).round(),
+              ),
+              creditLimitPaisa: Value(
+                ((double.tryParse(c['creditLimit']?.toString() ?? '0') ?? 0) * 100).round(),
+              ),
+              updatedAt: Value(DateTime.tryParse(c['updatedAt']?.toString() ?? '') ?? DateTime.now()),
+            ),
+          );
+          pulledCustomers++;
+        }
       });
 
       // Save cursor and timestamp only after transaction succeeded
@@ -170,6 +193,7 @@ class SyncWorker {
         pushedCount: pushedCount,
         pulledProductsCount: 0,
         pulledCategoriesCount: 0,
+        pulledCustomersCount: 0,
         newCursor: '',
         isSuccess: false,
         error: 'Delta pull error: ${e.toString()}',
@@ -180,6 +204,7 @@ class SyncWorker {
       pushedCount: pushedCount,
       pulledProductsCount: pulledProducts,
       pulledCategoriesCount: pulledCategories,
+      pulledCustomersCount: pulledCustomers,
       newCursor: newCursor,
       isSuccess: true,
     );

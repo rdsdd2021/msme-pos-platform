@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
 import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { apiClient, Product, StockBalance, Customer, Invoice, Category } from '@/lib/api-client';
@@ -317,7 +318,7 @@ export default function PosCheckoutScreen() {
       }
     }
 
-    alert(`Barcode/SKU "${query}" not found in catalogue`);
+    toast.error(`Barcode/SKU "${query}" not found in catalogue`);
   };
 
   // Filtered products

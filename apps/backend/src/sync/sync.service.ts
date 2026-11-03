@@ -9,6 +9,7 @@ import { DeviceInvoiceRangeEntity } from './entities/device-invoice-range.entity
 import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
+import { CustomerEntity } from '../operations/entities/customer.entity';
 import { BillingService } from '../billing/billing.service';
 import { CreateSaleDto } from '../billing/dto/billing.dto';
 import { PushSyncBatchDto, AllocateInvoiceRangeDto } from './dto/sync.dto';
@@ -34,6 +35,8 @@ export class SyncService {
     private readonly categoryRepo: Repository<CategoryEntity>,
     @InjectRepository(DeviceEntity)
     private readonly deviceRepo: Repository<DeviceEntity>,
+    @InjectRepository(CustomerEntity)
+    private readonly customerRepo: Repository<CustomerEntity>,
     private readonly billingService: BillingService,
     private readonly dataSource: DataSource,
   ) {}
@@ -159,12 +162,16 @@ export class SyncService {
   ): Promise<SyncPullDeltaResponse> {
     const cursorDate = cursor ? new Date(cursor) : new Date(0);
 
-    const [categories, products] = await Promise.all([
+    const [categories, products, customers] = await Promise.all([
       this.categoryRepo.find({
         where: { tenantId, updatedAt: MoreThan(cursorDate) },
         order: { updatedAt: 'ASC' },
       }),
       this.productRepo.find({
+        where: { tenantId, updatedAt: MoreThan(cursorDate) },
+        order: { updatedAt: 'ASC' },
+      }),
+      this.customerRepo.find({
         where: { tenantId, updatedAt: MoreThan(cursorDate) },
         order: { updatedAt: 'ASC' },
       }),
@@ -177,6 +184,7 @@ export class SyncService {
       hasMore: false,
       categories: categories as any,
       products: products as any,
+      customers: customers as any,
     };
   }
 

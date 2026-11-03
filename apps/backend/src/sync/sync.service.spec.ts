@@ -7,6 +7,7 @@ import { DeviceInvoiceRangeEntity } from './entities/device-invoice-range.entity
 import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
+import { CustomerEntity } from '../operations/entities/customer.entity';
 import { BillingService } from '../billing/billing.service';
 import { DeviceStatus } from '@pos/shared-types';
 
@@ -16,6 +17,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
   let mockRangeRepo: any;
   let mockProductRepo: any;
   let mockCategoryRepo: any;
+  let mockCustomerRepo: any;
   let mockDeviceRepo: any;
   let mockBillingService: any;
   let mockDataSource: any;
@@ -37,6 +39,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
     };
     mockProductRepo = { find: jest.fn().mockResolvedValue([]) };
     mockCategoryRepo = { find: jest.fn().mockResolvedValue([]) };
+    mockCustomerRepo = { find: jest.fn().mockResolvedValue([]) };
     mockBillingService = {
       createSale: jest.fn().mockResolvedValue({ id: 'server-invoice-uuid-101' }),
     };
@@ -49,6 +52,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
         { provide: getRepositoryToken(DeviceInvoiceRangeEntity), useValue: mockRangeRepo },
         { provide: getRepositoryToken(ProductEntity), useValue: mockProductRepo },
         { provide: getRepositoryToken(CategoryEntity), useValue: mockCategoryRepo },
+        { provide: getRepositoryToken(CustomerEntity), useValue: mockCustomerRepo },
         { provide: getRepositoryToken(DeviceEntity), useValue: mockDeviceRepo },
         { provide: BillingService, useValue: mockBillingService },
         { provide: DataSource, useValue: mockDataSource },
@@ -161,6 +165,22 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
       expect(range.startNumber).toBe(1001);
       expect(range.endNumber).toBe(1050);
       expect(range.isExhausted).toBe(false);
+    });
+  });
+
+  describe('Delta Pull (Catalog & Customer Reference Data)', () => {
+    it('pulls products, categories, and customer deltas after cursor timestamp', async () => {
+      mockProductRepo.find.mockResolvedValueOnce([{ id: 'prod-1', name: 'Tata Salt' }]);
+      mockCategoryRepo.find.mockResolvedValueOnce([{ id: 'cat-1', name: 'Grocery' }]);
+      mockCustomerRepo.find.mockResolvedValueOnce([{ id: 'cust-1', name: 'Ramesh Sharma' }]);
+
+      const deltas = await service.pullDeltas('tenant-1', '2026-10-31T00:00:00.000Z');
+
+      expect(deltas.products.length).toBe(1);
+      expect(deltas.categories.length).toBe(1);
+      expect(deltas.customers?.length).toBe(1);
+      expect(deltas.hasMore).toBe(false);
+      expect(deltas.cursor).toBeDefined();
     });
   });
 });

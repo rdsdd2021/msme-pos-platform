@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'escpos_builder.dart';
 import '../models/receipt_document.dart';
 
@@ -197,6 +198,83 @@ class NetworkPrinterTransport implements PrinterTransport {
     await _socket?.close();
     _socket?.destroy();
     _socket = null;
+  }
+}
+
+class BluetoothDeviceItem {
+  final String name;
+  final String address;
+
+  const BluetoothDeviceItem({required this.name, required this.address});
+}
+
+/// Real Android Bluetooth ESC/POS SPP Transport (RFCOMM UUID 00001101-0000-1000-8000-00805F9B34FB)
+class BluetoothPrinterTransport implements PrinterTransport {
+  static const MethodChannel _channel = MethodChannel('in.assistt.pos/bluetooth_printer');
+
+  @override
+  final String id;
+  @override
+  final String name;
+  final String address;
+
+  bool _connected = false;
+
+  BluetoothPrinterTransport({
+    required this.address,
+    String? name,
+  })  : id = 'bt-$address',
+        name = name ?? 'Bluetooth Printer ($address)';
+
+  @override
+  bool get isConnected => _connected;
+
+  @override
+  Future<bool> connect() async {
+    try {
+      final ok = await _channel.invokeMethod<bool>('connect', {'address': address});
+      _connected = ok ?? false;
+      return _connected;
+    } catch (_) {
+      _connected = false;
+      return false;
+    }
+  }
+
+  @override
+  Future<void> sendBytes(List<int> bytes) async {
+    if (!_connected) {
+      final ok = await connect();
+      if (!ok) {
+        throw const SocketException('Bluetooth printer disconnected');
+      }
+    }
+    await _channel.invokeMethod('sendBytes', {'bytes': Uint8List.fromList(bytes)});
+  }
+
+  @override
+  Future<void> disconnect() async {
+    try {
+      await _channel.invokeMethod('disconnect');
+    } catch (_) {}
+    _connected = false;
+  }
+
+  /// Query bonded/paired Bluetooth thermal printers from Android OS
+  static Future<List<BluetoothDeviceItem>> getPairedDevices() async {
+    try {
+      final list = await _channel.invokeListMethod<dynamic>('getPairedDevices');
+      if (list == null) return [];
+      return list.map((item) {
+        final map = Map<String, dynamic>.from(item as Map);
+        return BluetoothDeviceItem(
+          name: map['name']?.toString() ?? 'Thermal Printer',
+          address: map['address']?.toString() ?? '',
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 }
 

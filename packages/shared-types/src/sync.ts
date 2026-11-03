@@ -31,6 +31,7 @@ export interface SyncPullDeltaResponse<T = Record<string, unknown>> {
   hasMore: boolean;
   categories: T[];
   products: T[];
+  customers?: T[];
 }
 
 export interface DeviceInvoiceRangeAllocation {

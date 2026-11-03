@@ -61,23 +61,27 @@ class SyncPullDeltaResult {
   final bool hasMore;
   final List<Map<String, dynamic>> categories;
   final List<Map<String, dynamic>> products;
+  final List<Map<String, dynamic>> customers;
 
   const SyncPullDeltaResult({
     required this.cursor,
     required this.hasMore,
     required this.categories,
     required this.products,
+    this.customers = const [],
   });
 
   factory SyncPullDeltaResult.fromJson(Map<String, dynamic> json) {
     final rawCats = json['categories'] as List<dynamic>? ?? [];
     final rawProds = json['products'] as List<dynamic>? ?? [];
+    final rawCusts = json['customers'] as List<dynamic>? ?? [];
 
     return SyncPullDeltaResult(
       cursor: json['cursor'] as String? ?? '',
       hasMore: json['hasMore'] as bool? ?? false,
       categories: rawCats.map((c) => Map<String, dynamic>.from(c as Map)).toList(),
       products: rawProds.map((p) => Map<String, dynamic>.from(p as Map)).toList(),
+      customers: rawCusts.map((c) => Map<String, dynamic>.from(c as Map)).toList(),
     );
   }
 }
@@ -86,6 +90,7 @@ class SyncCycleResult {
   final int pushedCount;
   final int pulledProductsCount;
   final int pulledCategoriesCount;
+  final int pulledCustomersCount;
   final String newCursor;
   final bool isSuccess;
   final String? error;
@@ -94,6 +99,7 @@ class SyncCycleResult {
     required this.pushedCount,
     required this.pulledProductsCount,
     required this.pulledCategoriesCount,
+    this.pulledCustomersCount = 0,
     required this.newCursor,
     required this.isSuccess,
     this.error,

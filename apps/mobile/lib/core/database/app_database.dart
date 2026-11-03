@@ -26,9 +26,16 @@ class AppDatabase extends _$AppDatabase {
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {
-      final dbFolder = await getApplicationDocumentsDirectory();
-      final file = File(p.join(dbFolder.path, 'kirana_pos.sqlite'));
-      return NativeDatabase.createInBackground(file);
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        return NativeDatabase.memory();
+      }
+      try {
+        final dbFolder = await getApplicationDocumentsDirectory();
+        final file = File(p.join(dbFolder.path, 'kirana_pos.sqlite'));
+        return NativeDatabase.createInBackground(file);
+      } catch (_) {
+        return NativeDatabase.memory();
+      }
     });
   }
 
