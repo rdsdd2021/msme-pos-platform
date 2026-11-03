@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
-import { Store, ShieldCheck, AlertCircle, ArrowRight, Loader2, UserCheck } from 'lucide-react';
+import { Store, ShieldCheck, AlertCircle, ArrowRight, Loader2, UserCheck, Smartphone, Download } from 'lucide-react';
 
 export default function LoginScreen() {
   const { login, status, error, clearError } = useAuthStore();
@@ -190,6 +190,25 @@ export default function LoginScreen() {
               </div>
               <div className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">superadmin@pos.assistt.in</div>
             </button>
+          </div>
+
+          {/* Android APK Direct Sideload Download */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-left">
+              <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Smartphone className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Android POS App</span>
+              </div>
+              <div className="text-[10px] text-slate-400">Offline SQLite &amp; Thermal Billing</div>
+            </div>
+            <a
+              href="/downloads/kirana-pos.apk"
+              download="kirana-pos.apk"
+              className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download APK
+            </a>
           </div>
         </div>
 
