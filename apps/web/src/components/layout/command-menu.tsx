@@ -14,6 +14,8 @@ import {
   Smartphone,
   CreditCard,
   Receipt,
+  UtensilsCrossed,
+  ChefHat,
   LogOut,
   PlusCircle,
   Search,
@@ -33,7 +35,7 @@ import { useAuthStore } from '@/store/auth.store';
 interface CommandMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectAction: (target: 'pos' | 'admin', adminTab?: string, adminSubTab?: string) => void;
+  onSelectAction: (target: 'pos' | 'admin' | 'restaurant' | 'kds', adminTab?: string, adminSubTab?: string) => void;
 }
 
 export function CommandMenu({ open, onOpenChange, onSelectAction }: CommandMenuProps) {
@@ -64,14 +66,34 @@ export function CommandMenu({ open, onOpenChange, onSelectAction }: CommandMenuP
 
         <CommandGroup heading="Navigation">
           {(isOwner() || isBranchManager() || isCashier()) && (
-            <CommandItem
-              onSelect={() => handleSelect(() => onSelectAction('pos'))}
-              className="cursor-pointer"
-            >
-              <ShoppingCart className="mr-2 h-4 w-4 text-emerald-500" />
-              <span>POS Billing Terminal</span>
-              <CommandShortcut>F1</CommandShortcut>
-            </CommandItem>
+            <>
+              <CommandItem
+                onSelect={() => handleSelect(() => onSelectAction('pos'))}
+                className="cursor-pointer"
+              >
+                <ShoppingCart className="mr-2 h-4 w-4 text-emerald-500" />
+                <span>POS Billing Terminal</span>
+                <CommandShortcut>F1</CommandShortcut>
+              </CommandItem>
+
+              <CommandItem
+                onSelect={() => handleSelect(() => onSelectAction('restaurant'))}
+                className="cursor-pointer"
+              >
+                <UtensilsCrossed className="mr-2 h-4 w-4 text-amber-500" />
+                <span>Restaurant Dining Floor & Tables</span>
+                <CommandShortcut>F2</CommandShortcut>
+              </CommandItem>
+
+              <CommandItem
+                onSelect={() => handleSelect(() => onSelectAction('kds'))}
+                className="cursor-pointer"
+              >
+                <ChefHat className="mr-2 h-4 w-4 text-sky-500" />
+                <span>Kitchen Display Screen (KDS)</span>
+                <CommandShortcut>F3</CommandShortcut>
+              </CommandItem>
+            </>
           )}
 
           {(isOwner() || isBranchManager() || isCashier() || isAccountant()) && (

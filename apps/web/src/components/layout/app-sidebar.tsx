@@ -22,8 +22,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 
 interface AppSidebarProps {
-  viewMode: 'pos' | 'admin';
-  setViewMode: (mode: 'pos' | 'admin') => void;
+  viewMode: 'pos' | 'admin' | 'restaurant' | 'kds';
+  setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds') => void;
   activeAdminTab?: string;
   setActiveAdminTab?: (tab: any) => void;
   activeInventorySubTab?: string;
@@ -115,6 +115,10 @@ export function AppSidebar({
   const handleNavClick = (item: NavItem) => {
     if (item.target === 'pos') {
       setViewMode('pos');
+    } else if (item.target === 'restaurant') {
+      setViewMode('restaurant');
+    } else if (item.target === 'kds') {
+      setViewMode('kds');
     } else {
       setViewMode('admin');
       if (item.adminTab && setActiveAdminTab) {
@@ -247,13 +251,13 @@ export function AppSidebar({
           )}
 
           {/* Universal Mode Switcher Buttons */}
-          <div className={cn('grid grid-cols-2 gap-1 mt-1 bg-slate-100/90 p-1 rounded-lg border border-slate-200/60', collapsed && 'grid-cols-1')}>
+          <div className={cn('grid grid-cols-3 gap-1 mt-1 bg-slate-100/90 p-1 rounded-lg border border-slate-200/60', collapsed && 'grid-cols-1')}>
             {canAccessPos && (
               <button
                 onClick={() => setViewMode('pos')}
                 data-testid="mode-pos-btn"
                 className={cn(
-                  'px-2 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer',
+                  'px-1.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer',
                   viewMode === 'pos'
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
@@ -265,12 +269,29 @@ export function AppSidebar({
               </button>
             )}
 
+            {canAccessPos && (
+              <button
+                onClick={() => setViewMode('restaurant')}
+                data-testid="mode-restaurant-btn"
+                className={cn(
+                  'px-1.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer',
+                  viewMode === 'restaurant'
+                    ? 'bg-amber-600 text-white shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                )}
+                title="Restaurant & Dine-in Floor"
+              >
+                <span>🍽️</span>
+                {!collapsed && <span>Dine-In</span>}
+              </button>
+            )}
+
             {canAccessAdmin && (
               <button
                 onClick={() => setViewMode('admin')}
                 data-testid="mode-admin-btn"
                 className={cn(
-                  'px-2 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer',
+                  'px-1.5 py-1.5 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer',
                   viewMode === 'admin'
                     ? 'bg-white text-slate-900 shadow-xs border border-slate-200/70 font-bold'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'

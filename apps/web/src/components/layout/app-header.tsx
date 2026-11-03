@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 
 interface AppHeaderProps {
-  viewMode: 'pos' | 'admin';
-  setViewMode: (mode: 'pos' | 'admin') => void;
+  viewMode: 'pos' | 'admin' | 'restaurant' | 'kds';
+  setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds') => void;
   activeAdminTab?: string;
   onOpenCommand: () => void;
 }
@@ -84,6 +84,14 @@ export function AppHeader({
               {viewMode === 'pos' ? (
                 <BreadcrumbPage className="font-semibold text-slate-800">
                   Cashier POS Terminal
+                </BreadcrumbPage>
+              ) : viewMode === 'restaurant' ? (
+                <BreadcrumbPage className="font-semibold text-slate-800">
+                  Dining Floor & Tables
+                </BreadcrumbPage>
+              ) : viewMode === 'kds' ? (
+                <BreadcrumbPage className="font-semibold text-slate-800">
+                  Kitchen Display Screen (KDS)
                 </BreadcrumbPage>
               ) : (
                 <BreadcrumbPage className="font-semibold text-slate-800">

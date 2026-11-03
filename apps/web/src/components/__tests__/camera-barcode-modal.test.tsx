@@ -86,3 +86,4 @@ describe('CameraBarcodeModal', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 });
+

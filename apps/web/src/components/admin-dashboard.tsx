@@ -1947,7 +1947,14 @@ export default function AdminDashboard({
 
             {/* 5. Devices Tab */}
             {activeTab === 'devices' && (
-              <DevicesView devices={devices} onRefresh={fetchAllData} />
+              <DevicesView
+                devices={devices}
+                onRefresh={fetchAllData}
+                tenantId={activeTenant?.tenantId}
+                branchId={activeBranch?.id}
+                tenantName={activeTenant?.tenantName}
+                branchName={activeBranch?.name}
+              />
             )}
 
             {/* 6. Subscription Tab */}

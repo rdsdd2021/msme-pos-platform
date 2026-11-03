@@ -12,6 +12,8 @@ import {
   Smartphone,
   CreditCard,
   Receipt,
+  UtensilsCrossed,
+  ChefHat,
   LucideIcon,
 } from 'lucide-react';
 
@@ -19,7 +21,7 @@ export interface NavItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  target: 'pos' | 'admin';
+  target: 'pos' | 'admin' | 'restaurant' | 'kds';
   adminTab?: 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices';
   adminSubTab?: 'products' | 'stock' | 'suppliers' | 'purchases' | 'categories' | 'transfers';
   allowedRoles: Role[];
@@ -53,6 +55,29 @@ export const navigationConfig: NavSection[] = [
         adminTab: 'analytics',
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER],
         testId: 'nav-analytics',
+      },
+    ],
+  },
+  {
+    title: 'Restaurant & Dining',
+    items: [
+      {
+        id: 'restaurant-floorplan',
+        title: 'Floorplan & Tables',
+        icon: UtensilsCrossed,
+        target: 'restaurant',
+        allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
+        badge: 'Dine-In',
+        testId: 'nav-restaurant-floorplan',
+      },
+      {
+        id: 'kitchen-display',
+        title: 'Kitchen Display (KDS)',
+        icon: ChefHat,
+        target: 'kds',
+        allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
+        badge: 'KOT',
+        testId: 'nav-kitchen-display',
       },
     ],
   },

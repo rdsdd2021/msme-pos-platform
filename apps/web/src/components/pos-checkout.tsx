@@ -53,6 +53,8 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { RecentBillsModal } from '@/features/billing/recent-bills-modal';
+import { ReceiptDesignerModal } from '@/features/settings/receipt-designer-modal';
+import { getReceiptConfig } from '@/lib/receipt-template';
 
 function generateUuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -80,7 +82,7 @@ export default function PosCheckoutScreen() {
     getGrandTotal,
     getDiscountTotal,
   } = useCartStore();
-  const { activeTenant, activeBranch, branches } = useAuthStore();
+  const { activeTenant, activeBranch, branches, user } = useAuthStore();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [stockMap, setStockMap] = useState<Map<string, string>>(new Map());
@@ -97,6 +99,11 @@ export default function PosCheckoutScreen() {
   // Recent Bills state
   const [recentBillsOpen, setRecentBillsOpen] = useState(false);
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
+  const [receiptDesignerOpen, setReceiptDesignerOpen] = useState(false);
+
+  const receiptConfig = useMemo(() => {
+    return getReceiptConfig(activeTenant?.tenantId, activeBranch?.id);
+  }, [activeTenant?.tenantId, activeBranch?.id, receiptDesignerOpen]);
 
   // Checkout modal & payment state
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
@@ -446,6 +453,38 @@ export default function PosCheckoutScreen() {
     }
   };
 
+  const handlePrintConfirmedInvoice = () => {
+    if (!confirmedInvoice) return;
+    const printWindow = window.open('', '_blank', 'width=420,height=600');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    const receiptHtml = document.getElementById('pos-confirmed-receipt-paper')?.innerHTML || '';
+    const style = `
+      <style>
+        body { margin: 0; padding: 10px; font-family: ${receiptConfig.fontFamily === 'monospace' ? '"Courier New", Courier, monospace' : 'sans-serif'}; font-size: 11px; color: #000; }
+        .thermal-receipt { width: ${receiptConfig.paperWidth === 58 ? '48mm' : '72mm'}; margin: 0 auto; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .bold { font-weight: bold; }
+        .divider { border-top: 1px dashed #000; margin: 4px 0; }
+        .flex-between { display: flex; justify-content: space-between; }
+        @media print {
+          @page { margin: 0; size: ${receiptConfig.paperWidth}mm auto; }
+          body { margin: 0; padding: 2mm; }
+        }
+      </style>
+    `;
+    printWindow.document.write(`<html><head><title>Receipt - ${confirmedInvoice.invoiceNumber}</title>${style}</head><body><div class="thermal-receipt">${receiptHtml}</div></body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
+  };
+
   return (
     <div
       className="grid grid-cols-12 h-full bg-slate-50 text-slate-900 overflow-hidden select-none"
@@ -527,6 +566,17 @@ export default function PosCheckoutScreen() {
               <kbd className="hidden md:inline-block bg-slate-100 border border-slate-200 px-1 py-0.2 rounded text-[10px] font-mono text-slate-500">
                 F4
               </kbd>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReceiptDesignerOpen(true)}
+              title="Customize Thermal Bill & Receipt Design"
+              data-testid="pos-customize-bill-btn"
+              className="h-8 gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-50 shrink-0 cursor-pointer shadow-2xs"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Bill Design</span>
             </Button>
           </div>
         </div>
@@ -1273,12 +1323,17 @@ export default function PosCheckoutScreen() {
           ========================================================================= */}
       {confirmedInvoice && (
         <Dialog open={!!confirmedInvoice} onOpenChange={() => setConfirmedInvoice(null)}>
-          <DialogContent className="max-w-md p-0 overflow-hidden" data-testid="confirmed-invoice-modal">
-            <DialogHeader className="bg-emerald-600 text-white p-5">
-              <Badge variant="outline" className="bg-emerald-700 text-white border-none w-fit text-[10px] uppercase font-bold tracking-wider">
-                Sale Confirmed in PostgreSQL
-              </Badge>
-              <DialogTitle className="text-xl font-black mt-1 text-white" data-testid="confirmed-invoice-number">
+          <DialogContent className="max-w-md p-0 overflow-hidden max-h-[90vh] flex flex-col" data-testid="confirmed-invoice-modal">
+            <DialogHeader className="bg-emerald-600 text-white p-4 shrink-0">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className="bg-emerald-700 text-white border-none w-fit text-[10px] uppercase font-bold tracking-wider">
+                  Sale Confirmed in PostgreSQL
+                </Badge>
+                <span className="text-[11px] text-emerald-100 font-mono">
+                  {receiptConfig.paperWidth}mm Roll
+                </span>
+              </div>
+              <DialogTitle className="text-lg font-black mt-1 text-white" data-testid="confirmed-invoice-number">
                 {confirmedInvoice.invoiceNumber}
               </DialogTitle>
               <DialogDescription className="text-xs text-emerald-100">
@@ -1286,87 +1341,199 @@ export default function PosCheckoutScreen() {
               </DialogDescription>
             </DialogHeader>
 
-            {/* Receipt Body */}
-            <div className="p-6 font-mono text-xs text-slate-800 space-y-3 bg-white">
-              <div className="text-center border-b pb-3">
-                <p className="font-bold text-sm text-slate-950">
-                  {activeTenant?.tenantName || 'KIRANA SUPERMART'}
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Branch: {activeBranch?.name || 'Main Counter'}
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  GSTIN: {activeBranch?.gstin || '27AABCU9603R1ZM'}
-                </p>
-              </div>
-
-              <div className="flex justify-between text-[11px] text-slate-500">
-                <span>Date: {new Date(confirmedInvoice.postedAt).toLocaleString('en-IN')}</span>
-                <span>Branch: {activeBranch?.code || 'MAIN'}</span>
-              </div>
-
-              {/* Items List */}
-              <div className="border-t border-b py-2 space-y-1">
-                {confirmedInvoice.lines?.map((line, i) => (
-                  <div key={i} className="flex justify-between items-center text-xs">
-                    <span className="truncate max-w-[200px]">{line.productNameSnapshot}</span>
-                    <span>
-                      {line.quantity} x ₹{line.unitPrice} = ₹{line.lineTotal}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Totals */}
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>₹{confirmedInvoice.subtotal}</span>
+            {/* Receipt Body Container */}
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-100 flex justify-center">
+              <div
+                id="pos-confirmed-receipt-paper"
+                style={{
+                  fontFamily: receiptConfig.fontFamily === 'monospace' ? '"Courier New", Courier, monospace' : 'inherit',
+                  maxWidth: receiptConfig.paperWidth === 58 ? '300px' : '380px',
+                  width: '100%',
+                }}
+                className="bg-white p-5 shadow-md text-black border-t-2 border-b-2 border-slate-300 relative text-xs leading-tight select-none"
+              >
+                {/* Store Header */}
+                <div className={receiptConfig.headerAlignment === 'center' ? 'text-center' : 'text-left'}>
+                  <h2 className="font-black text-sm uppercase tracking-wide">
+                    {receiptConfig.businessName || activeTenant?.tenantName || 'Kirana Supermart'}
+                  </h2>
+                  {receiptConfig.tagline && (
+                    <p className="text-[11px] text-slate-700 mt-0.5">{receiptConfig.tagline}</p>
+                  )}
+                  <p className="text-[10px] mt-1 text-slate-800">
+                    {receiptConfig.branchName || activeBranch?.name || 'Main Branch'}
+                  </p>
+                  {receiptConfig.addressLine1 && (
+                    <p className="text-[10px] text-slate-600">{receiptConfig.addressLine1}</p>
+                  )}
+                  <p className="text-[10px] text-slate-600">
+                    {receiptConfig.city} {receiptConfig.postalCode && `- ${receiptConfig.postalCode}`}
+                  </p>
+                  {receiptConfig.phone && (
+                    <p className="text-[10px] text-slate-700 mt-0.5">Tel: {receiptConfig.phone}</p>
+                  )}
+                  {(receiptConfig.gstin || activeBranch?.gstin) && (
+                    <p className="text-[10px] font-mono font-bold mt-1">
+                      GSTIN: {receiptConfig.gstin || activeBranch?.gstin}
+                    </p>
+                  )}
+                  {receiptConfig.fssaiNumber && (
+                    <p className="text-[10px] font-mono text-slate-700">
+                      FSSAI Lic: {receiptConfig.fssaiNumber}
+                    </p>
+                  )}
                 </div>
-                {parseFloat(confirmedInvoice.discountTotal) > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>Discount:</span>
-                    <span>-₹{confirmedInvoice.discountTotal}</span>
+
+                <div className="border-t border-dashed border-slate-400 my-2.5" />
+
+                {/* Metadata */}
+                <div className="text-[10px] space-y-0.5 text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Bill No: <strong className="text-black font-mono">{confirmedInvoice.invoiceNumber}</strong></span>
+                    <span>Date: {new Date(confirmedInvoice.postedAt).toLocaleDateString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Time: {new Date(confirmedInvoice.postedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {receiptConfig.showCashierName && (
+                      <span>Cashier: {user?.fullName || user?.email || 'Staff'}</span>
+                    )}
+                  </div>
+                  {receiptConfig.showCustomerDetails && confirmedInvoice.customerId && (
+                    <div className="border-t border-dotted border-slate-300 pt-1 mt-1">
+                      <span>Customer: {customers.find(c => c.id === confirmedInvoice.customerId)?.name || 'Valued Customer'}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-dashed border-slate-400 my-2" />
+
+                {/* Items List */}
+                <div className="space-y-1.5 py-1">
+                  <div className="flex justify-between text-[10px] font-bold border-b border-dotted pb-1 text-slate-700">
+                    <span>ITEM</span>
+                    <span>QTY x RATE</span>
+                    <span>AMOUNT</span>
+                  </div>
+                  {confirmedInvoice.lines?.map((line, i) => (
+                    <div key={i} className="text-[11px] leading-tight">
+                      <div className="flex justify-between items-baseline">
+                        <span className="font-semibold text-slate-900 truncate max-w-[180px]">
+                          {line.productNameSnapshot}
+                        </span>
+                        <span className="font-mono font-bold">₹{line.lineTotal}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                        <span>
+                          {line.quantity} @ ₹{line.unitPrice}
+                          {receiptConfig.showHsnCode && line.hsnSnapshot ? ` • HSN:${line.hsnSnapshot}` : ''}
+                        </span>
+                        {receiptConfig.showItemDiscount && parseFloat(line.discountAmount || '0') > 0 && (
+                          <span className="text-emerald-700 font-sans font-medium">Disc: -₹{line.discountAmount}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-dashed border-slate-400 my-2" />
+
+                {/* Totals */}
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-slate-600">Subtotal:</span>
+                    <span className="font-mono">₹{confirmedInvoice.subtotal}</span>
+                  </div>
+                  {parseFloat(confirmedInvoice.discountTotal) > 0 && (
+                    <div className="flex justify-between text-[11px] text-emerald-700 font-semibold">
+                      <span>Discount Total:</span>
+                      <span className="font-mono">-₹{confirmedInvoice.discountTotal}</span>
+                    </div>
+                  )}
+                  {receiptConfig.showGstSummary && (
+                    <>
+                      <div className="flex justify-between text-[10px] text-slate-500">
+                        <span>CGST:</span>
+                        <span className="font-mono">₹{confirmedInvoice.cgstTotal}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-slate-500">
+                        <span>SGST:</span>
+                        <span className="font-mono">₹{confirmedInvoice.sgstTotal}</span>
+                      </div>
+                    </>
+                  )}
+                  {parseFloat(confirmedInvoice.roundingAdjustment) !== 0 && (
+                    <div className="flex justify-between text-[10px] text-slate-400">
+                      <span>Rounding:</span>
+                      <span className="font-mono">₹{confirmedInvoice.roundingAdjustment}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-black text-slate-950 border-t border-b border-black py-1 my-1">
+                    <span>GRAND TOTAL:</span>
+                    <span className="font-mono">₹{confirmedInvoice.grandTotal}</span>
+                  </div>
+                </div>
+
+                {/* Savings Banner */}
+                {receiptConfig.showSavingsBanner && parseFloat(confirmedInvoice.discountTotal) > 0 && (
+                  <div className="my-2 p-1.5 bg-emerald-50 border border-dashed border-emerald-500 text-center rounded text-[10px] font-bold text-emerald-800">
+                    🎉 YOU SAVED ₹{confirmedInvoice.discountTotal} ON THIS ORDER!
                   </div>
                 )}
-                <div className="flex justify-between text-slate-500 text-[11px]">
-                  <span>CGST:</span>
-                  <span>₹{confirmedInvoice.cgstTotal}</span>
-                </div>
-                <div className="flex justify-between text-slate-500 text-[11px]">
-                  <span>SGST:</span>
-                  <span>₹{confirmedInvoice.sgstTotal}</span>
-                </div>
-                {parseFloat(confirmedInvoice.roundingAdjustment) !== 0 && (
-                  <div className="flex justify-between text-slate-400 text-[10px]">
-                    <span>Rounding:</span>
-                    <span>₹{confirmedInvoice.roundingAdjustment}</span>
+
+                {/* UPI QR Code Block */}
+                {receiptConfig.showUpiQr && receiptConfig.upiId && (
+                  <div className="my-3 p-2 bg-slate-50 border border-dashed border-slate-300 rounded text-center">
+                    <div className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-800 mb-1">
+                      <QrCode className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Instant UPI Payment</span>
+                    </div>
+                    <div className="w-20 h-20 mx-auto bg-white border border-slate-300 flex items-center justify-center p-1 rounded shadow-2xs">
+                      <QrCode className="w-16 h-16 text-slate-900" />
+                    </div>
+                    <p className="font-mono text-[9px] text-slate-600 mt-1">{receiptConfig.upiId}</p>
+                    <p className="text-[8px] text-slate-400">Scan via GPay / PhonePe / Paytm / BHIM</p>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-black text-slate-950 border-t pt-1">
-                  <span>Grand Total:</span>
-                  <span>₹{confirmedInvoice.grandTotal}</span>
-                </div>
-              </div>
 
-              <div className="text-center pt-2 text-[10px] text-slate-400">
-                <p>Thank you for shopping with us!</p>
-                <p className="font-mono text-[9px] mt-0.5">
-                  Idempotency: {confirmedInvoice.idempotencyKey.slice(0, 18)}...
-                </p>
+                {/* Footer Notes */}
+                <div className="text-center pt-2 text-[9px] text-slate-500 space-y-1">
+                  {receiptConfig.termsAndConditions && (
+                    <p className="italic">{receiptConfig.termsAndConditions}</p>
+                  )}
+                  {receiptConfig.thankYouMessage && (
+                    <p className="font-bold text-slate-800">{receiptConfig.thankYouMessage}</p>
+                  )}
+                  {receiptConfig.showBranding && (
+                    <p className="text-[8px] text-slate-400 pt-1">
+                      Powered by MSME POS Platform • Idempotency: {confirmedInvoice.idempotencyKey.slice(0, 14)}...
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
-            <DialogFooter className="p-4 bg-slate-50 border-t border-slate-200 flex sm:flex-row gap-2">
+            <DialogFooter className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row gap-2 shrink-0">
               <Button
                 variant="outline"
-                onClick={() => window.print()}
+                size="sm"
+                onClick={() => setReceiptDesignerOpen(true)}
+                title="Customize Thermal Bill & Receipt Design"
+                className="text-xs font-semibold cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+                <span>Customize Bill</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrintConfirmedInvoice}
                 className="flex-1 text-xs font-semibold cursor-pointer"
               >
-                <Printer className="h-3.5 w-3.5 mr-1.5" />
+                <Printer className="h-3.5 w-3.5 mr-1.5 text-blue-600" />
                 <span>Print Receipt</span>
               </Button>
               <Button
+                size="sm"
                 onClick={() => setConfirmedInvoice(null)}
                 data-testid="close-receipt-btn"
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer"
@@ -1547,6 +1714,16 @@ export default function PosCheckoutScreen() {
         }}
         title="Scan Item to Add to Bill"
         description="Point your device camera at the item's barcode to instantly ring it up."
+      />
+
+      {/* Thermal Bill & Receipt Designer Modal */}
+      <ReceiptDesignerModal
+        open={receiptDesignerOpen}
+        onClose={() => setReceiptDesignerOpen(false)}
+        tenantId={activeTenant?.tenantId}
+        branchId={activeBranch?.id}
+        tenantName={activeTenant?.tenantName}
+        branchName={activeBranch?.name}
       />
     </div>
   );

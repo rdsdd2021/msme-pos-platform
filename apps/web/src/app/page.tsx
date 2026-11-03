@@ -5,14 +5,17 @@ import { useAuthStore } from '@/store/auth.store';
 import PosCheckoutScreen from '@/components/pos-checkout';
 import AdminDashboard, { AdminTab, InventorySubTab } from '@/components/admin-dashboard';
 import LoginScreen from '@/components/login-screen';
+import { LandingPage } from '@/features/marketing/landing-page';
 import SuperAdminPortal from '@/components/super-admin-portal';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { CommandMenu } from '@/components/layout/command-menu';
+import { RestaurantFloorplanView } from '@/features/restaurant/restaurant-floorplan-view';
+import { KitchenDisplayView } from '@/features/restaurant/kitchen-display-view';
 
 export default function HomePage() {
   const { user, status, checkAuth, isOwner, isBranchManager, isCashier, isSuperAdmin, activeTenant } = useAuthStore();
-  const [viewMode, setViewMode] = useState<'pos' | 'admin' | 'superadmin'>('pos');
+  const [viewMode, setViewMode] = useState<'pos' | 'admin' | 'superadmin' | 'restaurant' | 'kds'>('pos');
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('inventory');
   const [activeInventorySubTab, setActiveInventorySubTab] = useState<InventorySubTab>('products');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -45,9 +48,9 @@ export default function HomePage() {
     );
   }
 
-  // Unauthenticated: render secure login screen
+  // Unauthenticated: render marketing landing page with embedded POS terminal access
   if (status === 'unauthenticated' || !user) {
-    return <LoginScreen />;
+    return <LandingPage />;
   }
 
   // Super Admin Portal Mode
@@ -87,6 +90,10 @@ export default function HomePage() {
         <main className="flex-1 overflow-hidden relative">
           {viewMode === 'pos' ? (
             <PosCheckoutScreen />
+          ) : viewMode === 'restaurant' ? (
+            <RestaurantFloorplanView onSwitchToKds={() => setViewMode('kds')} />
+          ) : viewMode === 'kds' ? (
+            <KitchenDisplayView />
           ) : (
             <AdminDashboard
               activeTab={activeAdminTab}

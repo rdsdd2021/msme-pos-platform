@@ -1,4 +1,14 @@
-import { Role, Permission, PaymentMethod, StockMovementType } from '@pos/shared-types';
+import {
+  Role,
+  Permission,
+  PaymentMethod,
+  StockMovementType,
+  TableStatus,
+  RestaurantOrderType,
+  RestaurantOrderStatus,
+  KotStatus,
+  KitchenStation,
+} from '@pos/shared-types';
 
 export interface ApiErrorResponse {
   statusCode: number;
@@ -889,6 +899,143 @@ export interface Subscription {
   currentPeriodEnd: string | null;
 }
 
+// --- RESTAURANT & CAFE MODULE INTERFACES ---
+
+export interface RestaurantTable {
+  id: string;
+  tenantId: string;
+  branchId: string;
+  tableNumber: string;
+  tableName: string | null;
+  section: string;
+  seatingCapacity: number;
+  status: TableStatus;
+  currentGuestCount: number;
+  occupiedAt: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  activeOrder?: RestaurantOrder | null;
+}
+
+export interface RestaurantKotLine {
+  id: string;
+  tenantId: string;
+  kotId: string;
+  orderId: string;
+  productId: string;
+  productNameSnapshot: string;
+  quantity: string;
+  unitPrice: string;
+  lineTotal: string;
+  kitchenStation: KitchenStation;
+  specialInstructions: string | null;
+  status: KotStatus;
+  createdAt: string;
+}
+
+export interface RestaurantKot {
+  id: string;
+  tenantId: string;
+  branchId: string;
+  orderId: string;
+  kotNumber: string;
+  tableNumber: string;
+  kitchenStation: KitchenStation;
+  status: KotStatus;
+  captainName: string | null;
+  dispatchedAt: string;
+  readyAt: string | null;
+  servedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lines?: RestaurantKotLine[];
+}
+
+export interface RestaurantOrder {
+  id: string;
+  tenantId: string;
+  branchId: string;
+  orderNumber: string;
+  orderType: RestaurantOrderType;
+  tableId: string | null;
+  tableNumberSnapshot: string | null;
+  sectionSnapshot: string | null;
+  guestCount: number;
+  customerId: string | null;
+  customerNameSnapshot: string | null;
+  customerPhoneSnapshot: string | null;
+  status: RestaurantOrderStatus;
+  captainUserId: string | null;
+  captainNameSnapshot: string | null;
+  notes: string | null;
+  subtotal: string;
+  taxTotal: string;
+  discountTotal: string;
+  grandTotal: string;
+  invoiceId: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  kots?: RestaurantKot[];
+  lines?: RestaurantKotLine[];
+}
+
+export interface CreateTableRequest {
+  tableNumber: string;
+  tableName?: string;
+  section?: string;
+  seatingCapacity?: number;
+  sortOrder?: number;
+}
+
+export interface UpdateTableRequest {
+  tableName?: string;
+  section?: string;
+  seatingCapacity?: number;
+  status?: TableStatus;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface CreateRestaurantOrderRequest {
+  tableId?: string;
+  orderType?: RestaurantOrderType;
+  guestCount?: number;
+  customerId?: string;
+  notes?: string;
+}
+
+export interface DispatchKotItemRequest {
+  productId: string;
+  quantity: string;
+  specialInstructions?: string;
+  kitchenStation?: KitchenStation;
+}
+
+export interface DispatchKotRequest {
+  orderId: string;
+  items: DispatchKotItemRequest[];
+  kitchenStation?: KitchenStation;
+}
+
+export interface RestaurantSplitPayment {
+  paymentMethod: PaymentMethod;
+  amount: string;
+  externalReference?: string;
+}
+
+export interface SettleRestaurantOrderRequest {
+  orderId: string;
+  paymentMethod: PaymentMethod;
+  isSplit?: boolean;
+  splitPayments?: RestaurantSplitPayment[];
+  cashTendered?: string;
+  customerId?: string;
+}
+
 class ApiClient {
   private baseUrl: string;
   private accessToken: string | null = null;
@@ -1570,6 +1717,114 @@ class ApiClient {
 
   async getPlatformAudit(limit = 50, offset = 0): Promise<{ total: number; limit: number; offset: number; data: PlatformAuditLog[] }> {
     return this.request(`/platform-admin/audit?limit=${limit}&offset=${offset}`);
+  }
+
+  // --- Restaurant & Cafe Endpoints ---
+
+  async getRestaurantTables(tenantId: string, branchId: string, section?: string): Promise<RestaurantTable[]> {
+    const query = new URLSearchParams({ branchId });
+    if (section && section !== 'all') {
+      query.append('section', section);
+    }
+    return this.request<RestaurantTable[]>(`/tenants/${tenantId}/restaurant/tables?${query.toString()}`);
+  }
+
+  async createRestaurantTable(tenantId: string, branchId: string, dto: CreateTableRequest): Promise<RestaurantTable> {
+    return this.request<RestaurantTable>(`/tenants/${tenantId}/restaurant/tables?branchId=${branchId}`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async seedDefaultRestaurantTables(tenantId: string, branchId: string): Promise<RestaurantTable[]> {
+    return this.request<RestaurantTable[]>(`/tenants/${tenantId}/restaurant/tables/seed-defaults?branchId=${branchId}`, {
+      method: 'POST',
+    });
+  }
+
+  async updateRestaurantTable(
+    tenantId: string,
+    branchId: string,
+    tableId: string,
+    dto: UpdateTableRequest,
+  ): Promise<RestaurantTable> {
+    return this.request<RestaurantTable>(`/tenants/${tenantId}/restaurant/tables/${tableId}?branchId=${branchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async getRestaurantOrder(tenantId: string, orderId: string): Promise<RestaurantOrder> {
+    return this.request<RestaurantOrder>(`/tenants/${tenantId}/restaurant/orders/${orderId}`);
+  }
+
+  async createRestaurantOrder(
+    tenantId: string,
+    branchId: string,
+    dto: CreateRestaurantOrderRequest,
+  ): Promise<RestaurantOrder> {
+    return this.request<RestaurantOrder>(`/tenants/${tenantId}/restaurant/orders?branchId=${branchId}`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async dispatchRestaurantKot(
+    tenantId: string,
+    branchId: string,
+    dto: DispatchKotRequest,
+  ): Promise<RestaurantKot> {
+    return this.request<RestaurantKot>(`/tenants/${tenantId}/restaurant/kots/dispatch?branchId=${branchId}`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async getRestaurantKdsQueue(
+    tenantId: string,
+    branchId: string,
+    station?: KitchenStation,
+  ): Promise<RestaurantKot[]> {
+    const query = new URLSearchParams({ branchId });
+    if (station) {
+      query.append('station', station);
+    }
+    return this.request<RestaurantKot[]>(`/tenants/${tenantId}/restaurant/kds?${query.toString()}`);
+  }
+
+  async updateRestaurantKotStatus(
+    tenantId: string,
+    branchId: string,
+    kotId: string,
+    status: KotStatus,
+  ): Promise<RestaurantKot> {
+    return this.request<RestaurantKot>(`/tenants/${tenantId}/restaurant/kots/${kotId}/status?branchId=${branchId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async transferRestaurantTable(
+    tenantId: string,
+    branchId: string,
+    sourceTableId: string,
+    targetTableId: string,
+  ): Promise<{ success: boolean; message: string; targetTableId: string }> {
+    return this.request(`/tenants/${tenantId}/restaurant/tables/transfer?branchId=${branchId}`, {
+      method: 'POST',
+      body: JSON.stringify({ sourceTableId, targetTableId }),
+    });
+  }
+
+  async settleRestaurantOrder(
+    tenantId: string,
+    branchId: string,
+    dto: SettleRestaurantOrderRequest,
+  ): Promise<{ order: RestaurantOrder; invoice: any }> {
+    return this.request(`/tenants/${tenantId}/restaurant/orders/settle?branchId=${branchId}`, {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
   }
 }
 

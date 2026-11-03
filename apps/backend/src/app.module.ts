@@ -12,6 +12,7 @@ import { SyncModule } from './sync/sync.module';
 import { OperationsModule } from './operations/operations.module';
 import { CommercialModule } from './commercial/commercial.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
+import { RestaurantModule } from './restaurant/restaurant.module';
 import { getDatabaseConfig } from './database/database.config';
 
 @Module({
@@ -40,6 +41,7 @@ import { getDatabaseConfig } from './database/database.config';
     OperationsModule,
     CommercialModule,
     PlatformAdminModule,
+    RestaurantModule,
   ],
 })
 export class AppModule {}

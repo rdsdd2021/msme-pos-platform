@@ -119,3 +119,39 @@ export enum StockTransferStatus {
   RECEIVED = 'received',
   CANCELLED = 'cancelled',
 }
+
+export enum TableStatus {
+  VACANT = 'vacant',
+  SEATED = 'seated',
+  ORDERED = 'ordered',
+  BILLED = 'billed',
+  DIRTY = 'dirty',
+}
+
+export enum RestaurantOrderType {
+  DINE_IN = 'dine_in',
+  TAKEAWAY = 'takeaway',
+  DELIVERY = 'delivery',
+}
+
+export enum RestaurantOrderStatus {
+  OPEN = 'open',
+  BILLED = 'billed',
+  COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
+}
+
+export enum KotStatus {
+  PENDING = 'pending',
+  PREPARING = 'preparing',
+  READY = 'ready',
+  SERVED = 'served',
+  CANCELLED = 'cancelled',
+}
+
+export enum KitchenStation {
+  MAIN_KITCHEN = 'main_kitchen',
+  TANDOOR = 'tandoor',
+  BEVERAGE_BAR = 'beverage_bar',
+  BAKERY_DESSERT = 'bakery_dessert',
+}

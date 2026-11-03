@@ -46,3 +46,4 @@ describe('ProductPhotoUpload', () => {
     expect(dropzone).not.toHaveClass('border-emerald-500');
   });
 });
+

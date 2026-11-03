@@ -17,3 +17,4 @@ export class AddProductImageUrl1730510000000 implements MigrationInterface {
     `);
   }
 }
+

@@ -67,6 +67,13 @@ export enum Permission {
   DEVICE_MANAGE = 'device:manage',
   SUBSCRIPTION_MANAGE = 'subscription:manage',
   HARDWARE_PRINT = 'hardware:print',
+
+  // Restaurant Operations
+  RESTAURANT_TABLES_MANAGE = 'restaurant:tables:manage',
+  RESTAURANT_TABLES_READ = 'restaurant:tables:read',
+  RESTAURANT_ORDERS_MANAGE = 'restaurant:orders:manage',
+  RESTAURANT_KOT_DISPATCH = 'restaurant:kot:dispatch',
+  RESTAURANT_KDS_VIEW = 'restaurant:kds:view',
 }
 
 /**
@@ -102,6 +109,11 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     Permission.REPORTS_DAILY_READ,
     Permission.DEVICE_MANAGE,
     Permission.HARDWARE_PRINT,
+    Permission.RESTAURANT_TABLES_MANAGE,
+    Permission.RESTAURANT_TABLES_READ,
+    Permission.RESTAURANT_ORDERS_MANAGE,
+    Permission.RESTAURANT_KOT_DISPATCH,
+    Permission.RESTAURANT_KDS_VIEW,
   ],
 
   [Role.CASHIER]: [
@@ -117,6 +129,10 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     Permission.KHATA_TRANSACT,
     Permission.KHATA_PAYMENT_RECORD,
     Permission.HARDWARE_PRINT,
+    Permission.RESTAURANT_TABLES_READ,
+    Permission.RESTAURANT_ORDERS_MANAGE,
+    Permission.RESTAURANT_KOT_DISPATCH,
+    Permission.RESTAURANT_KDS_VIEW,
   ],
 
   [Role.INVENTORY_STAFF]: [
