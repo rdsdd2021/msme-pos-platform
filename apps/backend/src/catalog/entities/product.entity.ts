@@ -67,6 +67,9 @@ export class ProductEntity {
   @Column({ name: 'package_size', type: 'varchar', length: 64, nullable: true })
   packageSize!: string | null;
 
+  @Column({ name: 'image_url', type: 'text', nullable: true })
+  imageUrl!: string | null;
+
   @Column({ name: 'track_inventory', type: 'boolean', default: true })
   trackInventory!: boolean;
 

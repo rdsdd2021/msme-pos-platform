@@ -264,12 +264,27 @@ export function ProductListView({
                       data-testid={`product-row-${p.sku}`}
                     >
                       <td className="p-3.5">
-                        <div className="font-semibold text-slate-900 leading-snug">{p.name}</div>
-                        {p.packageSize && (
-                          <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium border border-slate-200/60">
-                            {p.packageSize}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2.5">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="w-9 h-9 rounded-lg object-cover border border-slate-200 shrink-0 shadow-2xs"
+                            />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-slate-100 border border-slate-200/80 flex items-center justify-center text-slate-400 shrink-0">
+                              <Package className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-slate-900 leading-snug">{p.name}</div>
+                            {p.packageSize && (
+                              <span className="inline-block mt-0.5 px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-[10px] font-medium border border-slate-200/60">
+                                {p.packageSize}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td className="p-3.5">
                         <div className="font-mono text-slate-800 font-semibold text-xs">{p.sku}</div>

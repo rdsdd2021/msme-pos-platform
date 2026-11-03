@@ -450,6 +450,7 @@ export default function AdminDashboard({
     name: string;
     sku: string;
     barcodePrimary: string;
+    imageUrl?: string | null;
     categoryId: string;
     baseUnitId: string;
     purchaseCost: string;
@@ -707,6 +708,7 @@ export default function AdminDashboard({
       name: '',
       sku: '',
       barcodePrimary: '',
+      imageUrl: null,
       categoryId: categories.length > 0 ? categories[0].id : '',
       baseUnitId: units.length > 0 ? units[0].id : '',
       purchaseCost: '',
@@ -730,6 +732,7 @@ export default function AdminDashboard({
       name: p.name,
       sku: p.sku,
       barcodePrimary: p.barcodePrimary || '',
+      imageUrl: p.imageUrl || null,
       categoryId: p.categoryId || (categories.length > 0 ? categories[0].id : ''),
       baseUnitId: p.baseUnitId || (units.length > 0 ? units[0].id : ''),
       purchaseCost: p.purchaseCost,
@@ -797,6 +800,7 @@ export default function AdminDashboard({
           hsnCode: productModal.hsnCode.trim() || undefined,
           gstRatePercent: productModal.gstRatePercent || '0.00',
           packageSize: productModal.packageSize.trim() || undefined,
+          imageUrl: productModal.imageUrl || undefined,
           openingStockQuantity: productModal.openingStockQuantity ? parseFloat(productModal.openingStockQuantity).toFixed(3) : undefined,
           openingStockBranchId: productModal.openingStockBranchId || undefined,
         });
@@ -813,6 +817,7 @@ export default function AdminDashboard({
           hsnCode: productModal.hsnCode.trim() || undefined,
           gstRatePercent: productModal.gstRatePercent || '0.00',
           packageSize: productModal.packageSize.trim() || undefined,
+          imageUrl: productModal.imageUrl || undefined,
         });
       }
 

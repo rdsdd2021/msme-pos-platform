@@ -28,7 +28,9 @@ import {
   BookOpen,
   Split,
   Sparkles,
+  Camera,
 } from 'lucide-react';
+import { CameraBarcodeModal } from '@/components/camera-barcode-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +96,7 @@ export default function PosCheckoutScreen() {
 
   // Recent Bills state
   const [recentBillsOpen, setRecentBillsOpen] = useState(false);
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
 
   // Checkout modal & payment state
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
@@ -269,10 +272,9 @@ export default function PosCheckoutScreen() {
     }
   };
 
-  // Barcode scanner wedge handler (fast keyboard entry)
-  const handleBarcodeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = barcodeInput.trim();
+  // Core barcode lookup & cart addition
+  const processBarcodeScan = async (rawCode: string) => {
+    const query = rawCode.trim();
     if (!query) return;
 
     // Search cached products first
@@ -289,10 +291,10 @@ export default function PosCheckoutScreen() {
         sku: localMatch.sku,
         price: localMatch.sellingPrice,
         mrp: localMatch.mrp,
-        gstRate: '5.00',
+        gstRate: localMatch.gstRatePercent || '5.00',
         currentStock: stockMap.get(localMatch.id),
       });
-      setBarcodeInput('');
+      toast.success(`Added ${localMatch.name} to bill`);
       return;
     }
 
@@ -307,10 +309,10 @@ export default function PosCheckoutScreen() {
             sku: found.sku,
             price: found.sellingPrice,
             mrp: found.mrp,
-            gstRate: '5.00',
+            gstRate: found.gstRatePercent || '5.00',
             currentStock: stockMap.get(found.id),
           });
-          setBarcodeInput('');
+          toast.success(`Added ${found.name} to bill`);
           return;
         }
       } catch {
@@ -319,6 +321,15 @@ export default function PosCheckoutScreen() {
     }
 
     toast.error(`Barcode/SKU "${query}" not found in catalogue`);
+  };
+
+  // Barcode scanner wedge handler (fast keyboard entry)
+  const handleBarcodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = barcodeInput.trim();
+    if (!query) return;
+    await processBarcodeScan(query);
+    setBarcodeInput('');
   };
 
   // Filtered products
@@ -468,6 +479,17 @@ export default function PosCheckoutScreen() {
             >
               Add
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setCameraScannerOpen(true)}
+              data-testid="pos-camera-scan-btn"
+              title="Scan product barcode directly using device camera"
+              className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-2.5 rounded-lg shadow-2xs cursor-pointer shrink-0 flex items-center gap-1.5"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Camera</span>
+            </Button>
           </form>
 
           {/* Search bar & Action triggers */}
@@ -614,6 +636,17 @@ export default function PosCheckoutScreen() {
                           </Badge>
                         )}
                       </div>
+
+                      {/* Product Thumbnail (if photo uploaded) */}
+                      {product.imageUrl && (
+                        <div className="w-full h-20 mb-2 rounded-lg overflow-hidden bg-slate-50 border border-slate-100 flex items-center justify-center">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                        </div>
+                      )}
 
                       {/* Product Name */}
                       <h3 className="font-semibold text-slate-900 text-xs line-clamp-2 leading-snug group-hover:text-blue-700 transition-colors">
@@ -1503,6 +1536,17 @@ export default function PosCheckoutScreen() {
         tenantName={activeTenant?.tenantName}
         customers={customers}
         branches={branches}
+      />
+
+      {/* Camera Barcode Scanner for POS Ring-up */}
+      <CameraBarcodeModal
+        open={cameraScannerOpen}
+        onClose={() => setCameraScannerOpen(false)}
+        onScan={async (scannedCode) => {
+          await processBarcodeScan(scannedCode);
+        }}
+        title="Scan Item to Add to Bill"
+        description="Point your device camera at the item's barcode to instantly ring it up."
       />
     </div>
   );

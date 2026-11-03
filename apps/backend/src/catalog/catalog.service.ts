@@ -219,6 +219,7 @@ export class CatalogService {
           hsnCode: dto.hsnCode ?? null,
           gstRatePercent: dto.gstRatePercent ?? '0.00',
           packageSize: dto.packageSize ?? null,
+          imageUrl: dto.imageUrl ?? null,
           productType: dto.productType,
           trackInventory: dto.trackInventory ?? true,
           allowFractionalQuantity: dto.allowFractionalQuantity ?? false,
@@ -279,6 +280,7 @@ export class CatalogService {
       hsnCode: dto.hsnCode ?? null,
       gstRatePercent: dto.gstRatePercent ?? '0.00',
       packageSize: dto.packageSize ?? null,
+      imageUrl: dto.imageUrl ?? null,
       productType: dto.productType,
       trackInventory: dto.trackInventory ?? true,
       allowFractionalQuantity: dto.allowFractionalQuantity ?? false,
@@ -352,6 +354,7 @@ export class CatalogService {
     if (dto.hsnCode !== undefined) product.hsnCode = dto.hsnCode;
     if (dto.gstRatePercent !== undefined) product.gstRatePercent = dto.gstRatePercent;
     if (dto.packageSize !== undefined) product.packageSize = dto.packageSize;
+    if (dto.imageUrl !== undefined) product.imageUrl = dto.imageUrl;
     if (dto.productType !== undefined) product.productType = dto.productType;
     if (dto.trackInventory !== undefined) product.trackInventory = dto.trackInventory;
     if (dto.allowFractionalQuantity !== undefined) product.allowFractionalQuantity = dto.allowFractionalQuantity;

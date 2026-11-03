@@ -92,6 +92,7 @@ export interface Product {
   hsnCode?: string | null;
   gstRatePercent?: string;
   packageSize?: string | null;
+  imageUrl?: string | null;
   currentStock?: string;
 }
 
@@ -206,6 +207,7 @@ export interface CreateProductRequest {
   hsnCode?: string;
   gstRatePercent?: string;
   packageSize?: string;
+  imageUrl?: string;
   productType?: string;
   trackInventory?: boolean;
   allowFractionalQuantity?: boolean;
@@ -225,6 +227,7 @@ export interface UpdateProductRequest {
   hsnCode?: string;
   gstRatePercent?: string;
   packageSize?: string;
+  imageUrl?: string;
   productType?: string;
   trackInventory?: boolean;
   allowFractionalQuantity?: boolean;

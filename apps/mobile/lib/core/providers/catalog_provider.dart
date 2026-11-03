@@ -186,6 +186,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
           gstRate: p.gstRate,
           currentStock: (p.currentStock - quantity).clamp(0.0, double.infinity),
           hsnCode: p.hsnCode,
+          imageUrl: p.imageUrl,
         );
       }
       return p;

@@ -142,6 +142,11 @@ export class CreateProductDto {
   @IsOptional()
   packageSize?: string;
 
+  @ApiProperty({ example: 'data:image/jpeg;base64,...', required: false, description: 'Product image URL or data URI' })
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
+
   @ApiProperty({ enum: ProductType, default: ProductType.STOCK })
   @IsEnum(ProductType)
   @IsOptional()
@@ -228,6 +233,11 @@ export class UpdateProductDto {
   @IsString()
   @IsOptional()
   packageSize?: string;
+
+  @ApiProperty({ example: 'data:image/jpeg;base64,...', required: false, description: 'Product image URL or data URI' })
+  @IsString()
+  @IsOptional()
+  imageUrl?: string;
 
   @ApiProperty({ enum: ProductType, required: false })
   @IsEnum(ProductType)

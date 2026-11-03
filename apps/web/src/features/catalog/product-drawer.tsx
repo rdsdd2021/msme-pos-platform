@@ -6,6 +6,7 @@ import {
   Package,
   AlertTriangle,
   X,
+  Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -18,6 +19,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { CameraBarcodeModal } from '@/components/camera-barcode-modal';
+import { ProductPhotoUpload } from './product-photo-upload';
 
 export interface ProductFormData {
   open?: boolean;
@@ -26,6 +29,7 @@ export interface ProductFormData {
   name: string;
   sku: string;
   barcodePrimary: string;
+  imageUrl?: string | null;
   categoryId: string;
   baseUnitId: string;
   purchaseCost: string;
@@ -64,6 +68,7 @@ export function ProductDrawer<T extends ProductFormData = ProductFormData>({
   onSave,
 }: ProductDrawerProps<T>) {
   const [activeTab, setActiveTab] = useState<'basic' | 'pricing' | 'stock'>('basic');
+  const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
 
   const updateField = (field: keyof ProductFormData, value: any) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -139,6 +144,17 @@ export function ProductDrawer<T extends ProductFormData = ProductFormData>({
                 className={activeTab === 'basic' ? 'space-y-3.5 mt-0' : 'hidden'}
               >
                 <div>
+                  <Label className="text-xs font-bold text-slate-700">Product Photo</Label>
+                  <div className="mt-1">
+                    <ProductPhotoUpload
+                      imageUrl={data.imageUrl}
+                      onChange={(url) => updateField('imageUrl', url)}
+                      disabled={data.isSubmitting}
+                    />
+                  </div>
+                </div>
+
+                <div>
                   <Label className="text-xs font-bold text-slate-700">Product Name *</Label>
                   <input
                     type="text"
@@ -164,7 +180,19 @@ export function ProductDrawer<T extends ProductFormData = ProductFormData>({
                     />
                   </div>
                   <div>
-                    <Label className="text-xs font-bold text-slate-700">Primary Barcode (EAN / UPC)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-bold text-slate-700">Primary Barcode (EAN / UPC)</Label>
+                      <button
+                        type="button"
+                        onClick={() => setCameraScannerOpen(true)}
+                        data-testid="product-scan-barcode-btn"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-0.5 rounded-md transition cursor-pointer"
+                        title="Scan barcode directly using device camera"
+                      >
+                        <Camera className="w-3 h-3 text-emerald-600" />
+                        <span>Scan Camera</span>
+                      </button>
+                    </div>
                     <input
                       type="text"
                       placeholder="e.g. 8901234567890"
@@ -374,6 +402,17 @@ export function ProductDrawer<T extends ProductFormData = ProductFormData>({
             </Button>
           </DialogFooter>
         </form>
+
+        {/* Device Camera Barcode Scanner Modal */}
+        <CameraBarcodeModal
+          open={cameraScannerOpen}
+          onClose={() => setCameraScannerOpen(false)}
+          onScan={(scannedCode) => {
+            updateField('barcodePrimary', scannedCode);
+          }}
+          title="Scan Item Barcode"
+          description="Point your device camera at the item packaging barcode."
+        />
       </DialogContent>
     </Dialog>
   );
