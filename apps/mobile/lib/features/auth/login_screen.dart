@@ -151,6 +151,189 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     });
   }
 
+  Future<void> _showRegisterBottomSheet() async {
+    final regNameController = TextEditingController();
+    final regStoreController = TextEditingController();
+    final regEmailController = TextEditingController();
+    final regPasswordController = TextEditingController();
+    String selectedVertical = 'grocery';
+    String selectedState = '27';
+    String? regError;
+    bool isSubmitting = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Register Store',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Text(
+                  'Instant 45-second setup with pre-loaded fast items',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                if (regError != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFECDD3)),
+                    ),
+                    child: Text(
+                      regError!,
+                      style: const TextStyle(color: Color(0xFF9F1239), fontSize: 12),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: regStoreController,
+                  decoration: InputDecoration(
+                    labelText: 'Store Name (e.g. Gupta Super Store)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedVertical,
+                  decoration: InputDecoration(
+                    labelText: 'Retail Vertical',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'grocery', child: Text('Kirana & Grocery')),
+                    DropdownMenuItem(value: 'restaurant', child: Text('Restaurant & Cafe')),
+                    DropdownMenuItem(value: 'pharmacy', child: Text('Pharmacy & Chemist')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setModalState(() => selectedVertical = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: regNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Owner Full Name',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: regEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email Address (Login)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: regPasswordController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'Password (min 8 chars, 1 upper, 1 number)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final storeName = regStoreController.text.trim();
+                          final fullName = regNameController.text.trim();
+                          final email = regEmailController.text.trim();
+                          final password = regPasswordController.text;
+
+                          if (storeName.isEmpty || fullName.isEmpty || email.isEmpty || password.isEmpty) {
+                            setModalState(() => regError = 'Please fill in all required fields');
+                            return;
+                          }
+                          if (password.length < 8) {
+                            setModalState(() => regError = 'Password must be at least 8 characters');
+                            return;
+                          }
+
+                          setModalState(() {
+                            isSubmitting = true;
+                            regError = null;
+                          });
+
+                          try {
+                            await ref.read(authProvider.notifier).registerMerchant(
+                                  email: email,
+                                  password: password,
+                                  fullName: fullName,
+                                  storeName: storeName,
+                                  businessType: selectedVertical,
+                                  stateCode: selectedState,
+                                );
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          } catch (err) {
+                            setModalState(() {
+                              isSubmitting = false;
+                              regError = err.toString().replaceFirst('Exception: ', '');
+                            });
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Complete Setup & Launch POS',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -530,7 +713,24 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+
+                  // Register New Store Action
+                  TextButton.icon(
+                    key: const Key('mobile_register_store_btn'),
+                    onPressed: _showRegisterBottomSheet,
+                    icon: const Icon(Icons.storefront_outlined, size: 18, color: Color(0xFF10B981)),
+                    label: const Text(
+                      'New Store? Register & Setup Free',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF047857),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
 
                   // Security Footnote
                   const Row(

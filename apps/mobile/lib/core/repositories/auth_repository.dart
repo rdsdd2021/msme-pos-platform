@@ -99,7 +99,7 @@ class AuthRepository {
 
         // Fetch full profile with memberships and branch RBAC
         final profileRes = await _dio.get(
-          '$_baseUrl/api/v1/auth/profile',
+          '$_baseUrl/api/v1/auth/me',
           options: Options(headers: {'Authorization': 'Bearer $token'}),
         );
 
@@ -112,6 +112,59 @@ class AuthRepository {
     }
 
     throw Exception('Invalid email or password');
+  }
+
+  /// Register a new merchant with store and starter catalog
+  Future<AuthUser> registerMerchant({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+    required String storeName,
+    required String businessType,
+    required String stateCode,
+    String? gstin,
+    String? city,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/api/v1/auth/register-merchant',
+        data: {
+          'email': email.trim().toLowerCase(),
+          'password': password,
+          'fullName': fullName.trim(),
+          if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
+          'storeName': storeName.trim(),
+          'businessType': businessType,
+          'stateCode': stateCode,
+          if (gstin != null && gstin.isNotEmpty) 'gstin': gstin.trim().toUpperCase(),
+          if (city != null && city.isNotEmpty) 'city': city.trim(),
+          'seedSampleCatalog': true,
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.data as Map<String, dynamic>;
+        final token = data['accessToken'] as String;
+        final refreshToken = data['refreshToken'] as String?;
+
+        final profileRes = await _dio.get(
+          '$_baseUrl/api/v1/auth/me',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+
+        final user = AuthUser.fromJson(profileRes.data as Map<String, dynamic>);
+        await _saveSession(token, refreshToken, user);
+        return user;
+      }
+    } catch (e) {
+      throw Exception('Registration failed: ${e.toString()}');
+    }
+
+    throw Exception('Registration failed');
   }
 
   /// Check whether the user explicitly signed out

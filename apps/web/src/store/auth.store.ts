@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiClient, UserProfile, TenantMembershipInfo, Branch } from '@/lib/api-client';
+import { apiClient, UserProfile, TenantMembershipInfo, Branch, RegisterMerchantRequest } from '@/lib/api-client';
 import { Role, Permission } from '@pos/shared-types';
 
 interface AuthState {
@@ -12,6 +12,7 @@ interface AuthState {
 
   // Actions
   login: (email: string, password: string) => Promise<void>;
+  registerMerchant: (dto: RegisterMerchantRequest) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   selectTenant: (tenantId: string) => Promise<void>;
@@ -43,19 +44,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const profile = await apiClient.getProfile();
 
       if (!profile.memberships || profile.memberships.length === 0) {
-        if (profile.isSuperAdmin) {
-          apiClient.setActiveContext(null, null);
-          set({
-            user: profile,
-            activeTenant: null,
-            branches: [],
-            activeBranch: null,
-            status: 'authenticated',
-            error: null,
-          });
-          return;
-        }
-        throw new Error('User has no active store memberships');
+        apiClient.setActiveContext(null, null);
+        set({
+          user: profile,
+          activeTenant: null,
+          branches: [],
+          activeBranch: null,
+          status: 'authenticated',
+          error: null,
+        });
+        return;
       }
 
       // Default active tenant is the first membership (prefer owner)
@@ -100,6 +98,58 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  registerMerchant: async (dto: RegisterMerchantRequest) => {
+    set({ status: 'loading', error: null });
+    try {
+      await apiClient.registerMerchant(dto);
+      const profile = await apiClient.getProfile();
+
+      if (!profile.memberships || profile.memberships.length === 0) {
+        apiClient.setActiveContext(null, null);
+        set({
+          user: profile,
+          activeTenant: null,
+          branches: [],
+          activeBranch: null,
+          status: 'authenticated',
+          error: null,
+        });
+        return;
+      }
+
+      const primaryMembership =
+        profile.memberships.find((m) => m.isOwner) || profile.memberships[0];
+
+      let branches: Branch[] = [];
+      try {
+        branches = await apiClient.getBranches(primaryMembership.tenantId);
+      } catch {
+        branches = [];
+      }
+
+      const activeBranch = branches.length > 0 ? branches[0] : null;
+      apiClient.setActiveContext(
+        primaryMembership.tenantId,
+        activeBranch ? activeBranch.id : null,
+      );
+
+      set({
+        user: profile,
+        activeTenant: primaryMembership,
+        branches,
+        activeBranch,
+        status: 'authenticated',
+        error: null,
+      });
+    } catch (err: any) {
+      set({
+        status: 'unauthenticated',
+        error: err.message || 'Registration failed. Please verify your details.',
+      });
+      throw err;
+    }
+  },
+
   logout: async () => {
     set({ status: 'loading' });
     try {
@@ -125,19 +175,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const profile = await apiClient.getProfile();
       if (!profile.memberships || profile.memberships.length === 0) {
-        if (profile.isSuperAdmin) {
-          apiClient.setActiveContext(null, null);
-          set({
-            user: profile,
-            activeTenant: null,
-            branches: [],
-            activeBranch: null,
-            status: 'authenticated',
-            error: null,
-          });
-          return;
-        }
-        set({ status: 'unauthenticated', user: null });
+        apiClient.setActiveContext(null, null);
+        set({
+          user: profile,
+          activeTenant: null,
+          branches: [],
+          activeBranch: null,
+          status: 'authenticated',
+          error: null,
+        });
         return;
       }
 

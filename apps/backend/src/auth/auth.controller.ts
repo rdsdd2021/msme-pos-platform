@@ -13,7 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
 import { Response as ExpressResponse, Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
+import { RegisterDto, RegisterMerchantDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
 import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
 import { AuthGuard } from '@nestjs/passport';
 
@@ -42,6 +42,18 @@ export class AuthController {
     @Response({ passthrough: true }) res: ExpressResponse,
   ): Promise<AuthResponseDto> {
     const result = await this.authService.register(dto);
+    this.setRefreshTokenCookie(res, result.refreshToken);
+    return result;
+  }
+
+  @Post('register-merchant')
+  @ApiOperation({ summary: 'Register a new merchant with business store, default branch, owner role, and optional starter catalog' })
+  @ApiCreatedResponse({ type: AuthResponseDto })
+  async registerMerchant(
+    @Body() dto: RegisterMerchantDto,
+    @Response({ passthrough: true }) res: ExpressResponse,
+  ): Promise<AuthResponseDto> {
+    const result = await this.authService.registerMerchant(dto);
     this.setRefreshTokenCookie(res, result.refreshToken);
     return result;
   }

@@ -12,6 +12,7 @@ import { AppHeader } from '@/components/layout/app-header';
 import { CommandMenu } from '@/components/layout/command-menu';
 import { RestaurantFloorplanView } from '@/features/restaurant/restaurant-floorplan-view';
 import { KitchenDisplayView } from '@/features/restaurant/kitchen-display-view';
+import { OnboardingWizard } from '@/features/onboarding/onboarding-wizard';
 
 export default function HomePage() {
   const { user, status, checkAuth, isOwner, isBranchManager, isCashier, isSuperAdmin, activeTenant } = useAuthStore();
@@ -56,6 +57,23 @@ export default function HomePage() {
   // Super Admin Portal Mode
   if (isSuperAdmin() && (viewMode === 'superadmin' || !activeTenant)) {
     return <SuperAdminPortal />;
+  }
+
+  // User authenticated but has no active store: render Onboarding Wizard
+  if (!activeTenant) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-black text-white">Welcome, {user.fullName}!</h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Let&apos;s set up your store and starter catalog to start billing
+            </p>
+          </div>
+          <OnboardingWizard />
+        </div>
+      </div>
+    );
   }
 
   return (

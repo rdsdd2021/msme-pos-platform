@@ -372,7 +372,7 @@ export const INDUSTRY_MODULES: IndustryModuleInfo[] = [
 
 export function LandingPage() {
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryVerticalId>('grocery');
-  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   const activeModule = INDUSTRY_MODULES.find((m) => m.id === selectedIndustry) || INDUSTRY_MODULES[0];
 
@@ -381,6 +381,12 @@ export function LandingPage() {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const openAuth = (mode: 'login' | 'register', industry?: IndustryVerticalId) => {
+    setAuthMode(mode);
+    if (industry) setSelectedIndustry(industry);
+    scrollToSection('signin-section');
   };
 
   return (
@@ -446,14 +452,14 @@ export function LandingPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => scrollToSection('signin-section')}
+              onClick={() => openAuth('login')}
               className="border-slate-700 bg-slate-900 text-slate-200 hover:text-white hover:bg-slate-800 text-xs font-semibold cursor-pointer"
             >
               Sign In
             </Button>
             <Button
               size="sm"
-              onClick={() => scrollToSection('signin-section')}
+              onClick={() => openAuth('register')}
               className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs px-4 shadow-lg shadow-emerald-500/25 cursor-pointer flex items-center gap-1.5"
             >
               <span>Launch POS</span>
@@ -499,7 +505,7 @@ export function LandingPage() {
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
               size="lg"
-              onClick={() => scrollToSection('signin-section')}
+              onClick={() => openAuth('register')}
               className="w-full sm:w-auto h-12 px-7 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/20 cursor-pointer flex items-center justify-center gap-2"
             >
               <span>Launch POS Terminal</span>
@@ -626,7 +632,7 @@ export function LandingPage() {
               <div className="pt-2">
                 <Button
                   size="sm"
-                  onClick={() => scrollToSection('signin-section')}
+                  onClick={() => openAuth('register', activeModule.id)}
                   className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-xs px-4 cursor-pointer flex items-center gap-1.5"
                 >
                   <span>Experience {activeModule.name} POS</span>
@@ -889,7 +895,7 @@ export function LandingPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => scrollToSection('signin-section')}
+                onClick={() => openAuth('register', 'grocery')}
                 className="mt-6 w-full border-slate-700 bg-slate-800 text-white hover:bg-slate-700 text-xs font-bold cursor-pointer"
               >
                 Start Free
@@ -932,7 +938,7 @@ export function LandingPage() {
                 </div>
               </div>
               <Button
-                onClick={() => scrollToSection('signin-section')}
+                onClick={() => openAuth('register')}
                 className="mt-6 w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 text-xs font-black cursor-pointer shadow-md shadow-emerald-500/25"
               >
                 Get Started
@@ -969,7 +975,7 @@ export function LandingPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => scrollToSection('signin-section')}
+                onClick={() => openAuth('register', 'wholesale')}
                 className="mt-6 w-full border-slate-700 bg-slate-800 text-white hover:bg-slate-700 text-xs font-bold cursor-pointer"
               >
                 Contact Sales
@@ -1002,7 +1008,11 @@ export function LandingPage() {
         {/* Embedded Full LoginScreen for seamless authentication */}
         <div className="max-w-md mx-auto px-4">
           <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-white text-slate-900">
-            <LoginScreen />
+            <LoginScreen
+              key={`${authMode}-${selectedIndustry}`}
+              defaultMode={authMode}
+              defaultIndustry={selectedIndustry}
+            />
           </div>
         </div>
       </section>

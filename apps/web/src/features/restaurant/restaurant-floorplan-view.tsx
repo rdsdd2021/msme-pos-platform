@@ -621,3 +621,4 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
     </div>
   );
 }
+

@@ -116,6 +116,48 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await login(email, 'Password@123');
   }
 
+  Future<void> registerMerchant({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+    required String storeName,
+    required String businessType,
+    required String stateCode,
+    String? gstin,
+    String? city,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final user = await _repo.registerMerchant(
+        email: email,
+        password: password,
+        fullName: fullName,
+        phone: phone,
+        storeName: storeName,
+        businessType: businessType,
+        stateCode: stateCode,
+        gstin: gstin,
+        city: city,
+      );
+      final membership = user.primaryMembership;
+
+      state = AuthState(
+        user: user,
+        activeMembership: membership,
+        activeBranchId: membership?.branchId ?? 'branch-1',
+        isInitialized: true,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString().replaceFirst('Exception: ', ''),
+      );
+      rethrow;
+    }
+  }
+
   void switchBranch(String branchId) {
     if (state.activeMembership?.branchId != null) {
       // Scoped cashier cannot switch branch (Rule 11)

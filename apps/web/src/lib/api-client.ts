@@ -55,6 +55,19 @@ export interface UserProfile {
   memberships: TenantMembershipInfo[];
 }
 
+export interface RegisterMerchantRequest {
+  email: string;
+  password: string;
+  fullName: string;
+  phone?: string;
+  storeName: string;
+  businessType: string;
+  stateCode: string;
+  gstin?: string;
+  city?: string;
+  seedSampleCatalog?: boolean;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken?: string;
@@ -1171,6 +1184,15 @@ class ApiClient {
   }
 
   // --- Auth APIs ---
+
+  async registerMerchant(dto: RegisterMerchantRequest): Promise<AuthResponse> {
+    const res = await this.request<AuthResponse>('/auth/register-merchant', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+    this.setAccessToken(res.accessToken);
+    return res;
+  }
 
   async login(dto: { email: string; password: string }): Promise<AuthResponse> {
     const res = await this.request<AuthResponse>('/auth/login', {
