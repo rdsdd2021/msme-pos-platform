@@ -16,7 +16,11 @@ mkdir -p "${BACKUP_DIR}"
 echo "[INFO] Starting production database backup: ${TIMESTAMP}"
 
 # Dump and compress database from running Docker container
-sudo docker exec pos_postgres_prod pg_dump -U pos_admin pos_platform | gzip > "${BACKUP_FILE}"
+if docker info >/dev/null 2>&1; then
+  docker exec pos_postgres_prod pg_dump -U pos_admin pos_platform | gzip > "${BACKUP_FILE}"
+else
+  sudo docker exec pos_postgres_prod pg_dump -U pos_admin pos_platform | gzip > "${BACKUP_FILE}"
+fi
 
 # Verify file size
 FILESIZE=$(stat -c%s "${BACKUP_FILE}" 2>/dev/null || stat -f%z "${BACKUP_FILE}")
