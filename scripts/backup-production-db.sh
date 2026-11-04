@@ -16,7 +16,7 @@ mkdir -p "${BACKUP_DIR}"
 echo "[INFO] Starting production database backup: ${TIMESTAMP}"
 
 # Dump and compress database from running Docker container
-docker exec pos_postgres_prod pg_dump -U postgres pos_prod | gzip > "${BACKUP_FILE}"
+sudo docker exec pos_postgres_prod pg_dump -U pos_admin pos_platform | gzip > "${BACKUP_FILE}"
 
 # Verify file size
 FILESIZE=$(stat -c%s "${BACKUP_FILE}" 2>/dev/null || stat -f%z "${BACKUP_FILE}")
@@ -33,3 +33,4 @@ echo "[INFO] Purging backups older than ${RETENTION_DAYS} days..."
 find "${BACKUP_DIR}" -name "pos_prod_*.sql.gz" -type f -mtime "+${RETENTION_DAYS}" -delete
 
 echo "[SUCCESS] Database backup and rotation completed successfully."
+
