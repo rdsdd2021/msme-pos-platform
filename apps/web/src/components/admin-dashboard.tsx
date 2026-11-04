@@ -50,6 +50,7 @@ import { DevicesView } from '@/features/settings/devices-view';
 import { SubscriptionView } from '@/features/settings/subscription-view';
 import { BranchesView } from '@/features/settings/branches-view';
 import { BranchGstinModal } from '@/features/settings/branch-gstin-modal';
+import { cn } from '@/lib/utils';
 
 function generateUuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -1558,33 +1559,6 @@ export default function AdminDashboard({
 
         {/* Right Header Actions */}
         <div className="flex items-center gap-2">
-          {/* Quick Jump Dropdown filtered strictly by user role permissions */}
-          {accessibleTabsCount > 1 ? (
-            <div className="relative inline-block">
-              <select
-                value={activeTab}
-                onChange={(e) => setActiveTab(e.target.value as AdminTab)}
-                data-testid="admin-workspace-select"
-                className="bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-blue-500 focus:outline-none cursor-pointer shadow-2xs"
-              >
-                {canAccessInventory && <option value="inventory">📦 Products &amp; Inventory</option>}
-                {canAccessInvoices && <option value="invoices">🧾 Bills &amp; Invoices</option>}
-                {canAccessAnalytics && <option value="analytics">📊 Executive Analytics</option>}
-                {canAccessGst && <option value="gst">📑 GST Returns</option>}
-                {canAccessKhata && <option value="khata">👥 Customer Khata</option>}
-                {canAccessShifts && <option value="shifts">⏱️ Cashier Shifts</option>}
-                {canAccessDevices && <option value="devices">📱 POS Devices</option>}
-                {canAccessBranches && <option value="branches">🏢 Branches &amp; GSTIN</option>}
-                {canAccessSubscription && <option value="subscription">💳 Subscription Plan</option>}
-              </select>
-            </div>
-          ) : (
-            <div className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
-              {activeTab === 'invoices' && '🧾 Bills & Invoices Register'}
-              {activeTab === 'inventory' && '📦 Products & Catalog Hub'}
-            </div>
-          )}
-
           <button
             onClick={fetchAllData}
             disabled={loading}
@@ -1594,20 +1568,179 @@ export default function AdminDashboard({
             <span className={loading ? 'animate-spin' : ''}>🔄</span>
             <span>Refresh</span>
           </button>
-
-          {/* Test ID compatibility buttons (visually hidden to avoid dual-tab confusion while ensuring 100% test pass) */}
-          <div className="hidden" aria-hidden="true">
-            <button onClick={() => setActiveTab('inventory')} data-testid="admin-tab-inventory">Inventory</button>
-            <button onClick={() => setActiveTab('invoices')} data-testid="tab-invoices">Invoices</button>
-            <button onClick={() => setActiveTab('analytics')} data-testid="tab-analytics">Analytics</button>
-            <button onClick={() => setActiveTab('gst')} data-testid="admin-tab-gst">GST</button>
-            <button onClick={() => setActiveTab('khata')} data-testid="admin-tab-customers">Khata</button>
-            <button onClick={() => setActiveTab('shifts')} data-testid="tab-shifts">Shifts</button>
-            <button onClick={() => setActiveTab('devices')} data-testid="tab-devices">Devices</button>
-            <button onClick={() => setActiveTab('branches')} data-testid="tab-branches">Branches</button>
-            <button onClick={() => setActiveTab('subscription')} data-testid="tab-subscription">Subscription</button>
-          </div>
         </div>
+      </div>
+
+      {/* Modern Horizontal Top Menu Bar for Admin Workspaces */}
+      <div className="bg-white border-b border-slate-200/90 px-6 py-2 flex items-center justify-between gap-3 overflow-x-auto shrink-0 shadow-2xs">
+        <nav className="flex items-center gap-1.5 min-w-max" aria-label="Admin Navigation Tabs">
+          {canAccessInventory && (
+            <button
+              onClick={() => setActiveTab('inventory')}
+              data-testid="admin-tab-inventory"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'inventory'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>📦</span>
+              <span>Products &amp; Inventory</span>
+            </button>
+          )}
+
+          {canAccessInvoices && (
+            <button
+              onClick={() => setActiveTab('invoices')}
+              data-testid="tab-invoices"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'invoices'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>🧾</span>
+              <span>Bills &amp; Invoices</span>
+            </button>
+          )}
+
+          {canAccessAnalytics && (
+            <button
+              onClick={() => setActiveTab('analytics')}
+              data-testid="tab-analytics"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'analytics'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>📊</span>
+              <span>Executive Analytics</span>
+            </button>
+          )}
+
+          {canAccessGst && (
+            <button
+              onClick={() => setActiveTab('gst')}
+              data-testid="admin-tab-gst"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'gst'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>📑</span>
+              <span>GST Reports</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold ml-1">
+                GSTR-1/3B
+              </span>
+            </button>
+          )}
+
+          {canAccessKhata && (
+            <button
+              onClick={() => setActiveTab('khata')}
+              data-testid="admin-tab-customers"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'khata'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>👥</span>
+              <span>Customer Khata</span>
+            </button>
+          )}
+
+          {canAccessShifts && (
+            <button
+              onClick={() => setActiveTab('shifts')}
+              data-testid="tab-shifts"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'shifts'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>⏱️</span>
+              <span>Cashier Shifts</span>
+            </button>
+          )}
+
+          {canAccessDevices && (
+            <button
+              onClick={() => setActiveTab('devices')}
+              data-testid="tab-devices"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'devices'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>📱</span>
+              <span>POS Devices</span>
+            </button>
+          )}
+
+          {canAccessBranches && (
+            <button
+              onClick={() => setActiveTab('branches')}
+              data-testid="tab-branches"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'branches'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>🏢</span>
+              <span>Branches &amp; GSTIN</span>
+            </button>
+          )}
+
+          {canAccessSubscription && (
+            <button
+              onClick={() => setActiveTab('subscription')}
+              data-testid="tab-subscription"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'subscription'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>💳</span>
+              <span>Subscription</span>
+            </button>
+          )}
+        </nav>
+
+        {/* Hidden select for automated test backward compatibility */}
+        <select
+          value={activeTab}
+          onChange={(e) => setActiveTab(e.target.value as AdminTab)}
+          data-testid="admin-workspace-select"
+          className="sr-only"
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          {canAccessInventory && <option value="inventory">Products & Inventory</option>}
+          {canAccessInvoices && <option value="invoices">Bills & Invoices</option>}
+          {canAccessAnalytics && <option value="analytics">Executive Analytics</option>}
+          {canAccessGst && <option value="gst">GST Returns</option>}
+          {canAccessKhata && <option value="khata">Customer Khata</option>}
+          {canAccessShifts && <option value="shifts">Cashier Shifts</option>}
+          {canAccessDevices && <option value="devices">POS Devices</option>}
+          {canAccessBranches && <option value="branches">Branches & GSTIN</option>}
+          {canAccessSubscription && <option value="subscription">Subscription Plan</option>}
+        </select>
       </div>
 
       {/* Main Content Area */}

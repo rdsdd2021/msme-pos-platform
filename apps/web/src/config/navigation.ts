@@ -195,7 +195,7 @@ export function filterNavForUser(
     ? enabledModules
     : (businessType && (DEFAULT_MODULES_BY_BUSINESS as any)[businessType])
       ? (DEFAULT_MODULES_BY_BUSINESS as any)[businessType]
-      : Object.values(AppModule);
+      : (DEFAULT_MODULES_BY_BUSINESS as any)[BusinessType.GROCERY];
 
   return navigationConfig
     .filter((section) => !section.requiredModule || activeModules.includes(section.requiredModule))
