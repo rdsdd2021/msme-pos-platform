@@ -8,6 +8,7 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
+import { BranchEntity } from '../tenants/entities/branch.entity';
 import { BillingModule } from '../billing/billing.module';
 import { TenantsModule } from '../tenants/tenants.module';
 
@@ -20,6 +21,7 @@ import { TenantsModule } from '../tenants/tenants.module';
       CategoryEntity,
       DeviceEntity,
       CustomerEntity,
+      BranchEntity,
     ]),
     BillingModule,
     TenantsModule,

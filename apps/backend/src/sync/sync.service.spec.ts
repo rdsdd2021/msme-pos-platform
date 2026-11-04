@@ -8,6 +8,7 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
+import { BranchEntity } from '../tenants/entities/branch.entity';
 import { BillingService } from '../billing/billing.service';
 import { DeviceStatus } from '@pos/shared-types';
 
@@ -19,6 +20,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
   let mockCategoryRepo: any;
   let mockCustomerRepo: any;
   let mockDeviceRepo: any;
+  let mockBranchRepo: any;
   let mockBillingService: any;
   let mockDataSource: any;
 
@@ -36,6 +38,11 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
     mockDeviceRepo = {
       findOne: jest.fn().mockResolvedValue({ id: 'device-pos-001', status: DeviceStatus.ACTIVE }),
       update: jest.fn().mockResolvedValue({}),
+      create: jest.fn((d) => ({ ...d, id: 'device-pos-001' })),
+      save: jest.fn(async (d) => ({ ...d, id: 'device-pos-001' })),
+    };
+    mockBranchRepo = {
+      findOne: jest.fn().mockResolvedValue({ id: 'branch-uuid-001', name: 'Main Store' }),
     };
     mockProductRepo = { find: jest.fn().mockResolvedValue([]) };
     mockCategoryRepo = { find: jest.fn().mockResolvedValue([]) };
@@ -54,6 +61,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
         { provide: getRepositoryToken(CategoryEntity), useValue: mockCategoryRepo },
         { provide: getRepositoryToken(CustomerEntity), useValue: mockCustomerRepo },
         { provide: getRepositoryToken(DeviceEntity), useValue: mockDeviceRepo },
+        { provide: getRepositoryToken(BranchEntity), useValue: mockBranchRepo },
         { provide: BillingService, useValue: mockBillingService },
         { provide: DataSource, useValue: mockDataSource },
       ],
@@ -116,6 +124,38 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
       expect(response.results[0].status).toBe('already_processed');
       expect(response.results[0].serverEntityId).toBe('server-invoice-uuid-101');
       expect(mockBillingService.createSale).not.toHaveBeenCalled();
+    });
+
+    it('auto-provisions an unknown device terminal and ingests offline sale', async () => {
+      mockDeviceRepo.findOne.mockResolvedValueOnce(null);
+      mockDeviceRepo.create.mockReturnValue({
+        id: 'new-device-uuid',
+        tenantId: 'tenant-1',
+        deviceIdentifier: 'device-pos-unknown',
+        status: DeviceStatus.ACTIVE,
+      });
+      mockDeviceRepo.save.mockResolvedValue({
+        id: 'new-device-uuid',
+        status: DeviceStatus.ACTIVE,
+      });
+
+      const response = await service.ingestBatch('tenant-1', 'cashier-1', {
+        deviceId: 'device-pos-unknown',
+        operations: [
+          {
+            operationId: 'op-auto-1',
+            deviceId: 'device-pos-unknown',
+            sequence: 1,
+            operationType: 'CREATE_SALE',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:00:00.000Z',
+            payload: { branchId: 'branch-1' },
+          },
+        ],
+      });
+
+      expect(response.results[0].status).toBe('accepted');
+      expect(mockDeviceRepo.create).toHaveBeenCalled();
     });
 
     it('rejects batch operations from a revoked device', async () => {

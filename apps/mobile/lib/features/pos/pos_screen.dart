@@ -702,7 +702,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     final catalogState = ref.watch(catalogProvider);
     final cartState = ref.watch(cartProvider);
 
-    final categories = ['All', 'Groceries', 'Dairy', 'Snacks'];
+    final categories = catalogState.availableCategories;
 
     return HardwareBarcodeScannerListener(
       onBarcodeScanned: _onBarcodeScanned,

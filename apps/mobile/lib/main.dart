@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/config/app_config.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/sync_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/owner/owner_screen.dart';
 import 'features/pos/pos_screen.dart';
@@ -55,6 +57,33 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
     MobilePosScreen(),
     MobileOwnerScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initDeviceAndSync();
+    });
+  }
+
+  Future<void> _initDeviceAndSync() async {
+    final authState = ref.read(authProvider);
+    final tenantId = authState.activeMembership?.tenantId;
+    final branchId = authState.activeBranchId ?? 'default';
+    final deviceId = await AppConfig.getDeviceId();
+    if (tenantId != null) {
+      try {
+        await ref.read(syncRepositoryProvider).registerDevice(
+          tenantId: tenantId,
+          branchId: branchId,
+          deviceIdentifier: deviceId,
+          deviceName: 'Android POS Terminal',
+        );
+      } catch (_) {}
+    }
+    // Trigger initial delta sync so latest products and categories appear
+    await ref.read(syncStateProvider.notifier).syncNow(deviceId: deviceId);
+  }
 
   @override
   Widget build(BuildContext context) {

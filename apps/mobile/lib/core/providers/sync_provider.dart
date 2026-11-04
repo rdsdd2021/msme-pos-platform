@@ -5,6 +5,8 @@ import '../repositories/sync_repository.dart';
 import '../services/offline_billing_service.dart';
 import '../services/sync_worker.dart';
 import 'auth_provider.dart';
+import 'catalog_provider.dart';
+import 'customer_provider.dart';
 
 enum SyncStatus {
   idle,
@@ -92,6 +94,15 @@ class SyncNotifier extends StateNotifier<SyncState> {
           status: SyncStatus.synced,
           lastError: null,
         );
+
+        // Instantly reload local catalog and customer lists if deltas were pulled
+        if (result.pulledProductsCount > 0) {
+          await _ref.read(catalogProvider.notifier).reload();
+        }
+        if (result.pulledCustomersCount > 0) {
+          await _ref.read(customerProvider.notifier).reload();
+        }
+
         return true;
       } else {
         state = state.copyWith(

@@ -10,6 +10,7 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
+import { BranchEntity } from '../tenants/entities/branch.entity';
 import { BillingService } from '../billing/billing.service';
 import { CreateSaleDto } from '../billing/dto/billing.dto';
 import { PushSyncBatchDto, AllocateInvoiceRangeDto } from './dto/sync.dto';
@@ -18,6 +19,7 @@ import {
   SyncOperationAck,
   SyncPullDeltaResponse,
   DeviceStatus,
+  Platform,
 } from '@pos/shared-types';
 
 @Injectable()
@@ -37,6 +39,8 @@ export class SyncService {
     private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(CustomerEntity)
     private readonly customerRepo: Repository<CustomerEntity>,
+    @InjectRepository(BranchEntity)
+    private readonly branchRepo: Repository<BranchEntity>,
     private readonly billingService: BillingService,
     private readonly dataSource: DataSource,
   ) {}
@@ -53,10 +57,40 @@ export class SyncService {
     const results: SyncOperationAck[] = [];
 
     for (const op of dto.operations) {
-      // 0. Validate Device Status and Tenancy
-      const device = await this.deviceRepo.findOne({
-        where: { id: op.deviceId, tenantId },
+      // 0. Validate Device Status and Tenancy (lookup by primary UUID or hardware device identifier)
+      let device = await this.deviceRepo.findOne({
+        where: [
+          { id: op.deviceId, tenantId },
+          { deviceIdentifier: op.deviceId, tenantId },
+        ],
       });
+
+      if (!device) {
+        // Auto-provision mobile terminal for authenticated tenant
+        try {
+          const payloadBranchId = (op.payload as any)?.branchId;
+          let branchId = payloadBranchId;
+          if (!branchId) {
+            const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
+            branchId = defaultBranch?.id;
+          }
+
+          if (branchId) {
+            const newDevice = this.deviceRepo.create({
+              tenantId,
+              branchId,
+              deviceIdentifier: op.deviceId,
+              deviceName: 'Mobile POS Terminal',
+              platform: Platform.ANDROID,
+              status: DeviceStatus.ACTIVE,
+              lastSeenAt: new Date(),
+            });
+            device = await this.deviceRepo.save(newDevice);
+          }
+        } catch (err: any) {
+          this.logger.warn(`Device auto-provisioning failed for ${op.deviceId}: ${err.message}`);
+        }
+      }
 
       if (!device) {
         results.push({

@@ -1,14 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_mobile/core/providers/auth_provider.dart';
+import 'package:pos_mobile/core/repositories/auth_repository.dart';
 import 'package:pos_mobile/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('KiranaPosApp', () {
     testWidgets('renders Kirana Supermart header and search bar', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: KiranaPosApp(),
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => AuthNotifier(
+                ref.watch(authRepositoryProvider),
+                initialState: AuthState(
+                  user: AuthRepository.demoOwner,
+                  activeMembership: AuthRepository.demoOwner.primaryMembership,
+                  isInitialized: true,
+                ),
+              ),
+            ),
+          ],
+          child: const KiranaPosApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -25,8 +44,20 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        const ProviderScope(
-          child: KiranaPosApp(),
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => AuthNotifier(
+                ref.watch(authRepositoryProvider),
+                initialState: AuthState(
+                  user: AuthRepository.demoOwner,
+                  activeMembership: AuthRepository.demoOwner.primaryMembership,
+                  isInitialized: true,
+                ),
+              ),
+            ),
+          ],
+          child: const KiranaPosApp(),
         ),
       );
       await tester.pumpAndSettle();
@@ -45,8 +76,20 @@ void main() {
 
     testWidgets('switches to Store Owner Analytics screen', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: KiranaPosApp(),
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => AuthNotifier(
+                ref.watch(authRepositoryProvider),
+                initialState: AuthState(
+                  user: AuthRepository.demoOwner,
+                  activeMembership: AuthRepository.demoOwner.primaryMembership,
+                  isInitialized: true,
+                ),
+              ),
+            ),
+          ],
+          child: const KiranaPosApp(),
         ),
       );
       await tester.pumpAndSettle();

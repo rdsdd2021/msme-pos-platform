@@ -23,6 +23,35 @@ class SyncRepository {
     _baseUrl = newUrl;
   }
 
+  /// Register mobile POS device with backend tenant commercial fleet
+  Future<void> registerDevice({
+    required String tenantId,
+    required String branchId,
+    required String deviceIdentifier,
+    String deviceName = 'Android POS Terminal',
+  }) async {
+    final token = await _authRepo.getAccessToken();
+    try {
+      await _dio.post(
+        '$_baseUrl/api/v1/tenants/$tenantId/commercial/devices',
+        data: {
+          'branchId': branchId,
+          'deviceIdentifier': deviceIdentifier,
+          'deviceName': deviceName,
+          'platform': 'android',
+        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+    } catch (_) {
+      // Non-blocking: device will also auto-provision on sync push if required
+    }
+  }
+
   /// Ingest a batch of offline mutations via POST /api/v1/tenants/:tenantId/sync/push
   Future<SyncPushResult> pushBatch(
     String tenantId,

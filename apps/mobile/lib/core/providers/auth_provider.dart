@@ -48,13 +48,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   AuthNotifier(this._repo, {AuthState? initialState})
       : super(
-          initialState ??
-              AuthState(
-                user: AuthRepository.demoOwner,
-                activeMembership: AuthRepository.demoOwner.primaryMembership,
-                activeBranchId: AuthRepository.demoOwner.primaryMembership?.branchId ?? 'branch-1',
-                isInitialized: true,
-              ),
+          initialState ?? const AuthState(isInitialized: false),
         ) {
     if (initialState == null) {
       checkSession();
@@ -66,7 +60,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final isLoggedOut = await _repo.isExplicitlyLoggedOut();
       if (isLoggedOut) {
-        state = const AuthState(isInitialized: true);
+        state = const AuthState(isInitialized: true, user: null);
         return;
       }
 
@@ -85,8 +79,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Ignore cache load failure
     }
 
-    // Default to initial state (e.g. demoOwner) if not explicitly logged out
-    state = state.copyWith(isLoading: false, isInitialized: true);
+    // Default to clean unauthenticated state on first boot
+    state = const AuthState(isInitialized: true, user: null);
+  }
+
+  void signInAsDemo({bool isOwner = true}) {
+    final demoUser = isOwner ? AuthRepository.demoOwner : AuthRepository.demoCashier;
+    state = AuthState(
+      user: demoUser,
+      activeMembership: demoUser.primaryMembership,
+      activeBranchId: demoUser.primaryMembership?.branchId ?? 'branch-1',
+      isInitialized: true,
+    );
   }
 
   Future<void> login(String email, String password) async {

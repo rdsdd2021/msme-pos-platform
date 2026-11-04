@@ -12,7 +12,7 @@ void main() {
   });
 
   group('Mobile Authentication & Role Navigation Tests', () {
-    testWidgets('starts authenticated as Store Owner by default (demo mode)', (WidgetTester tester) async {
+    testWidgets('starts on MobileLoginScreen when unauthenticated on cold boot', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -23,6 +23,36 @@ void main() {
           child: KiranaPosApp(),
         ),
       );
+      await tester.pumpAndSettle();
+
+      // Starts unauthenticated: Login screen is displayed
+      expect(find.byType(MobileLoginScreen), findsOneWidget);
+      expect(find.text('Sign in to your Store'), findsOneWidget);
+      expect(find.byKey(const Key('login_email_input')), findsOneWidget);
+      expect(find.byKey(const Key('login_password_input')), findsOneWidget);
+      expect(find.byKey(const Key('login_submit_btn')), findsOneWidget);
+      expect(find.byKey(const Key('mobile_register_store_btn')), findsOneWidget);
+    });
+
+    testWidgets('allows navigation between POS and Store Owner Analytics for Owner after login', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: KiranaPosApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap Store Owner demo button to prefill admin@kirana.dev
+      await tester.tap(find.byKey(const Key('demo_owner_btn')));
+      await tester.pumpAndSettle();
+
+      // Sign In
+      await tester.tap(find.byKey(const Key('login_submit_btn')));
       await tester.pumpAndSettle();
 
       // In POS header
@@ -32,20 +62,6 @@ void main() {
       // Bottom Navigation has both Kirana POS and Store Owner tabs
       expect(find.text('Kirana POS'), findsOneWidget);
       expect(find.text('Store Owner'), findsOneWidget);
-    });
-
-    testWidgets('allows navigation between POS and Store Owner Analytics for Owner', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      await tester.pumpWidget(
-        const ProviderScope(
-          child: KiranaPosApp(),
-        ),
-      );
-      await tester.pumpAndSettle();
 
       // Tap Store Owner tab
       await tester.tap(find.text('Store Owner'));
@@ -67,6 +83,12 @@ void main() {
           child: KiranaPosApp(),
         ),
       );
+      await tester.pumpAndSettle();
+
+      // Log in first as Owner
+      await tester.tap(find.byKey(const Key('demo_owner_btn')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('login_submit_btn')));
       await tester.pumpAndSettle();
 
       // Tap logout button in POS screen
