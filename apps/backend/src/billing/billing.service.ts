@@ -18,6 +18,7 @@ import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
 import { CustomerLedgerEntity } from '../operations/entities/customer-ledger.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
+import { TenantEntity } from '../tenants/entities/tenant.entity';
 import { AuditService } from '../tenants/audit.service';
 import { CreateSaleDto } from './dto/billing.dto';
 import { CreateSalesReturnDto, CreditNoteQueryDto } from './dto/returns.dto';
@@ -84,7 +85,10 @@ export class BillingService {
         return existing;
       }
 
-      // 2. Fetch and snapshot product details
+      // 2. Fetch tenant settings and snapshot product details
+      const tenant = await manager.findOne(TenantEntity, { where: { id: tenantId } });
+      const allowNegativeStock = (tenant?.settings as any)?.allowNegativeStock === true;
+
       const productIds = dto.items.map((i) => i.productId);
       const products = await manager.findByIds(ProductEntity, productIds);
       const productMap = new Map(products.map((p) => [p.id, p]));
@@ -107,6 +111,19 @@ export class BillingService {
         const qty = parseFloat(item.quantity);
         if (qty <= 0) {
           throw new BadRequestException(`Quantity must be greater than zero for product ${product.name}`);
+        }
+
+        // Stock Ceiling Validation (Rule 15: No overselling without explicit negative stock permission)
+        if (product.trackInventory && !allowNegativeStock) {
+          const balance = await manager.findOne(StockBalanceEntity, {
+            where: { tenantId, branchId: dto.branchId, productId: product.id },
+          });
+          const availableStock = balance ? parseFloat(balance.quantityOnHand) : 0;
+          if (qty > availableStock) {
+            throw new BadRequestException(
+              `Insufficient stock for "${product.name}". Available: ${availableStock.toFixed(3)}, Requested: ${qty.toFixed(3)}`,
+            );
+          }
         }
 
         // Server authoritative unit price

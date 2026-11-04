@@ -38,6 +38,8 @@ export interface UserSummary {
 export interface TenantMembershipInfo {
   tenantId: string;
   tenantName: string;
+  businessType?: string;
+  enabledModules?: string[];
   branchId: string | null;
   role: string;
   roles: Role[];
@@ -66,6 +68,8 @@ export interface RegisterMerchantRequest {
   gstin?: string;
   city?: string;
   seedSampleCatalog?: boolean;
+  enabledModules?: string[];
+  allowNegativeStock?: boolean;
 }
 
 export interface AuthResponse {

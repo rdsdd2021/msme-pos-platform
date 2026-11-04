@@ -24,6 +24,14 @@ class LocalCatalogRepository {
     );
   }
 
+  /// Purges old simulated demo data ('tenant-1') when a real merchant logs in
+  Future<void> purgeMockDataIfPresent(String activeTenantId) async {
+    if (activeTenantId != 'tenant-1') {
+      await (_db.delete(_db.localProducts)..where((t) => t.tenantId.equals('tenant-1'))).go();
+      await (_db.delete(_db.localCustomers)..where((t) => t.tenantId.equals('tenant-1'))).go();
+    }
+  }
+
   /// Seeds persistent initial catalog into SQLite if table is currently empty
   Future<void> seedInitialProductsIfEmpty({String tenantId = 'tenant-1'}) async {
     final count = await _db.localProducts.count().getSingle();

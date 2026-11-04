@@ -196,9 +196,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
 
   Future<void> reload() async {
     final items = await _repo.getAllProducts();
-    if (items.isNotEmpty) {
-      state = state.copyWith(allProducts: items);
-    }
+    state = state.copyWith(allProducts: items);
   }
 }
 

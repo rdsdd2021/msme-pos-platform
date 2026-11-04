@@ -4,9 +4,31 @@ export enum BusinessType {
   APPAREL = 'apparel',
   ELECTRONICS = 'electronics',
   RESTAURANT = 'restaurant',
+  RETAIL = 'retail',
   WHOLESALE = 'wholesale',
   OTHER = 'other',
 }
+
+export enum AppModule {
+  POS = 'pos',
+  INVENTORY = 'inventory',
+  KHATA = 'khata',
+  GST = 'gst',
+  SHIFTS = 'shifts',
+  RESTAURANT = 'restaurant',
+  INVOICES = 'invoices',
+}
+
+export const DEFAULT_MODULES_BY_BUSINESS: Record<BusinessType, AppModule[]> = {
+  [BusinessType.GROCERY]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.RESTAURANT]: [AppModule.RESTAURANT, AppModule.POS, AppModule.INVENTORY, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.PHARMACY]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.APPAREL]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.ELECTRONICS]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.RETAIL]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.WHOLESALE]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+  [BusinessType.OTHER]: [AppModule.POS, AppModule.INVENTORY, AppModule.KHATA, AppModule.GST, AppModule.SHIFTS, AppModule.INVOICES],
+};
 
 export enum TenantStatus {
   TRIAL = 'trial',

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/app_config.dart';
 import '../database/app_database.dart';
 import '../repositories/sync_repository.dart';
 import '../services/offline_billing_service.dart';
@@ -65,18 +66,19 @@ class SyncNotifier extends StateNotifier<SyncState> {
     );
   }
 
-  Future<bool> syncNow({String deviceId = 'device-pos-01'}) async {
+  Future<bool> syncNow({String? deviceId}) async {
     if (state.isSyncing) return false;
 
     state = state.copyWith(isSyncing: true, lastError: null, status: SyncStatus.syncing);
 
+    final resolvedDeviceId = deviceId ?? await AppConfig.getDeviceId();
     final authState = _ref.read(authProvider);
     final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
 
     try {
       final result = await _worker.synchronize(
         tenantId: tenantId,
-        deviceId: deviceId,
+        deviceId: resolvedDeviceId,
       );
 
       final count = await _worker.getPendingCount();

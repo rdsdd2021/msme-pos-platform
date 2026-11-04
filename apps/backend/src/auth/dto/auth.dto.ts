@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsEnum,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { BusinessType } from '@pos/shared-types';
@@ -91,6 +92,17 @@ export class RegisterMerchantDto {
   @IsOptional()
   @IsBoolean()
   seedSampleCatalog?: boolean;
+
+  @ApiProperty({ example: ['pos', 'inventory', 'khata', 'gst', 'shifts'], required: false })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  enabledModules?: string[];
+
+  @ApiProperty({ example: false, required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  allowNegativeStock?: boolean;
 }
 
 export class LoginDto {

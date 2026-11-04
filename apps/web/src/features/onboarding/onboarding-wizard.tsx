@@ -26,6 +26,16 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DEFAULT_MODULES_BY_BUSINESS, BusinessType, AppModule } from '@pos/shared-types';
+
+export const AVAILABLE_MODULE_OPTIONS = [
+  { id: AppModule.POS, name: 'POS Billing Terminal', desc: 'Touch grid, barcode scanning, shortcuts', required: true },
+  { id: AppModule.INVENTORY, name: 'Catalog & Stock Ledger', desc: 'Stock movements, low-stock alerts', required: true },
+  { id: AppModule.RESTAURANT, name: 'Restaurant Tables & KDS', desc: 'Dine-in floorplan, KOT ticket dispatch' },
+  { id: AppModule.KHATA, name: 'Customer Khata Credit Book', desc: 'Credit limits & ledger repayments' },
+  { id: AppModule.GST, name: 'GST Returns (GSTR-1/3B)', desc: 'HSN summaries & statutory filing exports' },
+  { id: AppModule.SHIFTS, name: 'Cashier Shift Register', desc: 'Opening/closing float and cash auditing' },
+];
 
 export const INDIAN_STATES = [
   { code: '01', name: 'Jammu and Kashmir' },
@@ -133,6 +143,17 @@ export function OnboardingWizard({
   const [step, setStep] = useState<1 | 2>(1);
   const [storeName, setStoreName] = useState('');
   const [businessType, setBusinessType] = useState(initialIndustry);
+  const [enabledModules, setEnabledModules] = useState<string[]>(() => {
+    const defaults = (DEFAULT_MODULES_BY_BUSINESS as any)[initialIndustry] || DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY];
+    return defaults.map((d: any) => String(d));
+  });
+
+  const handleSelectBusinessType = (type: string) => {
+    setBusinessType(type);
+    const defaults = (DEFAULT_MODULES_BY_BUSINESS as any)[type] || DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY];
+    setEnabledModules(defaults.map((d: any) => String(d)));
+  };
+
   const [stateCode, setStateCode] = useState('27'); // Default: Maharashtra
   const [city, setCity] = useState('');
   const [gstin, setGstin] = useState('');
@@ -215,6 +236,7 @@ export function OnboardingWizard({
         gstin: gstin.trim() ? gstin.trim().toUpperCase() : undefined,
         city: city.trim() ? city.trim() : undefined,
         seedSampleCatalog,
+        enabledModules,
       });
 
       if (onSuccess) {
@@ -309,7 +331,7 @@ export function OnboardingWizard({
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setBusinessType(opt.id)}
+                    onClick={() => handleSelectBusinessType(opt.id)}
                     className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition cursor-pointer ${
                       isSelected
                         ? 'border-emerald-600 bg-emerald-50/50 shadow-2xs'
@@ -337,6 +359,53 @@ export function OnboardingWizard({
                   </button>
                 );
               })}
+            </div>
+
+            {/* Active modules checklist */}
+            <div className="mt-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-700">Configured Store Modules</span>
+                <span className="text-[10px] text-emerald-700 font-semibold">
+                  {enabledModules.length} Active for {INDUSTRY_OPTIONS.find((o) => o.id === businessType)?.name}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {AVAILABLE_MODULE_OPTIONS.map((mod) => {
+                  const isChecked = enabledModules.includes(mod.id);
+                  return (
+                    <label
+                      key={mod.id}
+                      className={`flex items-start gap-1.5 p-2 rounded-lg border text-left cursor-pointer transition select-none ${
+                        isChecked
+                          ? 'bg-white border-emerald-300 shadow-2xs'
+                          : 'bg-slate-100/60 border-slate-200/80 opacity-60'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        disabled={mod.required}
+                        onChange={(e) => {
+                          if (mod.required) return;
+                          if (e.target.checked) {
+                            setEnabledModules([...enabledModules, mod.id]);
+                          } else {
+                            setEnabledModules(enabledModules.filter((m) => m !== mod.id));
+                          }
+                        }}
+                        className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
+                      />
+                      <div>
+                        <div className="text-[10px] font-bold text-slate-800 leading-tight flex items-center gap-1">
+                          {mod.name}
+                          {mod.required && <span className="text-[9px] text-slate-400 font-normal">(Core)</span>}
+                        </div>
+                        <div className="text-[9px] text-slate-400 leading-tight mt-0.5">{mod.desc}</div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

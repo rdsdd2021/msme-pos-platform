@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { apiClient, UserProfile, TenantMembershipInfo, Branch, RegisterMerchantRequest } from '@/lib/api-client';
-import { Role, Permission } from '@pos/shared-types';
+import { Role, Permission, AppModule, BusinessType, DEFAULT_MODULES_BY_BUSINESS } from '@pos/shared-types';
 
 interface AuthState {
   user: UserProfile | null;
@@ -27,6 +27,7 @@ interface AuthState {
   isInventoryStaff: () => boolean;
   isAccountant: () => boolean;
   hasPermission: (permission: Permission) => boolean;
+  hasModule: (moduleName: string) => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -310,6 +311,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!active) return false;
     if (active.isOwner || active.roles.includes(Role.OWNER)) return true;
     return active.permissions.includes(permission);
+  },
+
+  hasModule: (moduleName: string) => {
+    const active = get().activeTenant;
+    if (!active) return true;
+    if (active.enabledModules && active.enabledModules.length > 0) {
+      return active.enabledModules.includes(moduleName);
+    }
+    if (active.businessType) {
+      const defaults = (DEFAULT_MODULES_BY_BUSINESS as any)[active.businessType];
+      if (defaults) return defaults.includes(moduleName);
+    }
+    return true;
   },
 }));
 

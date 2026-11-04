@@ -292,16 +292,31 @@ export default function PosCheckoutScreen() {
     );
 
     if (localMatch) {
-      addItem({
+      const stock = stockMap.get(localMatch.id);
+      const res = addItem({
         productId: localMatch.id,
         name: localMatch.name,
         sku: localMatch.sku,
         price: localMatch.sellingPrice,
         mrp: localMatch.mrp,
         gstRate: localMatch.gstRatePercent || '5.00',
-        currentStock: stockMap.get(localMatch.id),
+        currentStock: stock,
       });
-      toast.success(`Added ${localMatch.name} to bill`);
+
+      if (!res.success) {
+        if (res.blockedReason === 'OUT_OF_STOCK') {
+          toast.error(`"${localMatch.name}" is out of stock (0 available)`);
+        } else {
+          toast.warning(`Cannot add more: Only ${res.currentStock} units in stock for "${localMatch.name}"`);
+        }
+        return;
+      }
+
+      if (res.blockedReason === 'EXCEEDS_STOCK') {
+        toast.warning(`Added ${res.addedQuantity} (Capped at available stock: ${res.currentStock})`);
+      } else {
+        toast.success(`Added ${localMatch.name} to bill`);
+      }
       return;
     }
 
@@ -310,16 +325,31 @@ export default function PosCheckoutScreen() {
       try {
         const found = await apiClient.searchProduct(activeTenant.tenantId, query);
         if (found) {
-          addItem({
+          const stock = stockMap.get(found.id);
+          const res = addItem({
             productId: found.id,
             name: found.name,
             sku: found.sku,
             price: found.sellingPrice,
             mrp: found.mrp,
             gstRate: found.gstRatePercent || '5.00',
-            currentStock: stockMap.get(found.id),
+            currentStock: stock,
           });
-          toast.success(`Added ${found.name} to bill`);
+
+          if (!res.success) {
+            if (res.blockedReason === 'OUT_OF_STOCK') {
+              toast.error(`"${found.name}" is out of stock (0 available)`);
+            } else {
+              toast.warning(`Cannot add more: Only ${res.currentStock} units in stock for "${found.name}"`);
+            }
+            return;
+          }
+
+          if (res.blockedReason === 'EXCEEDS_STOCK') {
+            toast.warning(`Added ${res.addedQuantity} (Capped at available stock: ${res.currentStock})`);
+          } else {
+            toast.success(`Added ${found.name} to bill`);
+          }
           return;
         }
       } catch {
@@ -652,8 +682,8 @@ export default function PosCheckoutScreen() {
                 return (
                   <div
                     key={product.id}
-                    onClick={() =>
-                      addItem({
+                    onClick={() => {
+                      const res = addItem({
                         productId: product.id,
                         name: product.name,
                         sku: product.sku,
@@ -661,8 +691,17 @@ export default function PosCheckoutScreen() {
                         mrp: product.mrp,
                         gstRate: product.gstRatePercent || '5.00',
                         currentStock: stock,
-                      })
-                    }
+                      });
+                      if (!res.success) {
+                        if (res.blockedReason === 'OUT_OF_STOCK') {
+                          toast.error(`"${product.name}" is out of stock (0 available)`);
+                        } else {
+                          toast.warning(`Cannot add more: Only ${res.currentStock} units in stock for "${product.name}"`);
+                        }
+                      } else if (res.blockedReason === 'EXCEEDS_STOCK') {
+                        toast.warning(`Added ${res.addedQuantity} (Capped at available stock: ${res.currentStock})`);
+                      }
+                    }}
                     data-testid={`product-card-${product.sku}`}
                     className={`group relative bg-white border rounded-xl p-3 flex flex-col justify-between transition-all duration-150 cursor-pointer shadow-2xs hover:shadow-md hover:border-blue-500 active:scale-[0.98] select-none ${
                       isOutOfStock ? 'border-amber-200/80 bg-amber-50/20' : 'border-slate-200/90'
@@ -851,8 +890,16 @@ export default function PosCheckoutScreen() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                      className="h-7 w-7 text-slate-700 font-bold hover:bg-slate-100 rounded-md cursor-pointer text-xs"
+                      disabled={item.currentStock !== undefined && item.currentStock !== null && item.quantity >= parseFloat(item.currentStock)}
+                      onClick={() => {
+                        const maxStock = item.currentStock ? parseFloat(item.currentStock) : Infinity;
+                        if (!isNaN(maxStock) && item.quantity + 1 > maxStock) {
+                          toast.warning(`Cannot add more: Maximum available stock (${maxStock}) reached for "${item.name}"`);
+                          return;
+                        }
+                        updateQuantity(item.productId, item.quantity + 1);
+                      }}
+                      className="h-7 w-7 text-slate-700 font-bold hover:bg-slate-100 rounded-md cursor-pointer text-xs disabled:opacity-30 disabled:cursor-not-allowed"
                     >
                       +
                     </Button>

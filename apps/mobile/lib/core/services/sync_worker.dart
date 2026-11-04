@@ -134,25 +134,31 @@ class SyncWorker {
           final prodId = p['id'] as String? ?? '';
           if (prodId.isEmpty) continue;
 
+          final barcode = (p['barcodePrimary'] ?? p['barcode']) as String?;
+          final purchaseCost = p['purchaseCost'] ?? p['costPrice'];
+          final gstRate = p['gstRatePercent'] ?? p['gstRate'];
+          final stockQty = p['currentStock'] ?? p['stockQuantity'] ?? 50.0;
+
           await _db.into(_db.localProducts).insertOnConflictUpdate(
             LocalProductsCompanion(
               id: Value(prodId),
               tenantId: Value(p['tenantId'] as String? ?? tenantId),
               sku: Value(p['sku'] as String? ?? 'SKU'),
               name: Value(p['name'] as String? ?? 'Product'),
-              barcode: Value(p['barcode'] as String?),
+              barcode: Value(barcode),
               sellingPricePaisa: Value(
                 ((double.tryParse(p['sellingPrice']?.toString() ?? '0') ?? 0) * 100).round(),
               ),
               purchaseCostPaisa: Value(
-                ((double.tryParse(p['costPrice']?.toString() ?? '0') ?? 0) * 100).round(),
+                ((double.tryParse(purchaseCost?.toString() ?? '0') ?? 0) * 100).round(),
               ),
               mrpPaisa: Value(
                 ((double.tryParse(p['mrp']?.toString() ?? '0') ?? 0) * 100).round(),
               ),
-              gstRatePercent: Value(double.tryParse(p['gstRate']?.toString() ?? '0') ?? 0.0),
+              gstRatePercent: Value(double.tryParse(gstRate?.toString() ?? '0') ?? 0.0),
               hsnCode: Value(p['hsnCode'] as String?),
               unit: Value(p['unit'] as String? ?? 'PCS'),
+              stockQuantity: Value(double.tryParse(stockQty.toString()) ?? 50.0),
               updatedAt: Value(DateTime.tryParse(p['updatedAt']?.toString() ?? '') ?? DateTime.now()),
             ),
           );

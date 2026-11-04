@@ -13,6 +13,7 @@ import '../../core/providers/sync_provider.dart';
 import '../../core/services/barcode_scanner_listener.dart';
 import '../../core/services/escpos_builder.dart';
 import '../../core/services/offline_billing_service.dart';
+import '../../core/config/app_config.dart';
 
 class MobilePosScreen extends ConsumerStatefulWidget {
   const MobilePosScreen({super.key});
@@ -55,11 +56,19 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
           },
           onComplete: (paymentMethod, customerId, customerName) async {
             Navigator.pop(ctx);
+            final authState = ref.read(authProvider);
+            final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+            final branchId = authState.activeBranchId ?? 'branch-1';
+            final deviceId = await AppConfig.getDeviceId();
+
             final result = await OfflineBillingService.processSale(
               items: cart.items,
               paymentMethod: paymentMethod,
               customerId: customerId,
               customerName: customerName,
+              tenantId: tenantId,
+              branchId: branchId,
+              deviceId: deviceId,
             );
 
             // Deduct stock in catalog
@@ -96,7 +105,17 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
 
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (matchedProduct != null) {
-      ref.read(cartProvider.notifier).addProduct(matchedProduct);
+      final success = ref.read(cartProvider.notifier).addProduct(matchedProduct);
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cannot add more: Only ${matchedProduct.currentStock.toInt()} units in stock for ${matchedProduct.name}'),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Scanned: ${matchedProduct.name} (₹${matchedProduct.sellingPriceRupees.toStringAsFixed(2)}) added to cart!'),
@@ -880,7 +899,17 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                       return _ProductCard(
                         product: p,
                         onTap: () {
-                          ref.read(cartProvider.notifier).addProduct(p);
+                          final success = ref.read(cartProvider.notifier).addProduct(p);
+                          if (!success) {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Cannot add more: Only ${p.currentStock.toInt()} units in stock for ${p.name}'),
+                                backgroundColor: Colors.orange.shade800,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         },
                       );
                     },

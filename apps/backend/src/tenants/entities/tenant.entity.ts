@@ -52,6 +52,13 @@ export class TenantEntity {
   })
   defaultTimezone!: string;
 
+  @Column({ name: 'settings', type: 'jsonb', nullable: true, default: {} })
+  settings!: {
+    enabledModules?: string[];
+    allowNegativeStock?: boolean;
+    [key: string]: any;
+  } | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

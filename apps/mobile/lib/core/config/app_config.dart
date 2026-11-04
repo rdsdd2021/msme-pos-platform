@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class AppConfig {
   /// Default server URL pointing to the hosted production server gateway.
@@ -8,6 +9,22 @@ class AppConfig {
   );
 
   static const String _keyServerUrl = 'custom_server_url';
+  static const String _keyDeviceId = 'installed_device_uuid';
+
+  /// Retrieve the persistent RFC4122 v4 UUID for this terminal installation.
+  static Future<String> getDeviceId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      var id = prefs.getString(_keyDeviceId);
+      if (id == null || id.trim().isEmpty) {
+        id = const Uuid().v4();
+        await prefs.setString(_keyDeviceId, id);
+      }
+      return id;
+    } catch (_) {
+      return '11111111-1111-4111-8111-111111111111';
+    }
+  }
 
   /// Retrieve the active server URL (custom stored URL or default hosted endpoint).
   static Future<String> getServerUrl() async {

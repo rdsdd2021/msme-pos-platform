@@ -77,5 +77,96 @@ describe('useCartStore — Section 170 CGST Rounding & Financial Totals', () => 
     expect(state.getRoundingAdjustment()).toBe('0.00');
     expect(state.getGrandTotal()).toBe('250.00');
   });
+
+  describe('Stock Ceiling Enforcement', () => {
+    it('blocks adding an item when currentStock is 0', () => {
+      const res = useCartStore.getState().addItem({
+        productId: 'prod-out',
+        name: 'Out of stock item',
+        sku: 'OOS-1',
+        price: '100.00',
+        gstRate: '5.00',
+        currentStock: '0.000',
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.blockedReason).toBe('OUT_OF_STOCK');
+      expect(useCartStore.getState().items).toHaveLength(0);
+    });
+
+    it('caps quantity and blocks further addition when stock ceiling is reached', () => {
+      // Item has 10 units in stock
+      const res1 = useCartStore.getState().addItem(
+        {
+          productId: 'prod-stock-10',
+          name: 'Sugar 1kg',
+          sku: 'SUGAR-10',
+          price: '40.00',
+          gstRate: '5.00',
+          currentStock: '10.000',
+        },
+        8,
+      );
+
+      expect(res1.success).toBe(true);
+      expect(res1.addedQuantity).toBe(8);
+      expect(useCartStore.getState().items[0].quantity).toBe(8);
+
+      // Attempting to add 5 more (8 + 5 = 13 > 10) -> Should add 2 and cap at 10
+      const res2 = useCartStore.getState().addItem(
+        {
+          productId: 'prod-stock-10',
+          name: 'Sugar 1kg',
+          sku: 'SUGAR-10',
+          price: '40.00',
+          gstRate: '5.00',
+          currentStock: '10.000',
+        },
+        5,
+      );
+
+      expect(res2.success).toBe(true);
+      expect(res2.blockedReason).toBe('EXCEEDS_STOCK');
+      expect(res2.addedQuantity).toBe(2);
+      expect(useCartStore.getState().items[0].quantity).toBe(10);
+
+      // Attempting to add 1 more when already at 10 -> Should fail completely
+      const res3 = useCartStore.getState().addItem(
+        {
+          productId: 'prod-stock-10',
+          name: 'Sugar 1kg',
+          sku: 'SUGAR-10',
+          price: '40.00',
+          gstRate: '5.00',
+          currentStock: '10.000',
+        },
+        1,
+      );
+
+      expect(res3.success).toBe(false);
+      expect(res3.blockedReason).toBe('EXCEEDS_STOCK');
+      expect(res3.addedQuantity).toBe(0);
+      expect(useCartStore.getState().items[0].quantity).toBe(10);
+    });
+
+    it('enforces stock ceiling in updateQuantity unless allowNegativeStock is set', () => {
+      useCartStore.getState().addItem({
+        productId: 'prod-cap',
+        name: 'Item Cap',
+        sku: 'CAP-1',
+        price: '50.00',
+        gstRate: '0.00',
+        currentStock: '5.000',
+      });
+
+      // Try setting quantity to 15 when stock is 5
+      useCartStore.getState().updateQuantity('prod-cap', 15);
+      expect(useCartStore.getState().items[0].quantity).toBe(5);
+
+      // With allowNegativeStock: true, it permits 15
+      useCartStore.getState().updateQuantity('prod-cap', 15, { allowNegativeStock: true });
+      expect(useCartStore.getState().items[0].quantity).toBe(15);
+    });
+  });
 });
 

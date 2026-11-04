@@ -24,6 +24,12 @@ export class MembershipSummaryDto {
   tenantName!: string;
 
   @ApiProperty({ nullable: true })
+  businessType?: string;
+
+  @ApiProperty({ type: [String], nullable: true })
+  enabledModules?: string[];
+
+  @ApiProperty({ nullable: true })
   branchId!: string | null;
 
   @ApiProperty()

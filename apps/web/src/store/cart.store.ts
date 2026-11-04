@@ -12,11 +12,22 @@ export interface CartItem {
   currentStock?: string;
 }
 
+export interface AddItemOptions {
+  allowNegativeStock?: boolean;
+}
+
+export interface AddItemResult {
+  success: boolean;
+  blockedReason?: 'OUT_OF_STOCK' | 'EXCEEDS_STOCK';
+  currentStock?: number;
+  addedQuantity: number;
+}
+
 interface CartState {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
+  addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number, options?: AddItemOptions) => AddItemResult;
   removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  updateQuantity: (productId: string, quantity: number, options?: AddItemOptions) => void;
   updateDiscount: (productId: string, discount: string) => void;
   clearCart: () => void;
   getSubtotal: () => string;
@@ -30,7 +41,45 @@ interface CartState {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
 
-  addItem: (item, quantity = 1) => {
+  addItem: (item, quantity = 1, options) => {
+    let result: AddItemResult = { success: true, addedQuantity: quantity };
+
+    if (!options?.allowNegativeStock && item.currentStock !== undefined && item.currentStock !== null) {
+      const maxStock = parseFloat(item.currentStock);
+      if (!isNaN(maxStock)) {
+        if (maxStock <= 0) {
+          return {
+            success: false,
+            blockedReason: 'OUT_OF_STOCK',
+            currentStock: 0,
+            addedQuantity: 0,
+          };
+        }
+
+        const existing = get().items.find((i) => i.productId === item.productId);
+        const currentCartQty = existing ? existing.quantity : 0;
+
+        if (currentCartQty + quantity > maxStock) {
+          if (currentCartQty >= maxStock) {
+            return {
+              success: false,
+              blockedReason: 'EXCEEDS_STOCK',
+              currentStock: maxStock,
+              addedQuantity: 0,
+            };
+          }
+          const allowedAdd = maxStock - currentCartQty;
+          result = {
+            success: true,
+            blockedReason: 'EXCEEDS_STOCK',
+            currentStock: maxStock,
+            addedQuantity: allowedAdd,
+          };
+          quantity = allowedAdd;
+        }
+      }
+    }
+
     set((state) => {
       const existing = state.items.find((i) => i.productId === item.productId);
       if (existing) {
@@ -46,6 +95,8 @@ export const useCartStore = create<CartState>((set, get) => ({
         items: [...state.items, { ...item, quantity, discountAmount: item.discountAmount || '0.00' }],
       };
     });
+
+    return result;
   },
 
   removeItem: (productId) => {
@@ -54,15 +105,23 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
   },
 
-  updateQuantity: (productId, quantity) => {
+  updateQuantity: (productId, quantity, options) => {
     if (quantity <= 0) {
       get().removeItem(productId);
       return;
     }
     set((state) => ({
-      items: state.items.map((i) =>
-        i.productId === productId ? { ...i, quantity } : i,
-      ),
+      items: state.items.map((i) => {
+        if (i.productId !== productId) return i;
+        let finalQty = quantity;
+        if (!options?.allowNegativeStock && i.currentStock !== undefined && i.currentStock !== null) {
+          const maxStock = parseFloat(i.currentStock);
+          if (!isNaN(maxStock) && finalQty > maxStock) {
+            finalQty = maxStock;
+          }
+        }
+        return { ...i, quantity: finalQty };
+      }),
     }));
   },
 

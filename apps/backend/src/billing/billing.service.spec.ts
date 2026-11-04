@@ -283,6 +283,52 @@ describe('BillingService — GST & Financial Calculations', () => {
       ).rejects.toThrow('A registered customer is required for Khata / credit payments');
     });
 
+    it('rejects sale when requested quantity exceeds available stock and negative stock is disabled', async () => {
+      const mockProduct = {
+        id: 'prod-1',
+        tenantId: 'tenant-1',
+        name: 'Sugar 1kg',
+        sellingPrice: '50.00',
+        trackInventory: true,
+      };
+      const mockStockBalance = {
+        tenantId: 'tenant-1',
+        branchId: 'branch-1',
+        productId: 'prod-1',
+        quantityOnHand: '10.000',
+      };
+
+      const mockManager = {
+        findOne: jest.fn()
+          .mockResolvedValueOnce(null) // idempotency check
+          .mockResolvedValueOnce({ id: 'tenant-1', settings: { allowNegativeStock: false } }) // tenant
+          .mockResolvedValueOnce(mockStockBalance), // stock balance check
+        findByIds: jest.fn().mockResolvedValueOnce([mockProduct]),
+      };
+
+      mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
+
+      await expect(
+        service.createSale('tenant-1', 'cashier-1', {
+          branchId: 'branch-1',
+          idempotencyKey: 'sale-oversell-reject',
+          items: [
+            {
+              productId: 'prod-1',
+              quantity: '15.000', // 15 > 10
+              gstRatePercent: '5.00',
+            },
+          ],
+          payments: [
+            {
+              paymentMethod: PaymentMethod.CASH,
+              amount: '788.00',
+            },
+          ],
+        }),
+      ).rejects.toThrow('Insufficient stock for "Sugar 1kg". Available: 10.000, Requested: 15.000');
+    });
+
     it('rejects credit payment when customer credit limit is exceeded', async () => {
       const mockProduct = {
         id: 'prod-1',
@@ -300,6 +346,7 @@ describe('BillingService — GST & Financial Calculations', () => {
       const mockManager = {
         findOne: jest.fn()
           .mockResolvedValueOnce(null) // idempotency check
+          .mockResolvedValueOnce({ id: 'tenant-1', settings: { allowNegativeStock: true } }) // tenant lookup
           .mockResolvedValueOnce(mockCustomer), // customer lookup
         findByIds: jest.fn().mockResolvedValueOnce([mockProduct]),
       };
@@ -348,6 +395,7 @@ describe('BillingService — GST & Financial Calculations', () => {
       const mockManager = {
         findOne: jest.fn()
           .mockResolvedValueOnce(null) // idempotency check
+          .mockResolvedValueOnce({ id: 'tenant-1', settings: { allowNegativeStock: true } }) // tenant lookup
           .mockResolvedValueOnce(mockCustomer) // customer lookup
           .mockResolvedValueOnce(null), // stock balance lookup
         findByIds: jest.fn().mockResolvedValueOnce([mockProduct]),

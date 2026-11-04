@@ -64,7 +64,10 @@ export function AppSidebar({
 
   // Get active roles array
   const userRoles = activeTenant?.roles || (activeTenant?.role ? [activeTenant.role as any] : []);
-  const navSections = React.useMemo(() => filterNavForUser(userRoles), [userRoles]);
+  const navSections = React.useMemo(
+    () => filterNavForUser(userRoles, activeTenant?.enabledModules, activeTenant?.businessType),
+    [userRoles, activeTenant?.enabledModules, activeTenant?.businessType],
+  );
 
   const getRoleBadge = () => {
     if (isOwner()) {

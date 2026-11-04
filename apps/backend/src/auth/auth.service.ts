@@ -28,6 +28,7 @@ import {
   BusinessType,
   ProductType,
   getPermissionsForRoles,
+  DEFAULT_MODULES_BY_BUSINESS,
 } from '@pos/shared-types';
 
 export interface JwtPayload {
@@ -94,6 +95,10 @@ export class AuthService {
 
       // 2. Create Tenant
       const storeName = dto.storeName.trim();
+      const resolvedModules = (dto.enabledModules && dto.enabledModules.length > 0)
+        ? dto.enabledModules
+        : (DEFAULT_MODULES_BY_BUSINESS[dto.businessType] || DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY]);
+
       const tenant = manager.create(TenantEntity, {
         legalName: storeName,
         displayName: storeName,
@@ -101,6 +106,10 @@ export class AuthService {
         defaultTimezone: 'Asia/Kolkata',
         defaultCurrency: 'INR',
         status: TenantStatus.TRIAL,
+        settings: {
+          enabledModules: resolvedModules,
+          allowNegativeStock: dto.allowNegativeStock ?? false,
+        },
       });
       const persistedTenant = await manager.save(tenant);
 
@@ -604,9 +613,15 @@ export class AuthService {
         const roles = rawRoles.map((r) => r as Role);
         const isOwner = roles.includes(Role.OWNER) || m.role === Role.OWNER;
         const permissions = getPermissionsForRoles(roles);
+        const tenantBusinessType = m.tenant?.businessType ?? BusinessType.GROCERY;
+        const tenantSettings = (m.tenant?.settings as any) || {};
+        const enabledModules = tenantSettings?.enabledModules ?? (DEFAULT_MODULES_BY_BUSINESS[tenantBusinessType] || DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY]);
+
         return {
           tenantId: m.tenantId,
           tenantName: m.tenant?.displayName ?? '',
+          businessType: tenantBusinessType,
+          enabledModules,
           branchId: m.branchId ?? null,
           role: m.role,
           roles,

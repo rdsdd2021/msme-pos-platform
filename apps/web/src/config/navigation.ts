@@ -1,4 +1,4 @@
-import { Role } from '@pos/shared-types';
+import { Role, AppModule, BusinessType, DEFAULT_MODULES_BY_BUSINESS } from '@pos/shared-types';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -25,12 +25,14 @@ export interface NavItem {
   adminTab?: 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices';
   adminSubTab?: 'products' | 'stock' | 'suppliers' | 'purchases' | 'categories' | 'transfers';
   allowedRoles: Role[];
+  requiredModule?: string;
   badge?: string;
   testId?: string;
 }
 
 export interface NavSection {
   title: string;
+  requiredModule?: string;
   items: NavItem[];
 }
 
@@ -43,6 +45,7 @@ export const navigationConfig: NavSection[] = [
         title: 'POS Terminal',
         icon: ShoppingCart,
         target: 'pos',
+        requiredModule: AppModule.POS,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
         badge: 'Live',
         testId: 'nav-pos-terminal',
@@ -60,12 +63,14 @@ export const navigationConfig: NavSection[] = [
   },
   {
     title: 'Restaurant & Dining',
+    requiredModule: AppModule.RESTAURANT,
     items: [
       {
         id: 'restaurant-floorplan',
         title: 'Floorplan & Tables',
         icon: UtensilsCrossed,
         target: 'restaurant',
+        requiredModule: AppModule.RESTAURANT,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
         badge: 'Dine-In',
         testId: 'nav-restaurant-floorplan',
@@ -75,6 +80,7 @@ export const navigationConfig: NavSection[] = [
         title: 'Kitchen Display (KDS)',
         icon: ChefHat,
         target: 'kds',
+        requiredModule: AppModule.RESTAURANT,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
         badge: 'KOT',
         testId: 'nav-kitchen-display',
@@ -83,6 +89,7 @@ export const navigationConfig: NavSection[] = [
   },
   {
     title: 'Catalogue & Stock',
+    requiredModule: AppModule.INVENTORY,
     items: [
       {
         id: 'inventory-hub',
@@ -91,6 +98,7 @@ export const navigationConfig: NavSection[] = [
         target: 'admin',
         adminTab: 'inventory',
         adminSubTab: 'products',
+        requiredModule: AppModule.INVENTORY,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.INVENTORY_STAFF],
         testId: 'nav-inventory',
       },
@@ -105,6 +113,7 @@ export const navigationConfig: NavSection[] = [
         icon: Receipt,
         target: 'admin',
         adminTab: 'invoices',
+        requiredModule: AppModule.INVOICES,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER, Role.ACCOUNTANT],
         testId: 'nav-invoices',
       },
@@ -114,6 +123,7 @@ export const navigationConfig: NavSection[] = [
         icon: Users,
         target: 'admin',
         adminTab: 'khata',
+        requiredModule: AppModule.KHATA,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.ACCOUNTANT],
         testId: 'nav-khata',
       },
@@ -123,6 +133,7 @@ export const navigationConfig: NavSection[] = [
         icon: FileSpreadsheet,
         target: 'admin',
         adminTab: 'gst',
+        requiredModule: AppModule.GST,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.ACCOUNTANT],
         badge: 'GSTR-1/3B',
         testId: 'nav-gst',
@@ -133,6 +144,7 @@ export const navigationConfig: NavSection[] = [
         icon: Clock,
         target: 'admin',
         adminTab: 'shifts',
+        requiredModule: AppModule.SHIFTS,
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.ACCOUNTANT],
         testId: 'nav-shifts',
       },
@@ -172,15 +184,27 @@ export const navigationConfig: NavSection[] = [
   },
 ];
 
-export function filterNavForUser(roles: Role[]): NavSection[] {
+export function filterNavForUser(
+  roles: Role[],
+  enabledModules?: string[],
+  businessType?: BusinessType | string,
+): NavSection[] {
   const isOwner = roles.includes(Role.OWNER);
 
+  const activeModules: string[] = enabledModules && enabledModules.length > 0
+    ? enabledModules
+    : (businessType && (DEFAULT_MODULES_BY_BUSINESS as any)[businessType])
+      ? (DEFAULT_MODULES_BY_BUSINESS as any)[businessType]
+      : Object.values(AppModule);
+
   return navigationConfig
+    .filter((section) => !section.requiredModule || activeModules.includes(section.requiredModule))
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (isOwner) return true;
-        return item.allowedRoles.some((r) => roles.includes(r));
+        const hasRole = isOwner || item.allowedRoles.some((r) => roles.includes(r));
+        const hasModule = !item.requiredModule || activeModules.includes(item.requiredModule);
+        return hasRole && hasModule;
       }),
     }))
     .filter((section) => section.items.length > 0);

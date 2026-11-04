@@ -39,7 +39,7 @@ interface CommandMenuProps {
 }
 
 export function CommandMenu({ open, onOpenChange, onSelectAction }: CommandMenuProps) {
-  const { isOwner, isBranchManager, isCashier, isAccountant, isInventoryStaff, logout } = useAuthStore();
+  const { isOwner, isBranchManager, isCashier, isAccountant, isInventoryStaff, hasModule, logout } = useAuthStore();
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -76,23 +76,27 @@ export function CommandMenu({ open, onOpenChange, onSelectAction }: CommandMenuP
                 <CommandShortcut>F1</CommandShortcut>
               </CommandItem>
 
-              <CommandItem
-                onSelect={() => handleSelect(() => onSelectAction('restaurant'))}
-                className="cursor-pointer"
-              >
-                <UtensilsCrossed className="mr-2 h-4 w-4 text-amber-500" />
-                <span>Restaurant Dining Floor & Tables</span>
-                <CommandShortcut>F2</CommandShortcut>
-              </CommandItem>
+              {hasModule('restaurant') && (
+                <>
+                  <CommandItem
+                    onSelect={() => handleSelect(() => onSelectAction('restaurant'))}
+                    className="cursor-pointer"
+                  >
+                    <UtensilsCrossed className="mr-2 h-4 w-4 text-amber-500" />
+                    <span>Restaurant Dining Floor & Tables</span>
+                    <CommandShortcut>F2</CommandShortcut>
+                  </CommandItem>
 
-              <CommandItem
-                onSelect={() => handleSelect(() => onSelectAction('kds'))}
-                className="cursor-pointer"
-              >
-                <ChefHat className="mr-2 h-4 w-4 text-sky-500" />
-                <span>Kitchen Display Screen (KDS)</span>
-                <CommandShortcut>F3</CommandShortcut>
-              </CommandItem>
+                  <CommandItem
+                    onSelect={() => handleSelect(() => onSelectAction('kds'))}
+                    className="cursor-pointer"
+                  >
+                    <ChefHat className="mr-2 h-4 w-4 text-sky-500" />
+                    <span>Kitchen Display Screen (KDS)</span>
+                    <CommandShortcut>F3</CommandShortcut>
+                  </CommandItem>
+                </>
+              )}
             </>
           )}
 
