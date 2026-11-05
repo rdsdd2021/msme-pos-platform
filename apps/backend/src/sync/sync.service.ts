@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, MoreThan } from 'typeorm';
 import { SyncIngestedOperationEntity } from './entities/sync-ingested-operation.entity';
@@ -190,10 +187,7 @@ export class SyncService {
   /**
    * Pulls catalog deltas created or updated after the given ISO timestamp cursor.
    */
-  async pullDeltas(
-    tenantId: string,
-    cursor?: string,
-  ): Promise<SyncPullDeltaResponse> {
+  async pullDeltas(tenantId: string, cursor?: string): Promise<SyncPullDeltaResponse> {
     const cursorDate = cursor ? new Date(cursor) : new Date(0);
 
     const [categories, products, customers] = await Promise.all([
@@ -255,4 +249,3 @@ export class SyncService {
     });
   }
 }
-

@@ -100,10 +100,7 @@ export class CatalogController {
   @Post('units')
   @RequirePermissions(Permission.CATALOG_CREATE)
   @ApiOperation({ summary: 'Create a new unit of measurement' })
-  async createUnit(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
-    @Body() dto: CreateUnitDto,
-  ) {
+  async createUnit(@Param('tenantId', ParseUUIDPipe) tenantId: string, @Body() dto: CreateUnitDto) {
     return this.catalogService.createUnit(tenantId, dto);
   }
 
@@ -111,7 +108,9 @@ export class CatalogController {
 
   @Post('products')
   @RequirePermissions(Permission.CATALOG_CREATE)
-  @ApiOperation({ summary: 'Create a new product with SKU, barcode, HSN, and optional opening stock' })
+  @ApiOperation({
+    summary: 'Create a new product with SKU, barcode, HSN, and optional opening stock',
+  })
   async createProduct(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Body() dto: CreateProductDto,
@@ -175,13 +174,20 @@ export class CatalogController {
 
   @Post('stock/movements')
   @RequirePermissions(Permission.STOCK_MOVEMENT_RECORD)
-  @ApiOperation({ summary: 'Record an immutable stock ledger movement (opening stock, purchase, adjustment)' })
+  @ApiOperation({
+    summary: 'Record an immutable stock ledger movement (opening stock, purchase, adjustment)',
+  })
   async recordStockMovement(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Request() req: { user: { userId: string }; tenantContext: TenantContext },
     @Body() dto: RecordStockMovementDto,
   ) {
-    return this.catalogService.recordStockMovement(tenantId, req.user.userId, dto, req.tenantContext);
+    return this.catalogService.recordStockMovement(
+      tenantId,
+      req.user.userId,
+      dto,
+      req.tenantContext,
+    );
   }
 
   @Get('branches/:branchId/low-stock')
@@ -333,7 +339,12 @@ export class CatalogController {
     @Request() req: { user: { userId: string }; tenantContext?: TenantContext },
     @Body() dto: CreateStockTransferDto,
   ) {
-    return this.catalogService.createStockTransfer(tenantId, req.user.userId, dto, req.tenantContext);
+    return this.catalogService.createStockTransfer(
+      tenantId,
+      req.user.userId,
+      dto,
+      req.tenantContext,
+    );
   }
 
   @Get('transfers')
@@ -377,7 +388,9 @@ export class CatalogController {
 
   @Post('transfers/:id/dispatch')
   @RequirePermissions(Permission.STOCK_TRANSFER)
-  @ApiOperation({ summary: 'Dispatch an inter-branch stock transfer (deducts stock from source branch)' })
+  @ApiOperation({
+    summary: 'Dispatch an inter-branch stock transfer (deducts stock from source branch)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async dispatchStockTransfer(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
@@ -385,12 +398,21 @@ export class CatalogController {
     @Request() req: { user: { userId: string }; tenantContext?: TenantContext },
     @Body() dto: DispatchStockTransferDto,
   ) {
-    return this.catalogService.dispatchStockTransfer(tenantId, req.user.userId, id, dto, req.tenantContext);
+    return this.catalogService.dispatchStockTransfer(
+      tenantId,
+      req.user.userId,
+      id,
+      dto,
+      req.tenantContext,
+    );
   }
 
   @Post('transfers/:id/receive')
   @RequirePermissions(Permission.STOCK_TRANSFER)
-  @ApiOperation({ summary: 'Receive and reconcile an inter-branch stock transfer (increments destination branch stock)' })
+  @ApiOperation({
+    summary:
+      'Receive and reconcile an inter-branch stock transfer (increments destination branch stock)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async receiveStockTransfer(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
@@ -398,12 +420,20 @@ export class CatalogController {
     @Request() req: { user: { userId: string }; tenantContext?: TenantContext },
     @Body() dto: ReceiveStockTransferDto,
   ) {
-    return this.catalogService.receiveStockTransfer(tenantId, req.user.userId, id, dto, req.tenantContext);
+    return this.catalogService.receiveStockTransfer(
+      tenantId,
+      req.user.userId,
+      id,
+      dto,
+      req.tenantContext,
+    );
   }
 
   @Post('transfers/:id/cancel')
   @RequirePermissions(Permission.STOCK_TRANSFER)
-  @ApiOperation({ summary: 'Cancel a stock transfer (reverses stock movement if already dispatched)' })
+  @ApiOperation({
+    summary: 'Cancel a stock transfer (reverses stock movement if already dispatched)',
+  })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   async cancelStockTransfer(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
@@ -411,6 +441,12 @@ export class CatalogController {
     @Request() req: { user: { userId: string }; tenantContext?: TenantContext },
     @Body() dto: CancelStockTransferDto,
   ) {
-    return this.catalogService.cancelStockTransfer(tenantId, req.user.userId, id, dto, req.tenantContext);
+    return this.catalogService.cancelStockTransfer(
+      tenantId,
+      req.user.userId,
+      id,
+      dto,
+      req.tenantContext,
+    );
   }
 }

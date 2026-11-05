@@ -88,4 +88,3 @@ describe('TenantsService', () => {
     ).rejects.toThrow(ConflictException);
   });
 });
-

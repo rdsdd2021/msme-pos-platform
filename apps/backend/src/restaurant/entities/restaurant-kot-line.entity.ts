@@ -71,4 +71,3 @@ export class RestaurantKotLineEntity {
   @JoinColumn({ name: 'order_id' })
   order?: RestaurantOrderEntity;
 }
-

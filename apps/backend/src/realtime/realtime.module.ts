@@ -9,4 +9,3 @@ import { RealtimeController } from './realtime.controller';
   exports: [RealtimeEventsService],
 })
 export class RealtimeModule {}
-

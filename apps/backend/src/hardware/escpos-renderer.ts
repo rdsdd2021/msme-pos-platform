@@ -34,7 +34,10 @@ export class EscPosRenderer {
   /**
    * Generates formatted plaintext representation (for web preview / testing)
    */
-  public renderText(doc: ReceiptDocument, profile: PrinterDeviceProfile = EXEO_EX5810_PROFILE): string {
+  public renderText(
+    doc: ReceiptDocument,
+    profile: PrinterDeviceProfile = EXEO_EX5810_PROFILE,
+  ): string {
     const width = profile.columnsPerLine;
     const divider = '-'.repeat(width);
     const doubleDivider = '='.repeat(width);
@@ -69,7 +72,9 @@ export class EscPosRenderer {
         const sub = `  ${item.quantity} x ${item.rate}`;
         lines.push(this.twoColumns(sub, item.total, width));
       } else {
-        lines.push(this.fourColumns(item.name.slice(0, 20), item.quantity, item.rate, item.total, width));
+        lines.push(
+          this.fourColumns(item.name.slice(0, 20), item.quantity, item.rate, item.total, width),
+        );
       }
     }
     lines.push(divider);
@@ -108,7 +113,10 @@ export class EscPosRenderer {
   /**
    * Generates raw ESC/POS byte sequence
    */
-  public renderBytes(doc: ReceiptDocument, profile: PrinterDeviceProfile = EXEO_EX5810_PROFILE): Uint8Array {
+  public renderBytes(
+    doc: ReceiptDocument,
+    profile: PrinterDeviceProfile = EXEO_EX5810_PROFILE,
+  ): Uint8Array {
     const text = this.renderText(doc, profile);
     const textBytes = new TextEncoder().encode(text + '\n');
     const bytes: number[] = [...EscPosRenderer.CMD_INIT];
@@ -156,4 +164,3 @@ export class EscPosRenderer {
     );
   }
 }
-

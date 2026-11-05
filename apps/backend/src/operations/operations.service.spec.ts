@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { OperationsService, normalizePhoneNumber } from './operations.service';
 import { CustomerEntity } from './entities/customer.entity';
 import { CustomerLedgerEntity } from './entities/customer-ledger.entity';
@@ -73,7 +73,8 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce(mockCustomer), // customer lookup
         create: jest.fn((entity, data) => data),
@@ -106,9 +107,7 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(mockCustomer),
+        findOne: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(mockCustomer),
         create: jest.fn((entity, data) => data),
         save: jest.fn(async (data) => data),
       };
@@ -136,7 +135,8 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(existingLedger)
           .mockResolvedValueOnce(existingCustomer),
       };
@@ -190,9 +190,7 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
-          .mockResolvedValueOnce(null)
-          .mockResolvedValueOnce(mockCustomer),
+        findOne: jest.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(mockCustomer),
         create: jest.fn((entity, data) => data),
         save: jest.fn(async (data) => data),
       };
@@ -257,7 +255,8 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
-        getMany: jest.fn()
+        getMany: jest
+          .fn()
           .mockResolvedValueOnce(priorEntries) // preEntries
           .mockResolvedValueOnce(periodEntries), // statement entries
       };
@@ -416,12 +415,11 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
         isActive: true,
       };
 
-      mockCustomerRepo.findOne
-        .mockResolvedValueOnce(sourceCust)
-        .mockResolvedValueOnce(targetCust);
+      mockCustomerRepo.findOne.mockResolvedValueOnce(sourceCust).mockResolvedValueOnce(targetCust);
 
       const mockEm = {
-        update: jest.fn()
+        update: jest
+          .fn()
           .mockResolvedValueOnce({ affected: 3 }) // 3 invoices reassigned
           .mockResolvedValueOnce({ affected: 2 }), // 2 ledger entries reassigned
         find: jest.fn().mockResolvedValueOnce([
@@ -500,4 +498,3 @@ describe('OperationsService — Khata Ledger & Cash Reconciliation', () => {
     });
   });
 });
-

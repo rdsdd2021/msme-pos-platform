@@ -29,4 +29,3 @@ import { AuthModule } from '../auth/auth.module';
   exports: [RestaurantService],
 })
 export class RestaurantModule {}
-

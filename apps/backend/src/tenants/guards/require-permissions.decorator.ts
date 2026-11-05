@@ -15,4 +15,3 @@ export const TENANT_WIDE_KEY = 'tenant_wide_required';
  * Decorator to require that the caller's membership is tenant-wide (not restricted to a specific branch).
  */
 export const RequireTenantWide = () => SetMetadata(TENANT_WIDE_KEY, true);
-

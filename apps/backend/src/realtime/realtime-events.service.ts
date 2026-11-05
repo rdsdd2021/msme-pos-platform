@@ -26,12 +26,7 @@ export class RealtimeEventsService {
   /**
    * Broadcast a domain event across the tenant channel.
    */
-  emit<T = any>(
-    tenantId: string,
-    type: RealtimeEventType,
-    data?: T,
-    branchId?: string,
-  ): void {
+  emit<T = any>(tenantId: string, type: RealtimeEventType, data?: T, branchId?: string): void {
     const event: RealtimeEvent<T> = {
       tenantId,
       branchId,
@@ -68,4 +63,3 @@ export class RealtimeEventsService {
     return merge(tenantEvents$, heartbeat$);
   }
 }
-

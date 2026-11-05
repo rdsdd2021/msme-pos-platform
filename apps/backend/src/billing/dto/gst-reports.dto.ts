@@ -41,7 +41,10 @@ export class GstReportQueryDto {
   @IsOptional()
   year?: number;
 
-  @ApiProperty({ required: false, description: 'Filter by specific branch UUID. If omitted, consolidates all branches.' })
+  @ApiProperty({
+    required: false,
+    description: 'Filter by specific branch UUID. If omitted, consolidates all branches.',
+  })
   @IsUUID()
   @IsOptional()
   branchId?: string;
@@ -105,7 +108,10 @@ export class CreateSupplierInvoiceDto {
   @IsString()
   supplierInvoiceDate!: string;
 
-  @ApiProperty({ default: true, description: 'True if eligible for Input Tax Credit (ITC) under Section 16(2)' })
+  @ApiProperty({
+    default: true,
+    description: 'True if eligible for Input Tax Credit (ITC) under Section 16(2)',
+  })
   @IsBoolean()
   @IsOptional()
   isItcEligible?: boolean;
@@ -115,7 +121,10 @@ export class CreateSupplierInvoiceDto {
   @IsOptional()
   ineligibilityReason?: string;
 
-  @ApiProperty({ default: false, description: 'True if supply is liable to reverse charge under Section 9(3)/9(4)' })
+  @ApiProperty({
+    default: false,
+    description: 'True if supply is liable to reverse charge under Section 9(3)/9(4)',
+  })
   @IsBoolean()
   @IsOptional()
   isReverseCharge?: boolean;
@@ -136,4 +145,3 @@ export class CreateSupplierInvoiceDto {
   @Type(() => CreateSupplierInvoiceLineDto)
   items!: CreateSupplierInvoiceLineDto[];
 }
-

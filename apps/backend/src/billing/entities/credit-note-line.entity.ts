@@ -1,11 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { CreditNoteEntity } from './credit-note.entity';
 import { ProductEntity } from '../../catalog/entities/product.entity';
 import { InvoiceLineEntity } from './invoice-line.entity';
@@ -83,4 +76,3 @@ export class CreditNoteLineEntity {
   @JoinColumn({ name: 'original_invoice_line_id' })
   originalInvoiceLine?: InvoiceLineEntity;
 }
-

@@ -56,4 +56,3 @@ export class UserEntity {
   @OneToMany(() => TenantMembershipEntity, (membership) => membership.user)
   memberships!: TenantMembershipEntity[];
 }
-

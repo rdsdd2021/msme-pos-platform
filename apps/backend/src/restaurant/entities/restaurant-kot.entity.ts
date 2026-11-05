@@ -75,4 +75,3 @@ export class RestaurantKotEntity {
   @OneToMany(() => RestaurantKotLineEntity, (line) => line.kot, { cascade: true })
   lines?: RestaurantKotLineEntity[];
 }
-

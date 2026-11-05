@@ -6,4 +6,3 @@ import { HardwareService } from './hardware.service';
   exports: [HardwareService],
 })
 export class HardwareModule {}
-

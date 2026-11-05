@@ -1,6 +1,21 @@
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsEnum, MinLength, IsUUID, IsInt, Min } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEmail,
+  IsOptional,
+  IsEnum,
+  MinLength,
+  IsUUID,
+  IsInt,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BusinessType, TenantStatus, SubscriptionPlanCode, SubscriptionStatus } from '@pos/shared-types';
+import {
+  BusinessType,
+  TenantStatus,
+  SubscriptionPlanCode,
+  SubscriptionStatus,
+} from '@pos/shared-types';
 
 export class CreatePlatformTenantDto {
   @ApiProperty({ example: 'Shree Krishna Retailers' })

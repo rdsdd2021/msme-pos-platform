@@ -83,4 +83,3 @@ export class StockTransferLineEntity {
   @JoinColumn({ name: 'product_id' })
   product?: ProductEntity;
 }
-

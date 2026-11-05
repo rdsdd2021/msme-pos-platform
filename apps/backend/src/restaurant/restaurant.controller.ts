@@ -181,12 +181,6 @@ export class RestaurantController {
     @Body() dto: SettleRestaurantOrderDto,
     @Request() req: { tenantContext: TenantContext },
   ) {
-    return this.restaurantService.settleOrder(
-      tenantId,
-      branchId,
-      req.tenantContext.userId,
-      dto,
-    );
+    return this.restaurantService.settleOrder(tenantId, branchId, req.tenantContext.userId, dto);
   }
 }
-

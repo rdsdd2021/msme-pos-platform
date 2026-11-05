@@ -354,7 +354,7 @@ export function CreatePoModal<T extends PoFormData = PoFormData>({
 
                 {data.lines.length === 0 && (
                   <p className="text-center py-6 text-slate-400 text-xs">
-                    No items in this purchase order. Click <strong>"Add Line Item"</strong> above.
+                    No items in this purchase order. Click <strong>&quot;Add Line Item&quot;</strong> above.
                   </p>
                 )}
               </div>

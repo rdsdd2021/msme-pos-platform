@@ -31,4 +31,3 @@ import { TenantsModule } from '../tenants/tenants.module';
   exports: [SyncService],
 })
 export class SyncModule {}
-

@@ -1,5 +1,4 @@
 import { RealtimeEventsService, RealtimeEvent } from './realtime-events.service';
-import { firstValueFrom, take, toArray } from 'rxjs';
 
 describe('RealtimeEventsService', () => {
   let service: RealtimeEventsService;
@@ -61,4 +60,3 @@ describe('RealtimeEventsService', () => {
     expect(stream$).toBeDefined();
   });
 });
-

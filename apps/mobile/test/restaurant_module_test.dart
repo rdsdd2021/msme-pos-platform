@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_mobile/core/models/cart_item.dart';
 import 'package:pos_mobile/core/models/product.dart';
-import 'package:pos_mobile/core/providers/catalog_provider.dart';
 import 'package:pos_mobile/core/providers/restaurant_provider.dart';
 import 'package:pos_mobile/features/restaurant/restaurant_tables_screen.dart';
 import 'package:pos_mobile/features/restaurant/table_order_sheet.dart';

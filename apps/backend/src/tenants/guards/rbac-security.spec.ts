@@ -1,11 +1,11 @@
-import { ExecutionContext, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { TenantGuard } from './tenant.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { PERMISSIONS_KEY, TENANT_WIDE_KEY } from './require-permissions.decorator';
 import { TenantMembershipEntity } from '../entities/tenant-membership.entity';
-import { MembershipStatus, Permission, Role, getPermissionsForRoles } from '@pos/shared-types';
+import { MembershipStatus, Permission, Role } from '@pos/shared-types';
 
 describe('RBAC & Branch Security Specification Tests', () => {
   let tenantGuard: TenantGuard;
@@ -67,7 +67,9 @@ describe('RBAC & Branch Security Specification Tests', () => {
     });
   };
 
-  const createMembership = (overrides: Partial<TenantMembershipEntity> = {}): TenantMembershipEntity => {
+  const createMembership = (
+    overrides: Partial<TenantMembershipEntity> = {},
+  ): TenantMembershipEntity => {
     const role = overrides.role || Role.CASHIER;
     const roles = overrides.roles || [role as Role];
     return {
@@ -113,7 +115,9 @@ describe('RBAC & Branch Security Specification Tests', () => {
   // --- 2. Cashier Permissions & Restrictions ---
 
   it('Scenario 5: Cashier CANNOT create products (receives 403)', async () => {
-    mockFind.mockResolvedValueOnce([createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] })]);
+    mockFind.mockResolvedValueOnce([
+      createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] }),
+    ]);
     const { context } = createMockContext({ userId: 'cashier-1' }, { tenantId: 'tenant-1' });
 
     await tenantGuard.canActivate(context);
@@ -123,7 +127,9 @@ describe('RBAC & Branch Security Specification Tests', () => {
   });
 
   it('Scenario 6: Cashier CANNOT adjust stock manually (receives 403)', async () => {
-    mockFind.mockResolvedValueOnce([createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] })]);
+    mockFind.mockResolvedValueOnce([
+      createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] }),
+    ]);
     const { context } = createMockContext({ userId: 'cashier-1' }, { tenantId: 'tenant-1' });
 
     await tenantGuard.canActivate(context);
@@ -133,7 +139,9 @@ describe('RBAC & Branch Security Specification Tests', () => {
   });
 
   it('Scenario 7: Cashier CANNOT register devices (receives 403)', async () => {
-    mockFind.mockResolvedValueOnce([createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] })]);
+    mockFind.mockResolvedValueOnce([
+      createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] }),
+    ]);
     const { context } = createMockContext({ userId: 'cashier-1' }, { tenantId: 'tenant-1' });
 
     await tenantGuard.canActivate(context);
@@ -143,7 +151,9 @@ describe('RBAC & Branch Security Specification Tests', () => {
   });
 
   it('Scenario 8: Cashier CANNOT access business-wide financial reports (receives 403)', async () => {
-    mockFind.mockResolvedValueOnce([createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] })]);
+    mockFind.mockResolvedValueOnce([
+      createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] }),
+    ]);
     const { context } = createMockContext({ userId: 'cashier-1' }, { tenantId: 'tenant-1' });
 
     await tenantGuard.canActivate(context);
@@ -153,7 +163,9 @@ describe('RBAC & Branch Security Specification Tests', () => {
   });
 
   it('Scenario 9: Cashier CAN process POS billing & print receipts (authorized)', async () => {
-    mockFind.mockResolvedValueOnce([createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] })]);
+    mockFind.mockResolvedValueOnce([
+      createMembership({ role: Role.CASHIER, roles: [Role.CASHIER] }),
+    ]);
     const { context } = createMockContext({ userId: 'cashier-1' }, { tenantId: 'tenant-1' });
 
     await tenantGuard.canActivate(context);
@@ -202,7 +214,10 @@ describe('RBAC & Branch Security Specification Tests', () => {
     const allowed = await tenantGuard.canActivate(context);
     expect(allowed).toBe(true);
 
-    setupReflectorMetadata(context, [Permission.STOCK_ADJUSTMENT_MANUAL, Permission.SHIFT_REPORT_READ]);
+    setupReflectorMetadata(context, [
+      Permission.STOCK_ADJUSTMENT_MANUAL,
+      Permission.SHIFT_REPORT_READ,
+    ]);
     expect(permissionsGuard.canActivate(context)).toBe(true);
   });
 
@@ -307,9 +322,7 @@ describe('RBAC & Branch Security Specification Tests', () => {
     await tenantGuard.canActivate(context);
 
     setupReflectorMetadata(context, [Permission.BRANCH_CREATE], true);
-    expect(() => permissionsGuard.canActivate(context)).toThrow(
-      /Tenant-wide scope required/,
-    );
+    expect(() => permissionsGuard.canActivate(context)).toThrow(/Tenant-wide scope required/);
   });
 
   // --- 8. Multiple Roles per User ---
@@ -323,7 +336,7 @@ describe('RBAC & Branch Security Specification Tests', () => {
       }),
     ]);
 
-    const { context, request } = createMockContext({ userId: 'hybrid-worker' }, { tenantId: 'tenant-1' });
+    const { context } = createMockContext({ userId: 'hybrid-worker' }, { tenantId: 'tenant-1' });
     await tenantGuard.canActivate(context);
 
     // User can bill like a cashier

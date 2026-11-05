@@ -212,4 +212,3 @@ export class SettleRestaurantOrderDto {
   @IsOptional()
   customerId?: string;
 }
-

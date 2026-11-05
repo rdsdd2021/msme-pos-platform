@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HardwareService } from './hardware.service';
 import { EscPosRenderer, EXEO_EX5810_PROFILE, STANDARD_80MM_PROFILE } from './escpos-renderer';
-import { ReceiptDocument, PaperWidth } from '@pos/shared-types';
+import { ReceiptDocument } from '@pos/shared-types';
 
 describe('HardwareService & Thermal Printer Abstractions', () => {
   let service: HardwareService;
@@ -126,4 +126,3 @@ describe('HardwareService & Thermal Printer Abstractions', () => {
     });
   });
 });
-

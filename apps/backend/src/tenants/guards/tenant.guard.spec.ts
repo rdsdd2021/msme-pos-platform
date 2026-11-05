@@ -19,10 +19,7 @@ describe('TenantGuard (IDOR Prevention & Branch Scoping)', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TenantGuard,
-        { provide: DataSource, useValue: mockDataSource },
-      ],
+      providers: [TenantGuard, { provide: DataSource, useValue: mockDataSource }],
     }).compile();
 
     guard = module.get<TenantGuard>(TenantGuard);

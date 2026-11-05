@@ -62,7 +62,11 @@ export class CreateSaleDto {
   @IsNotEmpty()
   idempotencyKey!: string;
 
-  @ApiProperty({ example: false, default: false, description: 'True for IGST interstate sale, false for intra-state CGST+SGST' })
+  @ApiProperty({
+    example: false,
+    default: false,
+    description: 'True for IGST interstate sale, false for intra-state CGST+SGST',
+  })
   @IsBoolean()
   @IsOptional()
   isInterstate?: boolean;
@@ -72,12 +76,20 @@ export class CreateSaleDto {
   @IsOptional()
   customerId?: string;
 
-  @ApiProperty({ required: false, example: '27AAAAA0000A1Z5', description: 'Customer GSTIN for B2B tax invoice' })
+  @ApiProperty({
+    required: false,
+    example: '27AAAAA0000A1Z5',
+    description: 'Customer GSTIN for B2B tax invoice',
+  })
   @IsString()
   @IsOptional()
   customerGstin?: string;
 
-  @ApiProperty({ required: false, example: '27', description: '2-digit state code for Place of Supply' })
+  @ApiProperty({
+    required: false,
+    example: '27',
+    description: '2-digit state code for Place of Supply',
+  })
   @IsString()
   @IsOptional()
   placeOfSupply?: string;
@@ -96,4 +108,3 @@ export class CreateSaleDto {
   @Type(() => PaymentSplitDto)
   payments!: PaymentSplitDto[];
 }
-

@@ -40,7 +40,12 @@ export class SyncController {
   @Get('pull')
   @RequirePermissions(Permission.CATALOG_READ)
   @ApiOperation({ summary: 'Pull delta updates for catalog & reference data after cursor' })
-  @ApiQuery({ name: 'cursor', type: 'string', required: false, description: 'ISO timestamp cursor' })
+  @ApiQuery({
+    name: 'cursor',
+    type: 'string',
+    required: false,
+    description: 'ISO timestamp cursor',
+  })
   async pullDeltas(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Query('cursor') cursor?: string,

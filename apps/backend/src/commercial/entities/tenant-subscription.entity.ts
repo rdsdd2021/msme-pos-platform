@@ -53,4 +53,3 @@ export class TenantSubscriptionEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }
-

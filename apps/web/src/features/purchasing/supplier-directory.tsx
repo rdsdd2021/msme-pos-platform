@@ -112,11 +112,11 @@ export function SupplierDirectory({
                     <div className="flex flex-col items-center gap-2">
                       <Building2 className="h-8 w-8 text-slate-300" />
                       <p className="text-xs">
-                        No suppliers registered yet. Click <strong>"Add Supplier"</strong> to register distributors.
+                        No suppliers registered yet. Click <strong>&quot;Add Supplier&quot;</strong> to register distributors.
                       </p>
                     </div>
                   ) : (
-                    <p className="text-xs">No suppliers matching "{search}"</p>
+                    <p className="text-xs">No suppliers matching &quot;{search}&quot;</p>
                   )}
                 </TableCell>
               </TableRow>

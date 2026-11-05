@@ -261,7 +261,7 @@ export default function LoginScreen({
                 <div className="text-[10px] text-slate-400">Offline SQLite &amp; Thermal Billing</div>
               </div>
               <a
-                href="/downloads/kirana-pos.apk?v=1.0.1"
+                href="/downloads/kirana-pos.apk?v=1.0.2"
                 download="kirana-pos.apk"
                 className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
               >

@@ -1,11 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { InvoiceEntity } from './invoice.entity';
 
 @Entity('invoice_lines')
@@ -63,4 +56,3 @@ export class InvoiceLineEntity {
   @JoinColumn({ name: 'invoice_id' })
   invoice!: InvoiceEntity;
 }
-

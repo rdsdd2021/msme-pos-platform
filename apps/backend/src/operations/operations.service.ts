@@ -150,7 +150,10 @@ export class OperationsService {
     });
     const saved = await this.customerRepo.save(customer);
     if (this.realtimeService) {
-      this.realtimeService.emit(tenantId, 'CUSTOMER_UPDATED', { customerId: saved.id, action: 'CREATE' });
+      this.realtimeService.emit(tenantId, 'CUSTOMER_UPDATED', {
+        customerId: saved.id,
+        action: 'CREATE',
+      });
     }
     return saved;
   }
@@ -174,7 +177,7 @@ export class OperationsService {
       .andWhere('c.is_active = :isActive', { isActive: true });
 
     qb.andWhere(
-      '(LOWER(c.name) LIKE LOWER(:term) OR c.phone LIKE :term OR (:normPhone IS NOT NULL AND c.phone = :normPhone) OR (:digits != \'\' AND c.phone LIKE :digitsLike) OR CAST(c.id AS text) LIKE :term)',
+      "(LOWER(c.name) LIKE LOWER(:term) OR c.phone LIKE :term OR (:normPhone IS NOT NULL AND c.phone = :normPhone) OR (:digits != '' AND c.phone LIKE :digitsLike) OR CAST(c.id AS text) LIKE :term)",
       {
         term: `%${q}%`,
         normPhone: normalizedPhone,
@@ -307,7 +310,7 @@ export class OperationsService {
       for (const entry of allTargetLedger) {
         const debitCents = Math.round(parseFloat(entry.debit || '0') * 100);
         const creditCents = Math.round(parseFloat(entry.credit || '0') * 100);
-        netDebitCents += (debitCents - creditCents);
+        netDebitCents += debitCents - creditCents;
       }
 
       targetCustomer.currentBalance = (netDebitCents / 100).toFixed(2);
@@ -350,7 +353,9 @@ export class OperationsService {
 
   async cleanupDevTestCustomers(tenantId: string, actorUserId: string | null) {
     if (process.env.NODE_ENV === 'production') {
-      throw new BadRequestException('Dev test customer cleanup is strictly prohibited in production environment');
+      throw new BadRequestException(
+        'Dev test customer cleanup is strictly prohibited in production environment',
+      );
     }
 
     const allCustomers = await this.customerRepo.find({
@@ -364,7 +369,9 @@ export class OperationsService {
     for (const c of allCustomers) {
       if (testRegex.test(c.name)) {
         const invCount = await this.invoiceRepo.count({ where: { tenantId, customerId: c.id } });
-        const ledgCount = await this.customerLedgerRepo.count({ where: { tenantId, customerId: c.id } });
+        const ledgCount = await this.customerLedgerRepo.count({
+          where: { tenantId, customerId: c.id },
+        });
 
         if (invCount > 0 || ledgCount > 0) {
           skippedWithFinancialRecords.push(
@@ -672,7 +679,8 @@ export class OperationsService {
         .getMany();
 
       for (const e of preEntries) {
-        openingBalanceCents += Math.round(parseFloat(e.debit) * 100) - Math.round(parseFloat(e.credit) * 100);
+        openingBalanceCents +=
+          Math.round(parseFloat(e.debit) * 100) - Math.round(parseFloat(e.credit) * 100);
       }
     }
 
@@ -724,10 +732,12 @@ export class OperationsService {
 
     const creditLimitCents = Math.round(parseFloat(customer.creditLimit) * 100);
     const currentBalanceCents = Math.round(parseFloat(customer.currentBalance) * 100);
-    const availableCreditCents = creditLimitCents > 0 ? Math.max(0, creditLimitCents - currentBalanceCents) : 0;
-    const creditUtilizationPercent = creditLimitCents > 0
-      ? Math.min(100, Math.round((currentBalanceCents / creditLimitCents) * 100))
-      : 0;
+    const availableCreditCents =
+      creditLimitCents > 0 ? Math.max(0, creditLimitCents - currentBalanceCents) : 0;
+    const creditUtilizationPercent =
+      creditLimitCents > 0
+        ? Math.min(100, Math.round((currentBalanceCents / creditLimitCents) * 100))
+        : 0;
 
     let creditStatus: 'healthy' | 'near_limit' | 'exceeded' | 'no_credit' = 'healthy';
     if (creditLimitCents === 0) {
@@ -769,7 +779,10 @@ export class OperationsService {
   /**
    * Calculates FIFO debt ageing for the customer's outstanding balance.
    */
-  private async calculateCustomerAgeing(tenantId: string, customerId: string): Promise<{
+  private async calculateCustomerAgeing(
+    tenantId: string,
+    customerId: string,
+  ): Promise<{
     current: string;
     days31To60: string;
     days61To90: string;
@@ -828,7 +841,11 @@ export class OperationsService {
 
   // --- Cashier Shift Lifecycle ---
 
-  async openShift(tenantId: string, cashierUserId: string, dto: OpenShiftDto): Promise<CashierShiftEntity> {
+  async openShift(
+    tenantId: string,
+    cashierUserId: string,
+    dto: OpenShiftDto,
+  ): Promise<CashierShiftEntity> {
     const existing = await this.shiftRepo.findOne({
       where: { tenantId, branchId: dto.branchId, cashierUserId, status: ShiftStatus.OPEN },
     });
@@ -915,7 +932,11 @@ export class OperationsService {
     });
   }
 
-  async getCurrentShift(tenantId: string, cashierUserId: string, branchId?: string): Promise<CashierShiftEntity | null> {
+  async getCurrentShift(
+    tenantId: string,
+    cashierUserId: string,
+    branchId?: string,
+  ): Promise<CashierShiftEntity | null> {
     const where: any = { tenantId, cashierUserId, status: ShiftStatus.OPEN };
     if (branchId) {
       where.branchId = branchId;
@@ -965,7 +986,9 @@ export class OperationsService {
 
     const paymentBreakdown: Record<string, string> = {};
     for (const p of payments) {
-      const current = paymentBreakdown[p.paymentMethod] ? parseFloat(paymentBreakdown[p.paymentMethod]) : 0;
+      const current = paymentBreakdown[p.paymentMethod]
+        ? parseFloat(paymentBreakdown[p.paymentMethod])
+        : 0;
       paymentBreakdown[p.paymentMethod] = (current + parseFloat(p.amount)).toFixed(2);
     }
 
@@ -978,4 +1001,3 @@ export class OperationsService {
     };
   }
 }
-

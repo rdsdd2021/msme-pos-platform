@@ -106,4 +106,3 @@ export class InvoiceEntity {
   @OneToMany(() => CreditNoteEntity, (cn) => cn.originalInvoice)
   creditNotes?: CreditNoteEntity[];
 }
-

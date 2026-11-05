@@ -43,4 +43,3 @@ export class DeviceInvoiceRangeEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 }
-

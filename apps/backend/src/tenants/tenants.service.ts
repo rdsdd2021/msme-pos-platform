@@ -316,18 +316,17 @@ export class TenantsService {
         action: 'MEMBER_UPDATED',
         resourceType: 'tenant_membership',
         resourceId: updated.id,
-        details: { previousState, newState: { roles: updated.roles, branchId: updated.branchId, status: updated.status } },
+        details: {
+          previousState,
+          newState: { roles: updated.roles, branchId: updated.branchId, status: updated.status },
+        },
       }),
     );
 
     return updated;
   }
 
-  async revokeMember(
-    tenantId: string,
-    actorUserId: string,
-    memberId: string,
-  ): Promise<void> {
+  async revokeMember(tenantId: string, actorUserId: string, memberId: string): Promise<void> {
     const membership = await this.membershipRepository.findOne({
       where: { id: memberId, tenantId },
     });
@@ -336,7 +335,10 @@ export class TenantsService {
       throw new NotFoundException(`Membership '${memberId}' not found`);
     }
 
-    if (membership.role === Role.OWNER || (membership.roles && membership.roles.includes(Role.OWNER))) {
+    if (
+      membership.role === Role.OWNER ||
+      (membership.roles && membership.roles.includes(Role.OWNER))
+    ) {
       // Prevent deleting the last owner
       const ownerCount = await this.membershipRepository.count({
         where: { tenantId, role: Role.OWNER, status: MembershipStatus.ACTIVE },

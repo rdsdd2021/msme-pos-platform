@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { InvoiceEntity } from './entities/invoice.entity';
 import { InvoiceLineEntity } from './entities/invoice-line.entity';
@@ -10,7 +10,12 @@ import { CreditNoteEntity } from './entities/credit-note.entity';
 import { CreditNoteLineEntity } from './entities/credit-note-line.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
 import { AuditService } from '../tenants/audit.service';
-import { PaymentMethod, InvoiceStatus, CustomerLedgerEntryType, StockMovementType } from '@pos/shared-types';
+import {
+  PaymentMethod,
+  InvoiceStatus,
+  CustomerLedgerEntryType,
+  StockMovementType,
+} from '@pos/shared-types';
 
 describe('BillingService — GST & Financial Calculations', () => {
   let service: BillingService;
@@ -61,7 +66,8 @@ describe('BillingService — GST & Financial Calculations', () => {
     };
 
     const mockManager = {
-      findOne: jest.fn()
+      findOne: jest
+        .fn()
         .mockResolvedValueOnce(null) // idempotency check
         .mockResolvedValueOnce(null), // stock balance lookup
       findByIds: jest.fn().mockResolvedValueOnce([mockProduct]),
@@ -299,7 +305,8 @@ describe('BillingService — GST & Financial Calculations', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce({ id: 'tenant-1', settings: { allowNegativeStock: false } }) // tenant
           .mockResolvedValueOnce(mockStockBalance), // stock balance check
@@ -344,7 +351,8 @@ describe('BillingService — GST & Financial Calculations', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce({ id: 'tenant-1', settings: { allowNegativeStock: true } }) // tenant lookup
           .mockResolvedValueOnce(mockCustomer), // customer lookup
@@ -393,7 +401,8 @@ describe('BillingService — GST & Financial Calculations', () => {
 
       const savedRecords: any[] = [];
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce({ id: 'tenant-1', settings: { allowNegativeStock: true } }) // tenant lookup
           .mockResolvedValueOnce(mockCustomer) // customer lookup
@@ -491,7 +500,8 @@ describe('BillingService — GST & Financial Calculations', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce(mockOriginalInvoice) // invoice lookup
           .mockResolvedValueOnce(mockProduct) // product lookup
@@ -542,7 +552,9 @@ describe('BillingService — GST & Financial Calculations', () => {
 
       // Verify stock was incremented by 2
       expect(mockStockBalance.quantityOnHand).toBe('12.000'); // 10 + 2 = 12
-      const stockMovement = savedRecords.find((r) => r.movementType === StockMovementType.SALE_RETURN);
+      const stockMovement = savedRecords.find(
+        (r) => r.movementType === StockMovementType.SALE_RETURN,
+      );
       expect(stockMovement).toBeDefined();
       expect(stockMovement.quantityDelta).toBe('2.000');
     });
@@ -560,7 +572,8 @@ describe('BillingService — GST & Financial Calculations', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce(mockOriginalInvoice), // invoice lookup
         find: jest.fn().mockResolvedValueOnce([mockPriorCreditNote]), // prior credit notes
@@ -595,7 +608,8 @@ describe('BillingService — GST & Financial Calculations', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency
           .mockResolvedValueOnce(mockOriginalInvoice) // invoice
           .mockResolvedValueOnce(mockProduct) // product
@@ -641,7 +655,8 @@ describe('BillingService — GST & Financial Calculations', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null)
           .mockResolvedValueOnce(invoiceToFullyReturn)
           .mockResolvedValueOnce(mockProduct)
@@ -672,4 +687,3 @@ describe('BillingService — GST & Financial Calculations', () => {
     });
   });
 });
-

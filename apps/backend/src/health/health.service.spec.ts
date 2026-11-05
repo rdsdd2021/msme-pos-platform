@@ -13,10 +13,7 @@ describe('HealthService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        HealthService,
-        { provide: DataSource, useValue: mockDataSource },
-      ],
+      providers: [HealthService, { provide: DataSource, useValue: mockDataSource }],
     }).compile();
 
     service = module.get<HealthService>(HealthService);

@@ -41,4 +41,3 @@ import { TenantsModule } from '../tenants/tenants.module';
   exports: [CatalogService],
 })
 export class CatalogModule {}
-

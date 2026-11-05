@@ -50,21 +50,15 @@ export class PlatformAdminService {
   ) {}
 
   async getMetrics() {
-    const [
-      totalTenants,
-      activeTenants,
-      totalBranches,
-      totalDevices,
-      activeDevices,
-      totalInvoices,
-    ] = await Promise.all([
-      this.tenantRepository.count(),
-      this.tenantRepository.count({ where: { status: TenantStatus.ACTIVE } }),
-      this.branchRepository.count(),
-      this.deviceRepository.count(),
-      this.deviceRepository.count({ where: { status: DeviceStatus.ACTIVE } }),
-      this.invoiceRepository.count(),
-    ]);
+    const [totalTenants, activeTenants, totalBranches, totalDevices, activeDevices, totalInvoices] =
+      await Promise.all([
+        this.tenantRepository.count(),
+        this.tenantRepository.count({ where: { status: TenantStatus.ACTIVE } }),
+        this.branchRepository.count(),
+        this.deviceRepository.count(),
+        this.deviceRepository.count({ where: { status: DeviceStatus.ACTIVE } }),
+        this.invoiceRepository.count(),
+      ]);
 
     // Aggregate total gross sales across the platform
     const sumResult = await this.invoiceRepository
@@ -72,7 +66,9 @@ export class PlatformAdminService {
       .select('SUM(CAST(invoice.grand_total AS NUMERIC))', 'totalSales')
       .getRawOne();
 
-    const totalSalesAmount = sumResult?.totalSales ? parseFloat(sumResult.totalSales).toFixed(2) : '0.00';
+    const totalSalesAmount = sumResult?.totalSales
+      ? parseFloat(sumResult.totalSales).toFixed(2)
+      : '0.00';
 
     return {
       tenants: {
@@ -193,9 +189,24 @@ export class PlatformAdminService {
         tenantId: savedTenant.id,
         planCode,
         status: SubscriptionStatus.ACTIVE,
-        maxBranches: planCode === SubscriptionPlanCode.ENTERPRISE ? 999 : planCode === SubscriptionPlanCode.PRO_RETAIL ? 5 : 1,
-        maxDevices: planCode === SubscriptionPlanCode.ENTERPRISE ? 999 : planCode === SubscriptionPlanCode.PRO_RETAIL ? 10 : 2,
-        maxUsers: planCode === SubscriptionPlanCode.ENTERPRISE ? 999 : planCode === SubscriptionPlanCode.PRO_RETAIL ? 20 : 5,
+        maxBranches:
+          planCode === SubscriptionPlanCode.ENTERPRISE
+            ? 999
+            : planCode === SubscriptionPlanCode.PRO_RETAIL
+              ? 5
+              : 1,
+        maxDevices:
+          planCode === SubscriptionPlanCode.ENTERPRISE
+            ? 999
+            : planCode === SubscriptionPlanCode.PRO_RETAIL
+              ? 10
+              : 2,
+        maxUsers:
+          planCode === SubscriptionPlanCode.ENTERPRISE
+            ? 999
+            : planCode === SubscriptionPlanCode.PRO_RETAIL
+              ? 20
+              : 5,
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       });
       await manager.save(sub);
@@ -225,7 +236,12 @@ export class PlatformAdminService {
     });
   }
 
-  async updateTenantStatus(tenantId: string, dto: UpdateTenantStatusDto, adminUserId: string, adminIp?: string) {
+  async updateTenantStatus(
+    tenantId: string,
+    dto: UpdateTenantStatusDto,
+    adminUserId: string,
+    adminIp?: string,
+  ) {
     const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
     if (!tenant) {
       throw new NotFoundException(`Tenant ${tenantId} not found`);
@@ -305,7 +321,11 @@ export class PlatformAdminService {
     ];
   }
 
-  async updateSubscription(dto: UpdatePlatformSubscriptionDto, adminUserId: string, adminIp?: string) {
+  async updateSubscription(
+    dto: UpdatePlatformSubscriptionDto,
+    adminUserId: string,
+    adminIp?: string,
+  ) {
     const tenant = await this.tenantRepository.findOne({ where: { id: dto.tenantId } });
     if (!tenant) {
       throw new NotFoundException(`Tenant ${dto.tenantId} not found`);
@@ -337,7 +357,12 @@ export class PlatformAdminService {
       action: 'platform:subscription:updated',
       resourceType: 'tenant_subscription',
       resourceId: savedSub.id,
-      details: { planCode: dto.planCode, status: dto.status, maxBranches: dto.maxBranches, maxDevices: dto.maxDevices },
+      details: {
+        planCode: dto.planCode,
+        status: dto.status,
+        maxBranches: dto.maxBranches,
+        maxDevices: dto.maxDevices,
+      },
       ipAddress: adminIp || null,
     });
     await this.auditRepository.save(audit);
@@ -379,7 +404,12 @@ export class PlatformAdminService {
     return enriched;
   }
 
-  async revokeDevice(deviceId: string, dto: RevokePlatformDeviceDto, adminUserId: string, adminIp?: string) {
+  async revokeDevice(
+    deviceId: string,
+    dto: RevokePlatformDeviceDto,
+    adminUserId: string,
+    adminIp?: string,
+  ) {
     const device = await this.deviceRepository.findOne({ where: { id: deviceId } });
     if (!device) {
       throw new NotFoundException(`Device ${deviceId} not found`);

@@ -14,7 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ProductType, StockMovementType, StockTransferStatus } from '@pos/shared-types';
+import { ProductType, StockMovementType } from '@pos/shared-types';
 import { PurchaseOrderStatus } from '../entities/purchase-order.entity';
 
 export class CreateCategoryDto {
@@ -133,7 +133,9 @@ export class CreateProductDto {
 
   @ApiProperty({ example: '5.00', default: '0.00' })
   @IsString()
-  @Matches(/^\d+(\.\d{1,2})?$/, { message: 'gstRatePercent must be a valid percentage decimal string' })
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: 'gstRatePercent must be a valid percentage decimal string',
+  })
   @IsOptional()
   gstRatePercent?: string;
 
@@ -142,7 +144,11 @@ export class CreateProductDto {
   @IsOptional()
   packageSize?: string;
 
-  @ApiProperty({ example: 'data:image/jpeg;base64,...', required: false, description: 'Product image URL or data URI' })
+  @ApiProperty({
+    example: 'data:image/jpeg;base64,...',
+    required: false,
+    description: 'Product image URL or data URI',
+  })
   @IsString()
   @IsOptional()
   imageUrl?: string;
@@ -162,13 +168,23 @@ export class CreateProductDto {
   @IsOptional()
   allowFractionalQuantity?: boolean;
 
-  @ApiProperty({ example: '50.000', required: false, description: 'Optional initial opening stock to record on creation' })
+  @ApiProperty({
+    example: '50.000',
+    required: false,
+    description: 'Optional initial opening stock to record on creation',
+  })
   @IsString()
-  @Matches(/^\d+(\.\d{1,3})?$/, { message: 'openingStockQuantity must be a valid positive decimal quantity string' })
+  @Matches(/^\d+(\.\d{1,3})?$/, {
+    message: 'openingStockQuantity must be a valid positive decimal quantity string',
+  })
   @IsOptional()
   openingStockQuantity?: string;
 
-  @ApiProperty({ example: 'uuid-of-branch', required: false, description: 'Target branch for opening stock' })
+  @ApiProperty({
+    example: 'uuid-of-branch',
+    required: false,
+    description: 'Target branch for opening stock',
+  })
   @IsUUID()
   @IsOptional()
   openingStockBranchId?: string;
@@ -225,7 +241,9 @@ export class UpdateProductDto {
 
   @ApiProperty({ example: '5.00', required: false })
   @IsString()
-  @Matches(/^\d+(\.\d{1,2})?$/, { message: 'gstRatePercent must be a valid percentage decimal string' })
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: 'gstRatePercent must be a valid percentage decimal string',
+  })
   @IsOptional()
   gstRatePercent?: string;
 
@@ -234,7 +252,11 @@ export class UpdateProductDto {
   @IsOptional()
   packageSize?: string;
 
-  @ApiProperty({ example: 'data:image/jpeg;base64,...', required: false, description: 'Product image URL or data URI' })
+  @ApiProperty({
+    example: 'data:image/jpeg;base64,...',
+    required: false,
+    description: 'Product image URL or data URI',
+  })
   @IsString()
   @IsOptional()
   imageUrl?: string;
@@ -274,7 +296,10 @@ export class RecordStockMovementDto {
   @IsOptional()
   movementType?: StockMovementType;
 
-  @ApiProperty({ example: '50.000', description: 'Positive delta increases stock, negative decreases' })
+  @ApiProperty({
+    example: '50.000',
+    description: 'Positive delta increases stock, negative decreases',
+  })
   @IsString()
   @Matches(/^-?\d+(\.\d{1,3})?$/, { message: 'quantityDelta must be a valid decimal string' })
   quantityDelta!: string;
@@ -371,7 +396,9 @@ export class CreatePurchaseOrderLineDto {
 
   @ApiProperty({ example: '50.000' })
   @IsString()
-  @Matches(/^\d+(\.\d{1,3})?$/, { message: 'quantityOrdered must be a valid positive decimal quantity string' })
+  @Matches(/^\d+(\.\d{1,3})?$/, {
+    message: 'quantityOrdered must be a valid positive decimal quantity string',
+  })
   quantityOrdered!: string;
 
   @ApiProperty({ example: '180.00' })
@@ -381,7 +408,9 @@ export class CreatePurchaseOrderLineDto {
 
   @ApiProperty({ example: '5.00', required: false })
   @IsString()
-  @Matches(/^\d+(\.\d{1,2})?$/, { message: 'taxRatePercent must be a valid percentage decimal string' })
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: 'taxRatePercent must be a valid percentage decimal string',
+  })
   @IsOptional()
   taxRatePercent?: string;
 }
@@ -430,7 +459,9 @@ export class ReceivePurchaseOrderItemDto {
 
   @ApiProperty({ example: '25.000' })
   @IsString()
-  @Matches(/^\d+(\.\d{1,3})?$/, { message: 'quantityReceived must be a valid positive decimal quantity string' })
+  @Matches(/^\d+(\.\d{1,3})?$/, {
+    message: 'quantityReceived must be a valid positive decimal quantity string',
+  })
   quantityReceived!: string;
 }
 
@@ -459,7 +490,9 @@ export class CreateStockTransferLineDto {
 
   @ApiProperty({ example: '25.000' })
   @IsString()
-  @Matches(/^\d+(\.\d{1,3})?$/, { message: 'quantityRequested must be a valid positive decimal quantity string' })
+  @Matches(/^\d+(\.\d{1,3})?$/, {
+    message: 'quantityRequested must be a valid positive decimal quantity string',
+  })
   quantityRequested!: string;
 
   @ApiProperty({ example: '180.00', required: false })
@@ -524,7 +557,9 @@ export class ReceiveStockTransferItemDto {
 
   @ApiProperty({ example: '25.000' })
   @IsString()
-  @Matches(/^\d+(\.\d{1,3})?$/, { message: 'quantityReceived must be a valid positive decimal quantity string' })
+  @Matches(/^\d+(\.\d{1,3})?$/, {
+    message: 'quantityReceived must be a valid positive decimal quantity string',
+  })
   quantityReceived!: string;
 
   @ApiProperty({ example: 'Damaged in transit: 2 units leaking', required: false })
@@ -557,10 +592,11 @@ export class ReceiveStockTransferDto {
 }
 
 export class CancelStockTransferDto {
-  @ApiProperty({ example: 'Transfer cancelled by store manager due to demand spike at origin branch', required: false })
+  @ApiProperty({
+    example: 'Transfer cancelled by store manager due to demand spike at origin branch',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   reason?: string;
 }
-
-

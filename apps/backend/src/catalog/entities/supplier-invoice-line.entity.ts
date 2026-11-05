@@ -66,4 +66,3 @@ export class SupplierInvoiceLineEntity {
   @JoinColumn({ name: 'product_id' })
   product!: ProductEntity | null;
 }
-

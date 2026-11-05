@@ -34,7 +34,13 @@ describe('PlatformAdminService', () => {
     tenantRepo = {
       count: jest.fn().mockResolvedValue(5),
       find: jest.fn().mockResolvedValue([
-        { id: 't-1', legalName: 'Kirana Corp', displayName: 'Kirana Store', status: TenantStatus.ACTIVE, createdAt: new Date() },
+        {
+          id: 't-1',
+          legalName: 'Kirana Corp',
+          displayName: 'Kirana Store',
+          status: TenantStatus.ACTIVE,
+          createdAt: new Date(),
+        },
       ]),
       findOne: jest.fn().mockResolvedValue({ id: 't-1', status: TenantStatus.ACTIVE }),
       save: jest.fn().mockImplementation((t) => Promise.resolve({ ...t })),
@@ -60,7 +66,14 @@ describe('PlatformAdminService', () => {
     deviceRepo = {
       count: jest.fn().mockResolvedValue(15),
       find: jest.fn().mockResolvedValue([
-        { id: 'd-1', tenantId: 't-1', branchId: 'b-1', deviceName: 'Counter POS 1', status: DeviceStatus.ACTIVE, createdAt: new Date() },
+        {
+          id: 'd-1',
+          tenantId: 't-1',
+          branchId: 'b-1',
+          deviceName: 'Counter POS 1',
+          status: DeviceStatus.ACTIVE,
+          createdAt: new Date(),
+        },
       ]),
       findOne: jest.fn().mockResolvedValue({
         id: 'd-1',
@@ -95,14 +108,20 @@ describe('PlatformAdminService', () => {
     auditRepo = {
       create: jest.fn().mockImplementation((a) => a),
       save: jest.fn().mockImplementation((a) => Promise.resolve({ ...a, id: 'a-1' })),
-      findAndCount: jest.fn().mockResolvedValue([[{ id: 'a-1', action: 'platform:tenant:created' }], 1]),
+      findAndCount: jest
+        .fn()
+        .mockResolvedValue([[{ id: 'a-1', action: 'platform:tenant:created' }], 1]),
     };
 
     dataSource = {
       transaction: jest.fn().mockImplementation(async (callback) => {
         const manager = {
           create: jest.fn().mockImplementation((entityClass, data) => ({ ...data, id: 'mock-id' })),
-          save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: entity.id || 'saved-id' })),
+          save: jest
+            .fn()
+            .mockImplementation((entity) =>
+              Promise.resolve({ ...entity, id: entity.id || 'saved-id' }),
+            ),
         };
         return callback(manager);
       }),
@@ -154,29 +173,25 @@ describe('PlatformAdminService', () => {
   });
 
   describe('createTenant', () => {
-    it(
-      'creates new tenant organization, branch, owner user and subscription',
-      async () => {
-        const result = await service.createTenant(
-          {
-            legalName: 'Shree Krishna Retailers',
-            displayName: 'Krishna Supermart',
-            ownerEmail: 'owner@krishna.com',
-            ownerName: 'Gopal Sharma',
-            ownerPassword: 'Password@123',
-            planCode: SubscriptionPlanCode.BASIC_KIRANA,
-          },
-          'admin-user-id',
-          '127.0.0.1',
-        );
+    it('creates new tenant organization, branch, owner user and subscription', async () => {
+      const result = await service.createTenant(
+        {
+          legalName: 'Shree Krishna Retailers',
+          displayName: 'Krishna Supermart',
+          ownerEmail: 'owner@krishna.com',
+          ownerName: 'Gopal Sharma',
+          ownerPassword: 'Password@123',
+          planCode: SubscriptionPlanCode.BASIC_KIRANA,
+        },
+        'admin-user-id',
+        '127.0.0.1',
+      );
 
-        expect(result.tenant).toBeDefined();
-        expect(result.branch).toBeDefined();
-        expect(result.owner.email).toBe('owner@krishna.com');
-        expect(result.subscription).toBeDefined();
-      },
-      15000,
-    );
+      expect(result.tenant).toBeDefined();
+      expect(result.branch).toBeDefined();
+      expect(result.owner.email).toBe('owner@krishna.com');
+      expect(result.subscription).toBeDefined();
+    }, 15000);
 
     it('throws ConflictException if user with same email exists', async () => {
       userRepo.findOne.mockResolvedValueOnce({ id: 'existing-user' });

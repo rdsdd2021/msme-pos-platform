@@ -23,7 +23,8 @@ export class RegisterDto {
   @MinLength(8)
   @MaxLength(100)
   @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    message:
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password!: string;
 
@@ -46,7 +47,8 @@ export class RegisterMerchantDto {
   @MinLength(8)
   @MaxLength(100)
   @Matches(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    message:
+      'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password!: string;
 
@@ -70,7 +72,10 @@ export class RegisterMerchantDto {
   @IsEnum(BusinessType)
   businessType!: BusinessType;
 
-  @ApiProperty({ example: '27', description: '2-digit Indian State / UT code (e.g. 27 for Maharashtra)' })
+  @ApiProperty({
+    example: '27',
+    description: '2-digit Indian State / UT code (e.g. 27 for Maharashtra)',
+  })
   @IsString()
   @Matches(/^[0-9]{2}$/, { message: 'stateCode must be a 2-digit Indian State code' })
   stateCode!: string;
@@ -122,4 +127,3 @@ export class RefreshTokenDto {
   @IsNotEmpty()
   refreshToken!: string;
 }
-

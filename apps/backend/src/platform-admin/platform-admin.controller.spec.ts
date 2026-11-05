@@ -17,7 +17,9 @@ describe('PlatformAdminController & SuperAdminGuard', () => {
       createTenant: jest.fn().mockResolvedValue({ tenant: { id: 't-1' } }),
       updateTenantStatus: jest.fn().mockResolvedValue({ id: 't-1', status: TenantStatus.ACTIVE }),
       getPlans: jest.fn().mockReturnValue([{ planCode: SubscriptionPlanCode.BASIC_KIRANA }]),
-      updateSubscription: jest.fn().mockResolvedValue({ id: 's-1', status: SubscriptionStatus.ACTIVE }),
+      updateSubscription: jest
+        .fn()
+        .mockResolvedValue({ id: 's-1', status: SubscriptionStatus.ACTIVE }),
       getDevices: jest.fn().mockResolvedValue([{ id: 'd-1', deviceName: 'Counter POS' }]),
       revokeDevice: jest.fn().mockResolvedValue({ id: 'd-1', status: 'revoked' }),
       getAuditLogs: jest.fn().mockResolvedValue({ total: 1, data: [] }),
@@ -27,9 +29,7 @@ describe('PlatformAdminController & SuperAdminGuard', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PlatformAdminController],
-      providers: [
-        { provide: PlatformAdminService, useValue: service },
-      ],
+      providers: [{ provide: PlatformAdminService, useValue: service }],
     }).compile();
 
     controller = module.get<PlatformAdminController>(PlatformAdminController);
@@ -99,4 +99,3 @@ describe('PlatformAdminController & SuperAdminGuard', () => {
     });
   });
 });
-

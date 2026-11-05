@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_mobile/core/models/product.dart';
-import 'package:pos_mobile/core/services/permission_service.dart';
 import 'package:pos_mobile/core/widgets/camera_barcode_scanner_modal.dart';
 import 'package:pos_mobile/core/widgets/internet_photo_search_dialog.dart';
 import 'package:pos_mobile/core/widgets/product_photo_picker.dart';

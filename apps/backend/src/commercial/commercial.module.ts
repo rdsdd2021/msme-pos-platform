@@ -7,13 +7,9 @@ import { TenantSubscriptionEntity } from './entities/tenant-subscription.entity'
 import { TenantsModule } from '../tenants/tenants.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([DeviceEntity, TenantSubscriptionEntity]),
-    TenantsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([DeviceEntity, TenantSubscriptionEntity]), TenantsModule],
   controllers: [CommercialController],
   providers: [CommercialService],
   exports: [CommercialService],
 })
 export class CommercialModule {}
-

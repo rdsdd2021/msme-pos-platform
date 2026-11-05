@@ -71,4 +71,3 @@ export class TenantEntity {
   @OneToMany(() => BranchEntity, (branch) => branch.tenant)
   branches!: BranchEntity[];
 }
-

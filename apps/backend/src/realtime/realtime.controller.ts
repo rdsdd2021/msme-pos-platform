@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Sse,
-  Param,
-  UseGuards,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { Controller, Sse, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
@@ -27,10 +21,7 @@ export class RealtimeController {
   @ApiOperation({
     summary: 'Server-Sent Events (SSE) live event stream for the authenticated tenant',
   })
-  streamEvents(
-    @Param('tenantId', ParseUUIDPipe) tenantId: string,
-  ): Observable<SseMessageEvent> {
+  streamEvents(@Param('tenantId', ParseUUIDPipe) tenantId: string): Observable<SseMessageEvent> {
     return this.realtimeService.getTenantEventStream(tenantId);
   }
 }
-

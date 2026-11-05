@@ -1,18 +1,13 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  UseGuards,
-  ParseUUIDPipe,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CommercialService } from './commercial.service';
 import { TenantGuard } from '../tenants/guards/tenant.guard';
 import { PermissionsGuard } from '../tenants/guards/permissions.guard';
-import { RequirePermissions, RequireTenantWide } from '../tenants/guards/require-permissions.decorator';
+import {
+  RequirePermissions,
+  RequireTenantWide,
+} from '../tenants/guards/require-permissions.decorator';
 import { RegisterDeviceDto, RevokeDeviceDto } from './dto/commercial.dto';
 import { Permission } from '@pos/shared-types';
 
@@ -56,7 +51,9 @@ export class CommercialController {
   @Get('subscription')
   @RequirePermissions(Permission.SUBSCRIPTION_MANAGE)
   @RequireTenantWide()
-  @ApiOperation({ summary: 'Get current tenant subscription plan and branch/device entitlements (Tenant-wide)' })
+  @ApiOperation({
+    summary: 'Get current tenant subscription plan and branch/device entitlements (Tenant-wide)',
+  })
   async getSubscription(@Param('tenantId', ParseUUIDPipe) tenantId: string) {
     return this.commercialService.getOrCreateSubscription(tenantId);
   }

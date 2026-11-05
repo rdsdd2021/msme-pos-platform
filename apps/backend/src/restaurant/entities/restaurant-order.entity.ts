@@ -105,4 +105,3 @@ export class RestaurantOrderEntity {
   @OneToMany(() => RestaurantKotLineEntity, (line) => line.order)
   lines?: RestaurantKotLineEntity[];
 }
-

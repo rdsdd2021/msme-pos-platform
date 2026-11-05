@@ -45,4 +45,3 @@ export class PaymentEntity {
   @JoinColumn({ name: 'invoice_id' })
   invoice?: InvoiceEntity;
 }
-

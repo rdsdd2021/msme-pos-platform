@@ -95,9 +95,11 @@ export class AuthService {
 
       // 2. Create Tenant
       const storeName = dto.storeName.trim();
-      const resolvedModules = (dto.enabledModules && dto.enabledModules.length > 0)
-        ? dto.enabledModules
-        : (DEFAULT_MODULES_BY_BUSINESS[dto.businessType] || DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY]);
+      const resolvedModules =
+        dto.enabledModules && dto.enabledModules.length > 0
+          ? dto.enabledModules
+          : DEFAULT_MODULES_BY_BUSINESS[dto.businessType] ||
+            DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY];
 
       const tenant = manager.create(TenantEntity, {
         legalName: storeName,
@@ -139,7 +141,12 @@ export class AuthService {
 
       // 5. Seed sample industry catalog only if explicitly requested (default false for clean commercial store)
       if (dto.seedSampleCatalog === true) {
-        await this.seedIndustryCatalog(manager, persistedTenant.id, persistedBranch.id, dto.businessType);
+        await this.seedIndustryCatalog(
+          manager,
+          persistedTenant.id,
+          persistedBranch.id,
+          dto.businessType,
+        );
       }
 
       // 6. Record Audit Log
@@ -615,7 +622,10 @@ export class AuthService {
         const permissions = getPermissionsForRoles(roles);
         const tenantBusinessType = m.tenant?.businessType ?? BusinessType.GROCERY;
         const tenantSettings = (m.tenant?.settings as any) || {};
-        const enabledModules = tenantSettings?.enabledModules ?? (DEFAULT_MODULES_BY_BUSINESS[tenantBusinessType] || DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY]);
+        const enabledModules =
+          tenantSettings?.enabledModules ??
+          (DEFAULT_MODULES_BY_BUSINESS[tenantBusinessType] ||
+            DEFAULT_MODULES_BY_BUSINESS[BusinessType.GROCERY]);
 
         return {
           tenantId: m.tenantId,
@@ -634,7 +644,11 @@ export class AuthService {
   }
 
   private async generateTokens(user: UserEntity): Promise<AuthResponseDto> {
-    const payload: JwtPayload = { sub: user.id, email: user.email, isSuperAdmin: !!user.isSuperAdmin };
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      isSuperAdmin: !!user.isSuperAdmin,
+    };
     const accessSecret = this.configService.get<string>(
       'JWT_SECRET',
       'changeme_jwt_secret_dev_only_min_32_chars_xxxx',

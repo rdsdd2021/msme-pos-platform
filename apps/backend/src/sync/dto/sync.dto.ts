@@ -69,4 +69,3 @@ export class AllocateInvoiceRangeDto {
   @Min(10)
   rangeSize!: number;
 }
-

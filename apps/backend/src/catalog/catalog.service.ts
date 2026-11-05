@@ -21,7 +21,12 @@ import { StockTransferLineEntity } from './entities/stock-transfer-line.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
 import { AuditService } from '../tenants/audit.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
-import { Permission, StockMovementType, StockTransferStatus, TenantContext } from '@pos/shared-types';
+import {
+  Permission,
+  StockMovementType,
+  StockTransferStatus,
+  TenantContext,
+} from '@pos/shared-types';
 import {
   CreateCategoryDto,
   UpdateCategoryDto,
@@ -32,7 +37,6 @@ import {
   CreateSupplierDto,
   UpdateSupplierDto,
   CreatePurchaseOrderDto,
-  UpdatePurchaseOrderStatusDto,
   ReceivePurchaseOrderDto,
   CreateStockTransferDto,
   DispatchStockTransferDto,
@@ -100,7 +104,11 @@ export class CatalogService {
     });
   }
 
-  async updateCategory(tenantId: string, categoryId: string, dto: UpdateCategoryDto): Promise<CategoryEntity> {
+  async updateCategory(
+    tenantId: string,
+    categoryId: string,
+    dto: UpdateCategoryDto,
+  ): Promise<CategoryEntity> {
     const category = await this.categoryRepo.findOne({
       where: { id: categoryId, tenantId },
     });
@@ -126,7 +134,10 @@ export class CatalogService {
     return this.categoryRepo.save(category);
   }
 
-  async deleteCategory(tenantId: string, categoryId: string): Promise<{ success: boolean; message: string }> {
+  async deleteCategory(
+    tenantId: string,
+    categoryId: string,
+  ): Promise<{ success: boolean; message: string }> {
     const category = await this.categoryRepo.findOne({
       where: { id: categoryId, tenantId },
     });
@@ -269,8 +280,16 @@ export class CatalogService {
       });
 
       if (this.realtimeService) {
-        this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId: res.id, action: 'CREATE' });
-        this.realtimeService.emit(tenantId, 'STOCK_CHANGED', { productId: res.id, reason: 'OPENING_STOCK' }, dto.openingStockBranchId);
+        this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', {
+          productId: res.id,
+          action: 'CREATE',
+        });
+        this.realtimeService.emit(
+          tenantId,
+          'STOCK_CHANGED',
+          { productId: res.id, reason: 'OPENING_STOCK' },
+          dto.openingStockBranchId,
+        );
       }
       return res;
     }
@@ -297,7 +316,10 @@ export class CatalogService {
 
     const saved = await this.productRepo.save(product);
     if (this.realtimeService) {
-      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId: saved.id, action: 'CREATE' });
+      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', {
+        productId: saved.id,
+        action: 'CREATE',
+      });
     }
     return saved;
   }
@@ -319,7 +341,11 @@ export class CatalogService {
     return product;
   }
 
-  async updateProduct(tenantId: string, productId: string, dto: UpdateProductDto): Promise<ProductEntity> {
+  async updateProduct(
+    tenantId: string,
+    productId: string,
+    dto: UpdateProductDto,
+  ): Promise<ProductEntity> {
     const product = await this.getProductById(tenantId, productId);
 
     // 1. SKU uniqueness if changed
@@ -350,7 +376,10 @@ export class CatalogService {
     }
 
     // 3. Price validation: Selling price <= MRP
-    const updatedSellingPrice = dto.sellingPrice !== undefined ? parseFloat(dto.sellingPrice) : parseFloat(product.sellingPrice);
+    const updatedSellingPrice =
+      dto.sellingPrice !== undefined
+        ? parseFloat(dto.sellingPrice)
+        : parseFloat(product.sellingPrice);
     const updatedMrp = dto.mrp !== undefined ? parseFloat(dto.mrp) : parseFloat(product.mrp);
     if (updatedMrp > 0 && updatedSellingPrice > updatedMrp) {
       throw new BadRequestException(
@@ -370,18 +399,25 @@ export class CatalogService {
     if (dto.imageUrl !== undefined) product.imageUrl = dto.imageUrl;
     if (dto.productType !== undefined) product.productType = dto.productType;
     if (dto.trackInventory !== undefined) product.trackInventory = dto.trackInventory;
-    if (dto.allowFractionalQuantity !== undefined) product.allowFractionalQuantity = dto.allowFractionalQuantity;
+    if (dto.allowFractionalQuantity !== undefined)
+      product.allowFractionalQuantity = dto.allowFractionalQuantity;
     if (dto.isActive !== undefined) product.isActive = dto.isActive;
 
     product.version += 1;
     const saved = await this.productRepo.save(product);
     if (this.realtimeService) {
-      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId: saved.id, action: 'UPDATE' });
+      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', {
+        productId: saved.id,
+        action: 'UPDATE',
+      });
     }
     return saved;
   }
 
-  async deleteProduct(tenantId: string, productId: string): Promise<{ success: boolean; message: string }> {
+  async deleteProduct(
+    tenantId: string,
+    productId: string,
+  ): Promise<{ success: boolean; message: string }> {
     const product = await this.getProductById(tenantId, productId);
     product.isActive = false;
     product.archivedAt = new Date();
@@ -392,7 +428,10 @@ export class CatalogService {
     return { success: true, message: 'Product archived successfully' };
   }
 
-  async searchProductByBarcodeOrSku(tenantId: string, query: string): Promise<ProductEntity | null> {
+  async searchProductByBarcodeOrSku(
+    tenantId: string,
+    query: string,
+  ): Promise<ProductEntity | null> {
     const cleanQuery = query.trim();
     return this.productRepo.findOne({
       where: [
@@ -587,7 +626,11 @@ export class CatalogService {
     return supplier;
   }
 
-  async updateSupplier(tenantId: string, id: string, dto: UpdateSupplierDto): Promise<SupplierEntity> {
+  async updateSupplier(
+    tenantId: string,
+    id: string,
+    dto: UpdateSupplierDto,
+  ): Promise<SupplierEntity> {
     const supplier = await this.getSupplierById(tenantId, id);
     if (dto.name !== undefined) supplier.name = dto.name.trim();
     if (dto.contactPerson !== undefined) supplier.contactPerson = dto.contactPerson?.trim() ?? null;
@@ -798,12 +841,16 @@ export class CatalogService {
       for (const item of dto.items) {
         const line = lineMap.get(item.lineId);
         if (!line) {
-          throw new NotFoundException(`Line item ${item.lineId} does not belong to purchase order ${poId}`);
+          throw new NotFoundException(
+            `Line item ${item.lineId} does not belong to purchase order ${poId}`,
+          );
         }
 
         const qtyDelta = parseFloat(item.quantityReceived);
         if (isNaN(qtyDelta) || qtyDelta <= 0) {
-          throw new BadRequestException(`Received quantity must be positive for line ${item.lineId}`);
+          throw new BadRequestException(
+            `Received quantity must be positive for line ${item.lineId}`,
+          );
         }
 
         const currentReceived = parseFloat(line.quantityReceived || '0');
@@ -813,10 +860,9 @@ export class CatalogService {
         await manager.save(PurchaseOrderLineEntity, line);
 
         // 1. Immutable Stock Ledger Entry
-        const ledgerIdempotencyKey =
-          dto.idempotencyKey
-            ? `${dto.idempotencyKey}-${line.id}`
-            : `grn-${po.id}-${line.id}-${Date.now()}`;
+        const ledgerIdempotencyKey = dto.idempotencyKey
+          ? `${dto.idempotencyKey}-${line.id}`
+          : `grn-${po.id}-${line.id}-${Date.now()}`;
 
         const existingLedger = await manager.findOne(StockLedgerEntity, {
           where: { tenantId, idempotencyKey: ledgerIdempotencyKey },
@@ -955,7 +1001,9 @@ export class CatalogService {
       }
       const qtyReq = parseFloat(lineDto.quantityRequested);
       if (isNaN(qtyReq) || qtyReq <= 0) {
-        throw new BadRequestException(`Requested quantity for product ${product.name} must be greater than 0`);
+        throw new BadRequestException(
+          `Requested quantity for product ${product.name} must be greater than 0`,
+        );
       }
     }
 
@@ -1296,6 +1344,12 @@ export class CatalogService {
       throw new NotFoundException(`Stock transfer ${transferId} not found`);
     }
 
+    if (tenantContext?.branchId && tenantContext.branchId !== transfer.sourceBranchId) {
+      throw new ForbiddenException(
+        'Forbidden: Only the source branch manager or store owner can cancel this transfer',
+      );
+    }
+
     if (
       transfer.status === StockTransferStatus.RECEIVED ||
       transfer.status === StockTransferStatus.CANCELLED
@@ -1309,7 +1363,8 @@ export class CatalogService {
     if (transfer.status === StockTransferStatus.DRAFT) {
       transfer.status = StockTransferStatus.CANCELLED;
       if (dto.reason) {
-        transfer.notes = (transfer.notes ? transfer.notes + '\n' : '') + `Cancellation Reason: ${dto.reason}`;
+        transfer.notes =
+          (transfer.notes ? transfer.notes + '\n' : '') + `Cancellation Reason: ${dto.reason}`;
       }
       await this.transferRepo.save(transfer);
 
@@ -1347,7 +1402,7 @@ export class CatalogService {
           });
           await manager.save(StockLedgerEntity, revLedger);
 
-          let balance = await manager.findOne(StockBalanceEntity, {
+          const balance = await manager.findOne(StockBalanceEntity, {
             where: { tenantId, branchId: transfer.sourceBranchId, productId: line.productId },
           });
           if (balance) {
@@ -1360,7 +1415,8 @@ export class CatalogService {
 
       transfer.status = StockTransferStatus.CANCELLED;
       if (dto.reason) {
-        transfer.notes = (transfer.notes ? transfer.notes + '\n' : '') + `Cancellation Reason: ${dto.reason}`;
+        transfer.notes =
+          (transfer.notes ? transfer.notes + '\n' : '') + `Cancellation Reason: ${dto.reason}`;
       }
       await manager.save(StockTransferEntity, transfer);
 
@@ -1371,7 +1427,11 @@ export class CatalogService {
           action: 'STOCK_TRANSFER_CANCELLED',
           resourceType: 'stock_transfers',
           resourceId: transfer.id,
-          details: { transferNumber: transfer.transferNumber, reversedStock: true, reason: dto.reason },
+          details: {
+            transferNumber: transfer.transferNumber,
+            reversedStock: true,
+            reason: dto.reason,
+          },
         });
       }
 
@@ -1405,14 +1465,18 @@ export class CatalogService {
           tenantId,
           sourceBranchId: filters.branchId,
           ...(filters.sourceBranchId ? { sourceBranchId: filters.sourceBranchId } : {}),
-          ...(filters.destinationBranchId ? { destinationBranchId: filters.destinationBranchId } : {}),
+          ...(filters.destinationBranchId
+            ? { destinationBranchId: filters.destinationBranchId }
+            : {}),
           ...(filters.status ? { status: filters.status } : {}),
         },
         {
           tenantId,
           destinationBranchId: filters.branchId,
           ...(filters.sourceBranchId ? { sourceBranchId: filters.sourceBranchId } : {}),
-          ...(filters.destinationBranchId ? { destinationBranchId: filters.destinationBranchId } : {}),
+          ...(filters.destinationBranchId
+            ? { destinationBranchId: filters.destinationBranchId }
+            : {}),
           ...(filters.status ? { status: filters.status } : {}),
         },
       ];
@@ -1420,7 +1484,9 @@ export class CatalogService {
       where = {
         tenantId,
         ...(filters?.sourceBranchId ? { sourceBranchId: filters.sourceBranchId } : {}),
-        ...(filters?.destinationBranchId ? { destinationBranchId: filters.destinationBranchId } : {}),
+        ...(filters?.destinationBranchId
+          ? { destinationBranchId: filters.destinationBranchId }
+          : {}),
         ...(filters?.status ? { status: filters.status } : {}),
       };
     }

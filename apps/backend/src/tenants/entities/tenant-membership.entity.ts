@@ -60,5 +60,3 @@ export class TenantMembershipEntity {
   @JoinColumn({ name: 'branch_id' })
   branch?: BranchEntity | null;
 }
-
-

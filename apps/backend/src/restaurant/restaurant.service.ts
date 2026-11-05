@@ -69,7 +69,9 @@ export class RestaurantService {
       qb.andWhere('table.section = :section', { section });
     }
 
-    qb.orderBy('table.section', 'ASC').addOrderBy('table.sortOrder', 'ASC').addOrderBy('table.tableNumber', 'ASC');
+    qb.orderBy('table.section', 'ASC')
+      .addOrderBy('table.sortOrder', 'ASC')
+      .addOrderBy('table.tableNumber', 'ASC');
 
     const tables = await qb.getMany();
 
@@ -77,7 +79,7 @@ export class RestaurantService {
     const nonVacantTables = tables.filter((t) => t.status !== TableStatus.VACANT);
     const tableIds = nonVacantTables.map((t) => t.id);
 
-    let activeOrdersMap = new Map<string, RestaurantOrderEntity>();
+    const activeOrdersMap = new Map<string, RestaurantOrderEntity>();
     if (tableIds.length > 0) {
       const activeOrders = await this.orderRepo.find({
         where: {
@@ -135,19 +137,91 @@ export class RestaurantService {
 
     const defaultSeed = [
       // Main Dining (8 tables)
-      { tableNumber: 'T-01', tableName: 'Table 1', section: 'Main Dining', seatingCapacity: 2, sortOrder: 1 },
-      { tableNumber: 'T-02', tableName: 'Table 2', section: 'Main Dining', seatingCapacity: 4, sortOrder: 2 },
-      { tableNumber: 'T-03', tableName: 'Table 3', section: 'Main Dining', seatingCapacity: 4, sortOrder: 3 },
-      { tableNumber: 'T-04', tableName: 'Table 4 (Window)', section: 'Main Dining', seatingCapacity: 4, sortOrder: 4 },
-      { tableNumber: 'T-05', tableName: 'Table 5 (Corner)', section: 'Main Dining', seatingCapacity: 6, sortOrder: 5 },
-      { tableNumber: 'T-06', tableName: 'Table 6', section: 'Main Dining', seatingCapacity: 6, sortOrder: 6 },
-      { tableNumber: 'T-07', tableName: 'Table 7', section: 'Main Dining', seatingCapacity: 8, sortOrder: 7 },
-      { tableNumber: 'T-08', tableName: 'Table 8', section: 'Main Dining', seatingCapacity: 2, sortOrder: 8 },
+      {
+        tableNumber: 'T-01',
+        tableName: 'Table 1',
+        section: 'Main Dining',
+        seatingCapacity: 2,
+        sortOrder: 1,
+      },
+      {
+        tableNumber: 'T-02',
+        tableName: 'Table 2',
+        section: 'Main Dining',
+        seatingCapacity: 4,
+        sortOrder: 2,
+      },
+      {
+        tableNumber: 'T-03',
+        tableName: 'Table 3',
+        section: 'Main Dining',
+        seatingCapacity: 4,
+        sortOrder: 3,
+      },
+      {
+        tableNumber: 'T-04',
+        tableName: 'Table 4 (Window)',
+        section: 'Main Dining',
+        seatingCapacity: 4,
+        sortOrder: 4,
+      },
+      {
+        tableNumber: 'T-05',
+        tableName: 'Table 5 (Corner)',
+        section: 'Main Dining',
+        seatingCapacity: 6,
+        sortOrder: 5,
+      },
+      {
+        tableNumber: 'T-06',
+        tableName: 'Table 6',
+        section: 'Main Dining',
+        seatingCapacity: 6,
+        sortOrder: 6,
+      },
+      {
+        tableNumber: 'T-07',
+        tableName: 'Table 7',
+        section: 'Main Dining',
+        seatingCapacity: 8,
+        sortOrder: 7,
+      },
+      {
+        tableNumber: 'T-08',
+        tableName: 'Table 8',
+        section: 'Main Dining',
+        seatingCapacity: 2,
+        sortOrder: 8,
+      },
       // AC Hall (4 tables)
-      { tableNumber: 'AC-01', tableName: 'AC Table 1', section: 'AC Hall', seatingCapacity: 4, sortOrder: 9 },
-      { tableNumber: 'AC-02', tableName: 'AC Table 2', section: 'AC Hall', seatingCapacity: 4, sortOrder: 10 },
-      { tableNumber: 'AC-03', tableName: 'AC Table 3', section: 'AC Hall', seatingCapacity: 6, sortOrder: 11 },
-      { tableNumber: 'AC-04', tableName: 'AC Table 4', section: 'AC Hall', seatingCapacity: 8, sortOrder: 12 },
+      {
+        tableNumber: 'AC-01',
+        tableName: 'AC Table 1',
+        section: 'AC Hall',
+        seatingCapacity: 4,
+        sortOrder: 9,
+      },
+      {
+        tableNumber: 'AC-02',
+        tableName: 'AC Table 2',
+        section: 'AC Hall',
+        seatingCapacity: 4,
+        sortOrder: 10,
+      },
+      {
+        tableNumber: 'AC-03',
+        tableName: 'AC Table 3',
+        section: 'AC Hall',
+        seatingCapacity: 6,
+        sortOrder: 11,
+      },
+      {
+        tableNumber: 'AC-04',
+        tableName: 'AC Table 4',
+        section: 'AC Hall',
+        seatingCapacity: 8,
+        sortOrder: 12,
+      },
     ];
 
     const entities = defaultSeed.map((d) =>
@@ -302,7 +376,10 @@ export class RestaurantService {
       if (!order) {
         throw new NotFoundException('Restaurant order not found');
       }
-      if (order.status !== RestaurantOrderStatus.OPEN && order.status !== RestaurantOrderStatus.BILLED) {
+      if (
+        order.status !== RestaurantOrderStatus.OPEN &&
+        order.status !== RestaurantOrderStatus.BILLED
+      ) {
         throw new BadRequestException(`Cannot add KOT to order with status ${order.status}`);
       }
 
@@ -384,9 +461,13 @@ export class RestaurantService {
 
       // Update table status to ORDERED
       if (order.tableId) {
-        await manager.update(RestaurantTableEntity, { id: order.tableId }, {
-          status: TableStatus.ORDERED,
-        });
+        await manager.update(
+          RestaurantTableEntity,
+          { id: order.tableId },
+          {
+            status: TableStatus.ORDERED,
+          },
+        );
       }
 
       return { kot: savedKot, order: updatedOrder };
@@ -481,7 +562,9 @@ export class RestaurantService {
       }
 
       if (target.status !== TableStatus.VACANT && target.status !== TableStatus.DIRTY) {
-        throw new BadRequestException(`Target table ${target.tableNumber} is currently ${target.status}`);
+        throw new BadRequestException(
+          `Target table ${target.tableNumber} is currently ${target.status}`,
+        );
       }
 
       const activeOrder = await manager.findOne(RestaurantOrderEntity, {
@@ -551,7 +634,11 @@ export class RestaurantService {
     }));
 
     // Payments setup (Single or Split)
-    let payments: Array<{ paymentMethod: PaymentMethod; amount: string; externalReference?: string }> = [];
+    let payments: Array<{
+      paymentMethod: PaymentMethod;
+      amount: string;
+      externalReference?: string;
+    }> = [];
     if (dto.isSplit && dto.splitPayments && dto.splitPayments.length > 0) {
       payments = dto.splitPayments.map((p) => ({
         paymentMethod: p.paymentMethod,
@@ -609,4 +696,3 @@ export class RestaurantService {
     return { invoice, order };
   }
 }
-

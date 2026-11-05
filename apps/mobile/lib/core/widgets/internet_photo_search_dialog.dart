@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/shadcn_colors.dart';
-import '../theme/shadcn_typography.dart';
 import 'shadcn_button.dart';
 import 'shadcn_input.dart';
 
@@ -177,7 +175,9 @@ class _InternetPhotoSearchSheetState extends State<InternetPhotoSearchSheet> {
       if (response.statusCode == 200 && response.data is Map) {
         final products = response.data['products'] as List?;
         if (products != null) {
-          for (final item in products) {
+          for (final rawItem in products) {
+            if (rawItem is! Map) continue;
+            final item = Map<String, dynamic>.from(rawItem);
             final name = item['product_name'] ?? item['product_name_en'] ?? item['generic_name'];
             final brands = item['brands'] ?? '';
             final img = item['image_front_small_url'] ??

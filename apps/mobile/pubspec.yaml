@@ -1,6 +1,6 @@
 name: pos_mobile
 description: MSME POS Platform - Mobile Application
-version: 1.0.1+2
+version: 1.0.2+3
 publish_to: 'none'
 
 environment:

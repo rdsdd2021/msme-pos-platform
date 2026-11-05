@@ -22,9 +22,7 @@ export class TenantGuard implements CanActivate {
     }
 
     const tenantId =
-      request.params?.tenantId ||
-      request.headers?.['x-tenant-id'] ||
-      request.body?.tenantId;
+      request.params?.tenantId || request.headers?.['x-tenant-id'] || request.body?.tenantId;
 
     if (!tenantId) {
       throw new BadRequestException('tenant_id is required in route params or X-Tenant-ID header');
@@ -40,7 +38,9 @@ export class TenantGuard implements CanActivate {
     });
 
     if (!memberships || memberships.length === 0) {
-      throw new ForbiddenException('Access denied: user does not have an active membership in this tenant');
+      throw new ForbiddenException(
+        'Access denied: user does not have an active membership in this tenant',
+      );
     }
 
     // Resolve requested branch context if provided in path, header, query or body
@@ -62,16 +62,21 @@ export class TenantGuard implements CanActivate {
     }
 
     // Enforce branch-level boundary isolation for branch-scoped members
-    if (activeMembership.branchId && requestedBranchId && activeMembership.branchId !== requestedBranchId) {
+    if (
+      activeMembership.branchId &&
+      requestedBranchId &&
+      activeMembership.branchId !== requestedBranchId
+    ) {
       throw new ForbiddenException(
         `Cross-branch access denied: membership is restricted to branch '${activeMembership.branchId}'`,
       );
     }
 
     // Calculate normalized roles & effective permissions
-    const rawRoles = activeMembership.roles && activeMembership.roles.length > 0
-      ? activeMembership.roles
-      : [activeMembership.role as Role];
+    const rawRoles =
+      activeMembership.roles && activeMembership.roles.length > 0
+        ? activeMembership.roles
+        : [activeMembership.role as Role];
 
     const roles: Role[] = rawRoles.map((r) => r as Role);
     const isOwner = roles.includes(Role.OWNER) || activeMembership.role === Role.OWNER;

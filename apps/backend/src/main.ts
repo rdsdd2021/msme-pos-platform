@@ -19,7 +19,10 @@ async function bootstrap(): Promise<void> {
     rawCorsOrigin === '*'
       ? true
       : rawCorsOrigin.includes(',')
-        ? rawCorsOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+        ? rawCorsOrigin
+            .split(',')
+            .map((o) => o.trim())
+            .filter(Boolean)
         : rawCorsOrigin;
 
   // Security
@@ -62,10 +65,7 @@ async function bootstrap(): Promise<void> {
     .setDescription('REST API for the MSME POS and business management platform')
     .setVersion('1.0')
     .setContact('Platform Team', '', '')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      'access-token',
-    )
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'access-token')
     .addTag('health', 'Health checks')
     .build();
 

@@ -68,4 +68,3 @@ export class PurchaseOrderLineEntity {
   @JoinColumn({ name: 'product_id' })
   product?: ProductEntity;
 }
-

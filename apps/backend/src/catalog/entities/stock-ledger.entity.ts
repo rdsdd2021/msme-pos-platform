@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 import { StockMovementType } from '@pos/shared-types';
 
 @Entity('stock_ledger')
@@ -58,4 +52,3 @@ export class StockLedgerEntity {
   @CreateDateColumn({ name: 'recorded_at', type: 'timestamptz' })
   recordedAt!: Date;
 }
-

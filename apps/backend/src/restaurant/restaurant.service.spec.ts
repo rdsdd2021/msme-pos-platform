@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { RestaurantService } from './restaurant.service';
 import { RestaurantTableEntity } from './entities/restaurant-table.entity';
 import { RestaurantOrderEntity } from './entities/restaurant-order.entity';
@@ -13,7 +13,6 @@ import {
   TableStatus,
   RestaurantOrderType,
   RestaurantOrderStatus,
-  KotStatus,
   KitchenStation,
   PaymentMethod,
 } from '@pos/shared-types';
@@ -139,7 +138,12 @@ describe('RestaurantService', () => {
 
   describe('Dining Order & Seating', () => {
     it('creates a dining order and marks table as SEATED', async () => {
-      const mockTable = { id: 'table-1', tableNumber: 'T-01', section: 'Main Dining', status: TableStatus.VACANT };
+      const mockTable = {
+        id: 'table-1',
+        tableNumber: 'T-01',
+        section: 'Main Dining',
+        status: TableStatus.VACANT,
+      };
 
       mockDataSource.transaction.mockImplementation(async (cb) => {
         const manager = {
@@ -246,4 +250,3 @@ describe('RestaurantService', () => {
     });
   });
 });
-

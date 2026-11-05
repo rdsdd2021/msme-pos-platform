@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  ConflictException,
-  BadRequestException,
-  NotFoundException,
-  Optional,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, Between, FindOptionsWhere } from 'typeorm';
 import { InvoiceEntity } from './entities/invoice.entity';
@@ -113,7 +107,9 @@ export class BillingService {
 
         const qty = parseFloat(item.quantity);
         if (qty <= 0) {
-          throw new BadRequestException(`Quantity must be greater than zero for product ${product.name}`);
+          throw new BadRequestException(
+            `Quantity must be greater than zero for product ${product.name}`,
+          );
         }
 
         // Stock Ceiling Validation (Rule 15: No overselling without explicit negative stock permission)
@@ -135,7 +131,9 @@ export class BillingService {
         const discountCents = Math.round(parseFloat(item.discountAmount ?? '0') * 100);
 
         if (discountCents > itemGrossCents) {
-          throw new BadRequestException(`Discount cannot exceed gross total for product ${product.name}`);
+          throw new BadRequestException(
+            `Discount cannot exceed gross total for product ${product.name}`,
+          );
         }
 
         const taxableCents = itemGrossCents - discountCents;
@@ -179,7 +177,8 @@ export class BillingService {
         });
       }
 
-      const totalBeforeRounding = taxableTotalCents + cgstTotalCents + sgstTotalCents + igstTotalCents;
+      const totalBeforeRounding =
+        taxableTotalCents + cgstTotalCents + sgstTotalCents + igstTotalCents;
       const roundedGrandTotalCents = Math.round(totalBeforeRounding / 100) * 100; // Nearest rupee
       const roundingDiffCents = roundedGrandTotalCents - totalBeforeRounding;
 
@@ -204,7 +203,9 @@ export class BillingService {
       let newCustomerBalanceCents = 0;
       if (creditTotalCents > 0) {
         if (!dto.customerId) {
-          throw new BadRequestException('A registered customer is required for Khata / credit payments');
+          throw new BadRequestException(
+            'A registered customer is required for Khata / credit payments',
+          );
         }
 
         creditCustomer = await manager.findOne(CustomerEntity, {
@@ -233,9 +234,11 @@ export class BillingService {
       // Resolve GSTIN and POS snapshots
       let resolvedCustomerGstin = dto.customerGstin?.trim() || null;
       if (!resolvedCustomerGstin && dto.customerId) {
-        const cust = creditCustomer ?? await manager.findOne(CustomerEntity, {
-          where: { id: dto.customerId, tenantId },
-        });
+        const cust =
+          creditCustomer ??
+          (await manager.findOne(CustomerEntity, {
+            where: { id: dto.customerId, tenantId },
+          }));
         if (cust?.gstin) {
           resolvedCustomerGstin = cust.gstin.trim();
         }
@@ -245,7 +248,9 @@ export class BillingService {
         where: { id: dto.branchId, tenantId },
       });
       const branchPos = branch?.stateCode || (branch?.gstin ? branch.gstin.slice(0, 2) : '27');
-      const resolvedPos = dto.placeOfSupply?.trim() || (dto.isInterstate && resolvedCustomerGstin ? resolvedCustomerGstin.slice(0, 2) : branchPos);
+      const resolvedPos =
+        dto.placeOfSupply?.trim() ||
+        (dto.isInterstate && resolvedCustomerGstin ? resolvedCustomerGstin.slice(0, 2) : branchPos);
 
       // 5. Persist Invoice
       const invoice = manager.create(InvoiceEntity, {
@@ -326,7 +331,9 @@ export class BillingService {
         });
         await manager.save(customerLedger);
 
-        (creditCustomer as CustomerEntity).currentBalance = (newCustomerBalanceCents / 100).toFixed(2);
+        (creditCustomer as CustomerEntity).currentBalance = (newCustomerBalanceCents / 100).toFixed(
+          2,
+        );
         await manager.save(creditCustomer);
       }
 
@@ -452,7 +459,9 @@ export class BillingService {
         throw new NotFoundException(`Invoice ${dto.originalInvoiceId} not found in this tenant`);
       }
       if (invoice.status === InvoiceStatus.VOIDED) {
-        throw new BadRequestException(`Cannot process return for voided invoice ${invoice.invoiceNumber}`);
+        throw new BadRequestException(
+          `Cannot process return for voided invoice ${invoice.invoiceNumber}`,
+        );
       }
 
       // 3. Fetch existing credit notes for this invoice to enforce quantity ceiling
@@ -593,7 +602,8 @@ export class BillingService {
         alreadyReturnedByLineId.set(invLine.id, alreadyReturned + totalQty);
       }
 
-      const totalBeforeRounding = taxableTotalCents + cgstTotalCents + sgstTotalCents + igstTotalCents;
+      const totalBeforeRounding =
+        taxableTotalCents + cgstTotalCents + sgstTotalCents + igstTotalCents;
       const roundedGrandTotalCents = Math.round(totalBeforeRounding / 100) * 100;
       const roundingDiffCents = roundedGrandTotalCents - totalBeforeRounding;
 
@@ -675,7 +685,7 @@ export class BillingService {
           await manager.save(resellableMovement);
 
           // Update stock balance
-          let balance = await manager.findOne(StockBalanceEntity, {
+          const balance = await manager.findOne(StockBalanceEntity, {
             where: { tenantId, branchId: invoice.branchId, productId: line.product.id },
           });
           if (balance) {
@@ -707,7 +717,9 @@ export class BillingService {
       // 8. Handle Customer Khata Store Credit Refund if tender is CREDIT
       if (dto.refundPaymentMethod === PaymentMethod.CREDIT) {
         if (!invoice.customerId) {
-          throw new BadRequestException('Cannot refund via customer Khata credit for walk-in customer without profile');
+          throw new BadRequestException(
+            'Cannot refund via customer Khata credit for walk-in customer without profile',
+          );
         }
 
         const customer = await manager.findOne(CustomerEntity, {
@@ -822,4 +834,3 @@ export class BillingService {
     return cn;
   }
 }
-

@@ -113,7 +113,9 @@ export class BillingController {
 
   @Get('reports/gst/gstr-3b')
   @RequirePermissions(Permission.REPORTS_GST_EXPORT)
-  @ApiOperation({ summary: 'Prepare statutory GSTR-3B summary return with ITC and net tax liability' })
+  @ApiOperation({
+    summary: 'Prepare statutory GSTR-3B summary return with ITC and net tax liability',
+  })
   async getGstr3bReport(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Query() query: GstReportQueryDto,
@@ -135,7 +137,9 @@ export class BillingController {
 
   @Post('supplier-invoices')
   @RequirePermissions(Permission.STOCK_MOVEMENT_RECORD)
-  @ApiOperation({ summary: 'Record vendor tax invoice with line items for statutory ITC verification' })
+  @ApiOperation({
+    summary: 'Record vendor tax invoice with line items for statutory ITC verification',
+  })
   async recordSupplierInvoice(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Request() req: { user: { userId: string } },

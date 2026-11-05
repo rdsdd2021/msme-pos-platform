@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EscPosRenderer, EXEO_EX5810_PROFILE, STANDARD_80MM_PROFILE } from './escpos-renderer';
-import { ReceiptDocument, PrinterDeviceProfile, PaperWidth } from '@pos/shared-types';
+import { ReceiptDocument, PaperWidth } from '@pos/shared-types';
 
 export interface PrintResult {
   success: boolean;
@@ -46,7 +46,8 @@ export class HardwareService {
       return {
         success: false,
         jobId,
-        errorMessage: 'Printer disconnected or offline. The sale is safely posted and can be reprinted.',
+        errorMessage:
+          'Printer disconnected or offline. The sale is safely posted and can be reprinted.',
         isRetryable: true,
       };
     }
@@ -69,4 +70,3 @@ export class HardwareService {
     }
   }
 }
-

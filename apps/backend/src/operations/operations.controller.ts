@@ -78,7 +78,9 @@ export class OperationsController {
 
   @Post('customers/:customerId/merge')
   @RequirePermissions(Permission.KHATA_LIMIT_MANAGE)
-  @ApiOperation({ summary: 'Merge source customer records and ledger atomically into target customer' })
+  @ApiOperation({
+    summary: 'Merge source customer records and ledger atomically into target customer',
+  })
   @ApiParam({ name: 'customerId', type: 'string', format: 'uuid' })
   async mergeCustomers(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
@@ -91,13 +93,17 @@ export class OperationsController {
 
   @Post('customers/cleanup-dev-test-data')
   @RequirePermissions(Permission.KHATA_LIMIT_MANAGE)
-  @ApiOperation({ summary: 'Clean non-financial development test customer records (strictly non-production)' })
+  @ApiOperation({
+    summary: 'Clean non-financial development test customer records (strictly non-production)',
+  })
   async cleanupDevTestCustomers(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Request() req: { user: { userId: string } },
   ) {
     if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Development test data cleanup is disabled in production environments');
+      throw new ForbiddenException(
+        'Development test data cleanup is disabled in production environments',
+      );
     }
     return this.opsService.cleanupDevTestCustomers(tenantId, req.user?.userId);
   }
@@ -154,7 +160,9 @@ export class OperationsController {
 
   @Get('customers/:customerId/statement')
   @RequirePermissions(Permission.KHATA_READ)
-  @ApiOperation({ summary: 'Get detailed customer statement with running balance and ageing analysis' })
+  @ApiOperation({
+    summary: 'Get detailed customer statement with running balance and ageing analysis',
+  })
   @ApiParam({ name: 'customerId', type: 'string', format: 'uuid' })
   async getCustomerStatement(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,

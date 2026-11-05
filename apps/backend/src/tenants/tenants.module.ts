@@ -12,16 +12,10 @@ import { AuditService } from './audit.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      TenantEntity,
-      TenantMembershipEntity,
-      BranchEntity,
-      AuditLogEntity,
-    ]),
+    TypeOrmModule.forFeature([TenantEntity, TenantMembershipEntity, BranchEntity, AuditLogEntity]),
   ],
   controllers: [TenantsController],
   providers: [TenantsService, TenantGuard, PermissionsGuard, AuditService],
   exports: [TenantsService, TenantGuard, PermissionsGuard, AuditService, TypeOrmModule],
 })
 export class TenantsModule {}
-

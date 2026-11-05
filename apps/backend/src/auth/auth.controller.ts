@@ -10,7 +10,13 @@ import {
   HttpStatus,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
 import { Response as ExpressResponse, Request as ExpressRequest } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, RegisterMerchantDto, LoginDto, RefreshTokenDto } from './dto/auth.dto';
@@ -47,7 +53,10 @@ export class AuthController {
   }
 
   @Post('register-merchant')
-  @ApiOperation({ summary: 'Register a new merchant with business store, default branch, owner role, and optional starter catalog' })
+  @ApiOperation({
+    summary:
+      'Register a new merchant with business store, default branch, owner role, and optional starter catalog',
+  })
   @ApiCreatedResponse({ type: AuthResponseDto })
   async registerMerchant(
     @Body() dto: RegisterMerchantDto,
@@ -81,9 +90,7 @@ export class AuthController {
     @Response({ passthrough: true }) res: ExpressResponse,
   ): Promise<AuthResponseDto> {
     const token =
-      dto.refreshToken ||
-      extractCookie(req, 'refresh_token') ||
-      req.headers?.['x-refresh-token'];
+      dto.refreshToken || extractCookie(req, 'refresh_token') || req.headers?.['x-refresh-token'];
 
     if (!token || typeof token !== 'string') {
       throw new UnauthorizedException('Refresh token is required');

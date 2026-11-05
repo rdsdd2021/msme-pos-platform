@@ -42,5 +42,3 @@ import { TenantsModule } from '../tenants/tenants.module';
   exports: [BillingService, GstReportingService],
 })
 export class BillingModule {}
-
-

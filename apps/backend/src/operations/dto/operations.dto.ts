@@ -39,19 +39,29 @@ export class CreateCustomerDto {
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'creditLimit must be a valid decimal string' })
   creditLimit?: string;
 
-  @ApiProperty({ example: false, required: false, description: 'Bypass duplicate phone warning and force creation' })
+  @ApiProperty({
+    example: false,
+    required: false,
+    description: 'Bypass duplicate phone warning and force creation',
+  })
   @IsBoolean()
   @IsOptional()
   confirmDuplicate?: boolean;
 }
 
 export class MergeCustomerDto {
-  @ApiProperty({ example: 'a4ee55c4-3acf-4ad1-9861-87258ec529be', description: 'Target customer ID to receive merged records' })
+  @ApiProperty({
+    example: 'a4ee55c4-3acf-4ad1-9861-87258ec529be',
+    description: 'Target customer ID to receive merged records',
+  })
   @IsUUID('4')
   @IsNotEmpty()
   targetCustomerId!: string;
 
-  @ApiProperty({ example: 'Consolidating duplicate profile created with alternate phone formatting', description: 'Audit reason for merge' })
+  @ApiProperty({
+    example: 'Consolidating duplicate profile created with alternate phone formatting',
+    description: 'Audit reason for merge',
+  })
   @IsString()
   @IsNotEmpty()
   reason!: string;
@@ -79,7 +89,12 @@ export class RecordCustomerPaymentDto {
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'amount must be a valid decimal string' })
   amount!: string;
 
-  @ApiProperty({ example: 'cash', enum: ['cash', 'upi', 'card', 'bank_transfer'], default: 'cash', required: false })
+  @ApiProperty({
+    example: 'cash',
+    enum: ['cash', 'upi', 'card', 'bank_transfer'],
+    default: 'cash',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   paymentMethod?: string;
@@ -168,4 +183,3 @@ export class CloseShiftDto {
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'closingCash must be a valid decimal string' })
   closingCash!: string;
 }
-

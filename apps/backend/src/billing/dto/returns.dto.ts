@@ -20,28 +20,43 @@ export class ReturnLineItemDto {
   @IsUUID()
   invoiceLineId!: string;
 
-  @ApiProperty({ description: 'Quantity in good, resellable condition returned to stock', example: '1.000' })
+  @ApiProperty({
+    description: 'Quantity in good, resellable condition returned to stock',
+    example: '1.000',
+  })
   @IsNotEmpty()
   @IsString()
   resellableQuantity!: string;
 
-  @ApiProperty({ description: 'Quantity damaged/expired not added back to salable stock', example: '0.000' })
+  @ApiProperty({
+    description: 'Quantity damaged/expired not added back to salable stock',
+    example: '0.000',
+  })
   @IsNotEmpty()
   @IsString()
   damagedQuantity!: string;
 
-  @ApiPropertyOptional({ description: 'Specific line return reason', example: 'Customer ordered wrong variant' })
+  @ApiPropertyOptional({
+    description: 'Specific line return reason',
+    example: 'Customer ordered wrong variant',
+  })
   @IsOptional()
   @IsString()
   reason?: string;
 }
 
 export class CreateSalesReturnDto {
-  @ApiProperty({ description: 'Original invoice UUID against which return is processed', format: 'uuid' })
+  @ApiProperty({
+    description: 'Original invoice UUID against which return is processed',
+    format: 'uuid',
+  })
   @IsUUID()
   originalInvoiceId!: string;
 
-  @ApiProperty({ description: 'Client-generated idempotency key to prevent double returns', example: 'ret-uuid-1234' })
+  @ApiProperty({
+    description: 'Client-generated idempotency key to prevent double returns',
+    example: 'ret-uuid-1234',
+  })
   @IsNotEmpty()
   @IsString()
   idempotencyKey!: string;
@@ -51,16 +66,26 @@ export class CreateSalesReturnDto {
   @IsString()
   reason!: string;
 
-  @ApiProperty({ enum: PaymentMethod, description: 'Tender used to refund customer', example: PaymentMethod.CASH })
+  @ApiProperty({
+    enum: PaymentMethod,
+    description: 'Tender used to refund customer',
+    example: PaymentMethod.CASH,
+  })
   @IsEnum(PaymentMethod)
   refundPaymentMethod!: PaymentMethod;
 
-  @ApiPropertyOptional({ description: 'External refund reference (e.g. UPI txn ID, card refund ARN)', example: 'UPI-REF-9988' })
+  @ApiPropertyOptional({
+    description: 'External refund reference (e.g. UPI txn ID, card refund ARN)',
+    example: 'UPI-REF-9988',
+  })
   @IsOptional()
   @IsString()
   refundReference?: string;
 
-  @ApiProperty({ type: [ReturnLineItemDto], description: 'List of items and quantities being returned' })
+  @ApiProperty({
+    type: [ReturnLineItemDto],
+    description: 'List of items and quantities being returned',
+  })
   @ValidateNested({ each: true })
   @Type(() => ReturnLineItemDto)
   @ArrayMinSize(1)
@@ -103,4 +128,3 @@ export class CreditNoteQueryDto {
   @Max(100)
   limit?: number = 50;
 }
-

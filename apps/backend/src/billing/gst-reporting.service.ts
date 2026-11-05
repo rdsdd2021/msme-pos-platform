@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { InvoiceEntity } from './entities/invoice.entity';
 import { InvoiceLineEntity } from './entities/invoice-line.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
@@ -67,7 +67,9 @@ export class GstReportingService {
       const m = query.month;
       const lastDay = new Date(query.year, m, 0).getDate();
       start = new Date(`${query.year}-${String(m).padStart(2, '0')}-01T00:00:00.000+05:30`);
-      end = new Date(`${query.year}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:30`);
+      end = new Date(
+        `${query.year}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:30`,
+      );
       label = `${String(query.month).padStart(2, '0')}/${query.year}`;
     } else if (query.from && query.to) {
       start = new Date(`${query.from}T00:00:00.000+05:30`);
@@ -82,7 +84,9 @@ export class GstReportingService {
       const lastDay = new Date(yr, mo, 0).getDate();
 
       start = new Date(`${yr}-${String(mo).padStart(2, '0')}-01T00:00:00.000+05:30`);
-      end = new Date(`${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:30`);
+      end = new Date(
+        `${yr}-${String(mo).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59.999+05:30`,
+      );
       label = `${String(mo).padStart(2, '0')}/${yr}`;
     }
 
@@ -127,36 +131,45 @@ export class GstReportingService {
     const invoices = await qb.getMany();
 
     // Fetch customers map for quick lookup
-    const customerIds = Array.from(new Set(invoices.map((i) => i.customerId).filter(Boolean))) as string[];
-    const customers = customerIds.length > 0
-      ? await this.customerRepo.findBy({ id: In(customerIds), tenantId })
-      : [];
+    const customerIds = Array.from(
+      new Set(invoices.map((i) => i.customerId).filter(Boolean)),
+    ) as string[];
+    const customers =
+      customerIds.length > 0
+        ? await this.customerRepo.findBy({ id: In(customerIds), tenantId })
+        : [];
     const customerMap = new Map(customers.map((c) => [c.id, c]));
 
     // GSTR-1 Partitions
     const b2bList: any[] = [];
     const b2clList: any[] = [];
-    const b2csMap = new Map<string, {
-      placeOfSupply: string;
-      supplyType: 'Intra-State' | 'Inter-State';
-      rate: number;
-      taxableValue: number;
-      cgstAmount: number;
-      sgstAmount: number;
-      igstAmount: number;
-      totalTax: number;
-    }>();
-    const hsnMap = new Map<string, {
-      hsnCode: string;
-      description: string;
-      uqc: string;
-      totalQuantity: number;
-      taxableValue: number;
-      cgstAmount: number;
-      sgstAmount: number;
-      igstAmount: number;
-      totalValue: number;
-    }>();
+    const b2csMap = new Map<
+      string,
+      {
+        placeOfSupply: string;
+        supplyType: 'Intra-State' | 'Inter-State';
+        rate: number;
+        taxableValue: number;
+        cgstAmount: number;
+        sgstAmount: number;
+        igstAmount: number;
+        totalTax: number;
+      }
+    >();
+    const hsnMap = new Map<
+      string,
+      {
+        hsnCode: string;
+        description: string;
+        uqc: string;
+        totalQuantity: number;
+        taxableValue: number;
+        cgstAmount: number;
+        sgstAmount: number;
+        igstAmount: number;
+        totalValue: number;
+      }
+    >();
 
     let totalTaxableCents = 0;
     let totalCgstCents = 0;
@@ -222,7 +235,7 @@ export class GstReportingService {
             customerName: cust?.name || 'Registered Customer',
             invoiceNumber: inv.invoiceNumber,
             invoiceDate: inv.createdAt.toISOString().slice(0, 10),
-            invoiceValue: (grandTotalNum).toFixed(2),
+            invoiceValue: grandTotalNum.toFixed(2),
             placeOfSupply: pos,
             reverseCharge: 'N',
             invoiceType: 'Regular B2B',
@@ -244,7 +257,8 @@ export class GstReportingService {
             taxableValue: (taxableCents / 100).toFixed(2),
             igstAmount: (igstCents / 100).toFixed(2),
             statutoryThreshold: b2clThreshold.toFixed(2),
-            notification: grandTotalNum <= 250000 ? 'Notification No. 12/2024-Central Tax' : 'Standard',
+            notification:
+              grandTotalNum <= 250000 ? 'Notification No. 12/2024-Central Tax' : 'Standard',
           });
         } else {
           // Table 7: B2C Small (All other unregistered)
@@ -256,7 +270,7 @@ export class GstReportingService {
             existingB2cs.cgstAmount += cgstCents;
             existingB2cs.sgstAmount += sgstCents;
             existingB2cs.igstAmount += igstCents;
-            existingB2cs.totalTax += (cgstCents + sgstCents + igstCents);
+            existingB2cs.totalTax += cgstCents + sgstCents + igstCents;
           } else {
             b2csMap.set(b2csKey, {
               placeOfSupply: pos,
@@ -266,7 +280,7 @@ export class GstReportingService {
               cgstAmount: cgstCents,
               sgstAmount: sgstCents,
               igstAmount: igstCents,
-              totalTax: (cgstCents + sgstCents + igstCents),
+              totalTax: cgstCents + sgstCents + igstCents,
             });
           }
         }
@@ -384,17 +398,21 @@ export class GstReportingService {
 
     // Outward Computations
     let outwardTaxableCents = 0;
-    let outwardZeroRatedTaxableCents = 0;
+    const outwardZeroRatedTaxableCents = 0;
     let outwardNilExemptCents = 0;
     let outwardCgstCents = 0;
     let outwardSgstCents = 0;
     let outwardIgstCents = 0;
 
-    const interstateUnregMap = new Map<string, { pos: string; taxableCents: number; igstCents: number }>();
+    const interstateUnregMap = new Map<
+      string,
+      { pos: string; taxableCents: number; igstCents: number }
+    >();
     const auditWarnings: string[] = [];
 
     for (const inv of invoices) {
-      const isUnregistered = !inv.customerGstinSnapshot || inv.customerGstinSnapshot.trim().length < 15;
+      const isUnregistered =
+        !inv.customerGstinSnapshot || inv.customerGstinSnapshot.trim().length < 15;
       const pos = inv.placeOfSupply || '27';
 
       for (const line of inv.lines) {
@@ -405,7 +423,9 @@ export class GstReportingService {
         const rate = parseFloat(line.gstRatePercent);
 
         if (!line.hsnSnapshot) {
-          auditWarnings.push(`Invoice ${inv.invoiceNumber}: Line item '${line.productNameSnapshot}' missing HSN snapshot.`);
+          auditWarnings.push(
+            `Invoice ${inv.invoiceNumber}: Line item '${line.productNameSnapshot}' missing HSN snapshot.`,
+          );
         }
 
         if (rate === 0) {
@@ -453,8 +473,10 @@ export class GstReportingService {
 
       const hasSupplierGstin = Boolean(si.supplier?.gstin && si.supplier.gstin.trim().length >= 15);
       if (!hasSupplierGstin) {
-        auditWarnings.push(`Supplier Invoice ${si.supplierInvoiceNumber}: Vendor '${si.supplier?.name}' lacks valid GSTIN. ITC is ineligible under Section 16(2)(a).`);
-        unregisteredSupplierItcCents += (cgst + sgst + igst);
+        auditWarnings.push(
+          `Supplier Invoice ${si.supplierInvoiceNumber}: Vendor '${si.supplier?.name}' lacks valid GSTIN. ITC is ineligible under Section 16(2)(a).`,
+        );
+        unregisteredSupplierItcCents += cgst + sgst + igst;
         continue;
       }
 
@@ -503,7 +525,12 @@ export class GstReportingService {
     const remSgstLiability = remSgstLiabilityAfterIgst - sgstItcUsedForSgst;
 
     const totalOutputTaxCents = igstLiability + cgstLiability + sgstLiability;
-    const totalItcSetOffCents = igstItcUsedForIgst + igstItcUsedForCgst + cgstItcUsedForCgst + igstItcUsedForSgst + sgstItcUsedForSgst;
+    const totalItcSetOffCents =
+      igstItcUsedForIgst +
+      igstItcUsedForCgst +
+      cgstItcUsedForCgst +
+      igstItcUsedForSgst +
+      sgstItcUsedForSgst;
     const totalCashPayableCents = remIgstLiability + remCgstLiability + remSgstLiability;
 
     return {
@@ -658,12 +685,17 @@ export class GstReportingService {
     const branchMap = new Map(branches.map((b) => [b.id, b.name]));
 
     // Map customer names
-    const custIds = Array.from(new Set(invoices.map((i) => i.customerId).filter(Boolean))) as string[];
-    const customers = custIds.length > 0 ? await this.customerRepo.findBy({ id: In(custIds), tenantId }) : [];
+    const custIds = Array.from(
+      new Set(invoices.map((i) => i.customerId).filter(Boolean)),
+    ) as string[];
+    const customers =
+      custIds.length > 0 ? await this.customerRepo.findBy({ id: In(custIds), tenantId }) : [];
     const custMap = new Map(customers.map((c) => [c.id, c.name]));
 
     const records = invoices.map((inv) => {
-      const custName = inv.customerId ? custMap.get(inv.customerId) || 'Counter Sale' : 'Counter Sale';
+      const custName = inv.customerId
+        ? custMap.get(inv.customerId) || 'Counter Sale'
+        : 'Counter Sale';
       const branchName = branchMap.get(inv.branchId) || 'Main Branch';
       return {
         id: inv.id,

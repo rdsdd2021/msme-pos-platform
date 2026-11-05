@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  CreateDateColumn,
-  Index,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 @Entity('sync_ingested_operations')
 @Index(['tenantId', 'deviceId', 'operationId'], { unique: true })
@@ -45,4 +39,3 @@ export class SyncIngestedOperationEntity {
   @CreateDateColumn({ name: 'ingested_at', type: 'timestamptz' })
   ingestedAt!: Date;
 }
-

@@ -36,5 +36,3 @@ import { ModuleGuard } from './guards/module.guard';
   exports: [AuthService, JwtStrategy, PassportModule, ModuleGuard],
 })
 export class AuthModule {}
-
-

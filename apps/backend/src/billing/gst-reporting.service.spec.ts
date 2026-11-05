@@ -9,13 +9,22 @@ import { CustomerEntity } from '../operations/entities/customer.entity';
 import { SupplierEntity } from '../catalog/entities/supplier.entity';
 import { SupplierInvoiceEntity } from '../catalog/entities/supplier-invoice.entity';
 import { SupplierInvoiceLineEntity } from '../catalog/entities/supplier-invoice-line.entity';
-import { InvoiceStatus, PaymentStatus } from '@pos/shared-types';
+import { InvoiceStatus } from '@pos/shared-types';
 
 describe('GstReportingService', () => {
   let service: GstReportingService;
 
-  const mockTenant = { id: 'tenant-123', legalName: 'Kirana Store Pvt Ltd', displayName: 'Kirana Store' };
-  const mockBranch = { id: 'branch-123', name: 'Main Branch', gstin: '27AABCK1234F1Z5', stateCode: '27' };
+  const mockTenant = {
+    id: 'tenant-123',
+    legalName: 'Kirana Store Pvt Ltd',
+    displayName: 'Kirana Store',
+  };
+  const mockBranch = {
+    id: 'branch-123',
+    name: 'Main Branch',
+    gstin: '27AABCK1234F1Z5',
+    stateCode: '27',
+  };
   const mockCustomerB2B = { id: 'cust-b2b', name: 'Acme Retailers', gstin: '27ABCDE1234F1Z5' };
 
   const mockInvoiceRepo = {
@@ -57,7 +66,10 @@ describe('GstReportingService', () => {
         { provide: getRepositoryToken(CustomerEntity), useValue: mockCustomerRepo },
         { provide: getRepositoryToken(SupplierEntity), useValue: mockSupplierRepo },
         { provide: getRepositoryToken(SupplierInvoiceEntity), useValue: mockSupplierInvoiceRepo },
-        { provide: getRepositoryToken(SupplierInvoiceLineEntity), useValue: mockSupplierInvoiceLineRepo },
+        {
+          provide: getRepositoryToken(SupplierInvoiceLineEntity),
+          useValue: mockSupplierInvoiceLineRepo,
+        },
       ],
     }).compile();
 

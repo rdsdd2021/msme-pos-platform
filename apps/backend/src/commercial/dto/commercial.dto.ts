@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsUUID,
-  IsEnum,
-  IsOptional,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsUUID, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Platform } from '@pos/shared-types';
 
@@ -39,4 +33,3 @@ export class RevokeDeviceDto {
   @IsNotEmpty()
   reason!: string;
 }
-

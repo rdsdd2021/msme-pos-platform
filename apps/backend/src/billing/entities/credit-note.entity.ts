@@ -96,4 +96,3 @@ export class CreditNoteEntity {
   @OneToMany(() => CreditNoteLineEntity, (line) => line.creditNote, { cascade: true })
   lines!: CreditNoteLineEntity[];
 }
-

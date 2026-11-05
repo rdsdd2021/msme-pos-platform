@@ -36,10 +36,7 @@ export class TenantsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new business tenant' })
-  async createTenant(
-    @Request() req: { user: { userId: string } },
-    @Body() dto: CreateTenantDto,
-  ) {
+  async createTenant(@Request() req: { user: { userId: string } }, @Body() dto: CreateTenantDto) {
     return this.tenantsService.createTenant(req.user.userId, dto);
   }
 

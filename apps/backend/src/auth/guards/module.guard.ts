@@ -4,7 +4,6 @@ import {
   ExecutionContext,
   ForbiddenException,
   SetMetadata,
-  Inject,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -51,7 +50,8 @@ export class ModuleGuard implements CanActivate {
 
     const businessType = tenant.businessType || BusinessType.GROCERY;
     const settings = (tenant.settings as any) || {};
-    const enabledModules: AppModule[] = settings.enabledModules ?? (DEFAULT_MODULES_BY_BUSINESS[businessType] || []);
+    const enabledModules: AppModule[] =
+      settings.enabledModules ?? (DEFAULT_MODULES_BY_BUSINESS[businessType] || []);
 
     if (!enabledModules.includes(requiredModule)) {
       throw new ForbiddenException({
@@ -64,4 +64,3 @@ export class ModuleGuard implements CanActivate {
     return true;
   }
 }
-

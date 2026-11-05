@@ -293,7 +293,8 @@ describe('CatalogService & Inventory Reconciliation', () => {
   describe('Inventory Reconciliation & Idempotency', () => {
     it('records opening stock movement and updates balance projection atomically', async () => {
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce({ id: 'prod-1', purchaseCost: '100.00' }) // product validation
           .mockResolvedValueOnce(null), // initial balance lookup
@@ -326,7 +327,8 @@ describe('CatalogService & Inventory Reconciliation', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(existingLedger) // idempotency hit
           .mockResolvedValueOnce({ quantityOnHand: '10.000' }), // balance
         save: jest.fn(),
@@ -351,7 +353,8 @@ describe('CatalogService & Inventory Reconciliation', () => {
 
     it('rejects stock movement for non-existent product', async () => {
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(null) // idempotency check
           .mockResolvedValueOnce(null), // product validation fails
       };
@@ -403,7 +406,9 @@ describe('CatalogService & Inventory Reconciliation', () => {
     it('updates existing supplier', async () => {
       const existing = { id: 'sup-1', tenantId: 'tenant-1', name: 'Old Name', isActive: true };
       mockSupplierRepo.findOne.mockResolvedValueOnce(existing);
-      const updated = await service.updateSupplier('tenant-1', 'sup-1', { name: 'New Supplier Name' });
+      const updated = await service.updateSupplier('tenant-1', 'sup-1', {
+        name: 'New Supplier Name',
+      });
       expect(updated.name).toBe('New Supplier Name');
     });
 
@@ -505,9 +510,10 @@ describe('CatalogService & Inventory Reconciliation', () => {
       };
 
       const mockManager = {
-        findOne: jest.fn()
+        findOne: jest
+          .fn()
           .mockResolvedValueOnce(mockPo) // find PO
-          .mockResolvedValueOnce(null)   // check idempotency for ledger
+          .mockResolvedValueOnce(null) // check idempotency for ledger
           .mockResolvedValueOnce({ quantityOnHand: '5.000' }), // existing balance
         create: jest.fn((entity, data) => data),
         save: jest.fn().mockImplementation(async (entity, data) => data),
@@ -667,9 +673,9 @@ describe('CatalogService & Inventory Reconciliation', () => {
 
       mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
-      await expect(
-        service.dispatchStockTransfer(tenantId, userId, 'trans-1', {}),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.dispatchStockTransfer(tenantId, userId, 'trans-1', {})).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('dispatches transfer atomically: creates TRANSFER_OUT ledger and decrements stock', async () => {

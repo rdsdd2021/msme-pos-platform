@@ -87,8 +87,6 @@ export function ReturnItemsModal({
     }
   }, [invoice, open]);
 
-  if (!invoice) return null;
-
   // Real-time calculation of returned amounts
   const { totalResellable, totalDamaged, totalTaxableCents, totalGstCents, grandTotalCents, hasAnyItems, isOverLimit } =
     useMemo(() => {
@@ -97,6 +95,18 @@ export function ReturnItemsModal({
       let taxableCents = 0;
       let gstCents = 0;
       let overLimit = false;
+
+      if (!invoice) {
+        return {
+          totalResellable: 0,
+          totalDamaged: 0,
+          totalTaxableCents: 0,
+          totalGstCents: 0,
+          grandTotalCents: 0,
+          hasAnyItems: false,
+          isOverLimit: false,
+        };
+      }
 
       invoice.lines.forEach((line) => {
         const state = returnStates[line.id];
@@ -143,6 +153,8 @@ export function ReturnItemsModal({
         isOverLimit: overLimit,
       };
     }, [invoice, returnStates, alreadyReturnedMap]);
+
+  if (!invoice) return null;
 
   const handleUpdateItem = (lineId: string, field: keyof ItemReturnState, value: string) => {
     setReturnStates((prev) => ({

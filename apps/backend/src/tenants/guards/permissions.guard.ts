@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  ForbiddenException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Permission, TenantContext } from '@pos/shared-types';
 import { PERMISSIONS_KEY, TENANT_WIDE_KEY } from './require-permissions.decorator';
@@ -13,15 +8,15 @@ export class PermissionsGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(
-      PERMISSIONS_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(PERMISSIONS_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
-    const requiresTenantWide = this.reflector.getAllAndOverride<boolean>(
-      TENANT_WIDE_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiresTenantWide = this.reflector.getAllAndOverride<boolean>(TENANT_WIDE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     // If no permission or scope metadata is set, allow access
     if (!requiredPermissions && !requiresTenantWide) {
@@ -32,7 +27,9 @@ export class PermissionsGuard implements CanActivate {
     const tenantContext = request.tenantContext as TenantContext | undefined;
 
     if (!tenantContext) {
-      throw new ForbiddenException('Tenant context not established. Ensure TenantGuard runs before PermissionsGuard');
+      throw new ForbiddenException(
+        'Tenant context not established. Ensure TenantGuard runs before PermissionsGuard',
+      );
     }
 
     // Check tenant-wide requirement
@@ -52,9 +49,7 @@ export class PermissionsGuard implements CanActivate {
       const userPermissions = new Set(tenantContext.permissions);
       for (const permission of requiredPermissions) {
         if (!userPermissions.has(permission)) {
-          throw new ForbiddenException(
-            `Forbidden: Missing required permission '${permission}'`,
-          );
+          throw new ForbiddenException(`Forbidden: Missing required permission '${permission}'`);
         }
       }
     }
@@ -62,4 +57,3 @@ export class PermissionsGuard implements CanActivate {
     return true;
   }
 }
-

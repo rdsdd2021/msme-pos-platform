@@ -62,4 +62,3 @@ export class BranchEntity {
   @JoinColumn({ name: 'tenant_id' })
   tenant!: TenantEntity;
 }
-

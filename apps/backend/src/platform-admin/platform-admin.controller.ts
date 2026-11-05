@@ -79,7 +79,9 @@ export class PlatformAdminController {
   }
 
   @Get('devices')
-  @ApiOperation({ summary: 'Fleet monitor of all registered POS hardware devices across all stores' })
+  @ApiOperation({
+    summary: 'Fleet monitor of all registered POS hardware devices across all stores',
+  })
   async getDevices() {
     return this.adminService.getDevices();
   }
@@ -99,10 +101,7 @@ export class PlatformAdminController {
 
   @Get('audit')
   @ApiOperation({ summary: 'Platform security and administrative audit trail' })
-  async getAuditLogs(
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
+  async getAuditLogs(@Query('limit') limit?: number, @Query('offset') offset?: number) {
     return this.adminService.getAuditLogs(
       limit ? parseInt(String(limit), 10) : 50,
       offset ? parseInt(String(offset), 10) : 0,

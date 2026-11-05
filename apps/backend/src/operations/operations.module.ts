@@ -25,4 +25,3 @@ import { TenantsModule } from '../tenants/tenants.module';
   exports: [OperationsService],
 })
 export class OperationsModule {}
-

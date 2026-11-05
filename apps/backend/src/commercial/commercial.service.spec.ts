@@ -90,4 +90,3 @@ describe('CommercialService — Device Registration & Subscription Entitlements'
     expect(revoked.revokedAt).toBeDefined();
   });
 });
-

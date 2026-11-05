@@ -44,7 +44,10 @@ export class AuditService {
       return saved;
     } catch (err) {
       // In audit logging, record failures should be logged with high priority without masking
-      this.logger.error(`Failed to write audit log: ${(err as Error).message}`, (err as Error).stack);
+      this.logger.error(
+        `Failed to write audit log: ${(err as Error).message}`,
+        (err as Error).stack,
+      );
       throw err;
     }
   }
@@ -52,10 +55,7 @@ export class AuditService {
   /**
    * Queries audit records for a tenant.
    */
-  async getTenantAuditLogs(
-    tenantId: string,
-    limit: number = 50,
-  ): Promise<AuditLogEntity[]> {
+  async getTenantAuditLogs(tenantId: string, limit: number = 50): Promise<AuditLogEntity[]> {
     return this.auditRepository.find({
       where: { tenantId },
       order: { createdAt: 'DESC' },
@@ -63,4 +63,3 @@ export class AuditService {
     });
   }
 }
-

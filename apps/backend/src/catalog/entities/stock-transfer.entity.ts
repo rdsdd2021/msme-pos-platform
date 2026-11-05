@@ -93,4 +93,3 @@ export class StockTransferEntity {
   })
   lines?: StockTransferLineEntity[];
 }
-

@@ -63,6 +63,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
   bool _hasScanned = false;
   bool _showManualInput = false;
   bool _isStartingCamera = false;
+  MobileScannerException? _scannerError;
   final TextEditingController _manualTextController = TextEditingController();
 
   bool get _isTestingEnvironment =>
@@ -85,9 +86,6 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
     if (!_isTestingEnvironment) {
       _laserAnimController.repeat(reverse: true);
       _initScanner();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkAndStartCamera();
-      });
     }
   }
 
@@ -97,7 +95,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
       torchEnabled: false,
-      autoStart: false,
+      autoStart: true,
     );
   }
 
@@ -117,6 +115,9 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       }
 
       if (hasPermission && mounted) {
+        try {
+          await _scannerController?.stop();
+        } catch (_) {}
         await _scannerController?.start();
       }
     } catch (e) {
@@ -300,6 +301,10 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       return _buildTestViewfinder();
     }
 
+    if (_scannerError != null) {
+      return _buildErrorView(_scannerError);
+    }
+
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -310,73 +315,12 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
             controller: _scannerController,
             onDetect: _onDetect,
             errorBuilder: (ctx, err, child) {
-              final isPermissionError = err.errorCode == MobileScannerErrorCode.permissionDenied;
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: const BoxDecoration(
-                          color: Colors.white10,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isPermissionError ? Icons.lock_outline : Icons.videocam_off_outlined,
-                          color: Colors.amberAccent,
-                          size: 38,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        isPermissionError
-                            ? 'Camera Permission Needed'
-                            : 'Camera Unavailable (${err.errorCode.name})',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        isPermissionError
-                            ? 'Please allow camera access in device settings to scan barcodes.'
-                            : 'Ensure another app is not using the camera, or retry connection.',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ShadcnButton(
-                            text: 'Retry Camera',
-                            leadingIcon: const Icon(Icons.refresh, size: 16),
-                            variant: ShadcnButtonVariant.primary,
-                            size: ShadcnButtonSize.sm,
-                            onPressed: () async {
-                              _initScanner();
-                              await _checkAndStartCamera();
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          ShadcnButton(
-                            text: 'Enter Manually',
-                            leadingIcon: const Icon(Icons.keyboard_outlined, size: 16),
-                            variant: ShadcnButtonVariant.secondary,
-                            size: ShadcnButtonSize.sm,
-                            onPressed: () => setState(() => _showManualInput = true),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (_scannerError == null && mounted) {
+                  setState(() => _scannerError = err);
+                }
+              });
+              return _buildErrorView(err);
             },
           ),
         ),
@@ -481,6 +425,101 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildErrorView(MobileScannerException? err) {
+    final isPermissionError = err?.errorCode == MobileScannerErrorCode.permissionDenied;
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: isPermissionError
+                      ? Colors.amber.withOpacity(0.15)
+                      : Colors.redAccent.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isPermissionError ? Icons.camera_alt_outlined : Icons.videocam_off_outlined,
+                  color: isPermissionError ? Colors.amberAccent : Colors.redAccent,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isPermissionError ? 'Camera Permission Needed' : 'Camera Unavailable',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isPermissionError
+                    ? 'Allow camera access to scan barcodes and QR codes instantly at the checkout counter.'
+                    : 'The camera could not be accessed (${err?.errorCode.name ?? 'genericError'}). Check that no other app is using the camera, then restart.',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
+                  label: Text(
+                    isPermissionError ? 'Grant Permission & Retry' : 'Restart Camera',
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ShadcnColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    setState(() => _scannerError = null);
+                    _initScanner();
+                    await _checkAndStartCamera();
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.keyboard_outlined, size: 18, color: Colors.white70),
+                  label: const Text(
+                    'Enter Barcode Manually',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: Colors.white),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white24),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => setState(() => _showManualInput = true),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

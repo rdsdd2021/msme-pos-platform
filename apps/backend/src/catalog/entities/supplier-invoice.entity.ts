@@ -91,4 +91,3 @@ export class SupplierInvoiceEntity {
   @OneToMany(() => SupplierInvoiceLineEntity, (line) => line.supplierInvoice, { cascade: true })
   lines!: SupplierInvoiceLineEntity[];
 }
-

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceEntity } from './entities/device.entity';
@@ -60,7 +55,11 @@ export class CommercialService {
     return this.deviceRepo.save(device);
   }
 
-  async revokeDevice(tenantId: string, deviceId: string, dto: RevokeDeviceDto): Promise<DeviceEntity> {
+  async revokeDevice(
+    tenantId: string,
+    deviceId: string,
+    dto: RevokeDeviceDto,
+  ): Promise<DeviceEntity> {
     const device = await this.deviceRepo.findOne({
       where: { id: deviceId, tenantId },
     });
@@ -102,4 +101,3 @@ export class CommercialService {
     return sub;
   }
 }
-

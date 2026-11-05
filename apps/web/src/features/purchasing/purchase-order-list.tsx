@@ -214,10 +214,10 @@ export function PurchaseOrderList({
                   {purchaseOrders.length === 0 ? (
                     <div className="flex flex-col items-center gap-2">
                       <ClipboardList className="h-8 w-8 text-slate-300" />
-                      <p>No purchase orders yet. Click "Create Purchase Order" to start procurement.</p>
+                      <p>No purchase orders yet. Click &quot;Create Purchase Order&quot; to start procurement.</p>
                     </div>
                   ) : (
-                    <p>No orders found with status "{statusFilter}"</p>
+                    <p>No orders found with status &quot;{statusFilter}&quot;</p>
                   )}
                 </TableCell>
               </TableRow>
