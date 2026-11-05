@@ -1038,7 +1038,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 1.15,
+                        childAspectRatio: 0.76,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),
@@ -1100,150 +1100,211 @@ class _ProductCard extends ConsumerWidget {
     final isSelected = inCart.quantity > 0;
 
     return ShadcnCard(
-      padding: const EdgeInsets.all(10),
-      backgroundColor: isSelected ? ShadcnColors.successLight.withOpacity(0.3) : ShadcnColors.card,
+      padding: EdgeInsets.zero,
+      backgroundColor: isSelected ? ShadcnColors.successLight.withOpacity(0.25) : ShadcnColors.card,
       borderColor: isSelected ? ShadcnColors.primary : ShadcnColors.border,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Top Tags
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // 1. Top Hero Product Photo with Overlaid Category & Stock Badges
+          Stack(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: ShadcnColors.secondary,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  product.category,
-                  style: ShadcnTypography.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600),
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 104,
+                  child: _buildHeroImage(product),
                 ),
               ),
-              ShadcnBadge(
-                text: product.isLowStock
-                    ? '${product.currentStock.toInt()} left'
-                    : '${product.currentStock.toInt()} in stock',
-                variant: product.isLowStock ? ShadcnBadgeVariant.destructive : ShadcnBadgeVariant.secondary,
-              ),
-            ],
-          ),
 
-          // Title & SKU with optional Photo Thumbnail
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (product.imageUrl != null && product.imageUrl!.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    color: ShadcnColors.secondary,
-                    child: _buildProductThumbnail(product.imageUrl!),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13, height: 1.25),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${product.sku} • ${product.unit}',
-                      style: ShadcnTypography.caption.copyWith(fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // Price & Quick Stepper / Add Action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
-                style: ShadcnTypography.currency.copyWith(
-                  fontSize: 15,
-                  color: ShadcnColors.foreground,
-                ),
-              ),
-              if (inCart.quantity > 0)
-                ShadcnQuantityStepper(
-                  quantity: inCart.quantity,
-                  height: 28,
-                  isDestructiveOnZero: true,
-                  onIncrement: onTap,
-                  onDecrement: () {
-                    HapticFeedback.selectionClick();
-                    ref.read(cartProvider.notifier).decrementProduct(product.id);
-                  },
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              // Overlaid Badges
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: ShadcnColors.primaryLight,
-                    borderRadius: BorderRadius.circular(6),
+                    color: Colors.black.withOpacity(0.65),
+                    borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Row(
+                  child: Text(
+                    product.category,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+              ),
+
+              Positioned(
+                top: 6,
+                right: 6,
+                child: ShadcnBadge(
+                  text: product.isLowStock
+                      ? '${product.currentStock.toInt()} left'
+                      : '${product.currentStock.toInt()} in stock',
+                  variant: product.isLowStock ? ShadcnBadgeVariant.destructive : ShadcnBadgeVariant.secondary,
+                ),
+              ),
+            ],
+          ),
+
+          // 2. Product Name, SKU, Price & Add Action
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Title & SKU
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.add, size: 12, color: ShadcnColors.primary),
-                      const SizedBox(width: 2),
                       Text(
-                        'ADD',
+                        product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: ShadcnTypography.bodySemibold.copyWith(
+                          fontSize: 13,
+                          height: 1.22,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${product.sku} • ${product.unit}',
                         style: ShadcnTypography.caption.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: ShadcnColors.primary,
+                          fontSize: 10.5,
+                          color: ShadcnColors.mutedForeground,
                         ),
                       ),
                     ],
                   ),
-                ),
-            ],
+
+                  // Price & Quick Stepper / Add Action
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
+                        style: ShadcnTypography.currency.copyWith(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: ShadcnColors.foreground,
+                        ),
+                      ),
+                      if (inCart.quantity > 0)
+                        ShadcnQuantityStepper(
+                          quantity: inCart.quantity,
+                          height: 28,
+                          isDestructiveOnZero: true,
+                          onIncrement: onTap,
+                          onDecrement: () {
+                            HapticFeedback.selectionClick();
+                            ref.read(cartProvider.notifier).decrementProduct(product.id);
+                          },
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: ShadcnColors.primaryLight,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.add, size: 12, color: ShadcnColors.primary),
+                              const SizedBox(width: 2),
+                              Text(
+                                'ADD',
+                                style: ShadcnTypography.caption.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: ShadcnColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProductThumbnail(String imageUrl) {
-    if (imageUrl.startsWith('data:image/')) {
-      try {
-        final commaIdx = imageUrl.indexOf(',');
-        final base64Str = commaIdx != -1 ? imageUrl.substring(commaIdx + 1) : imageUrl;
-        final bytes = base64Decode(base64Str);
-        return Image.memory(
-          bytes,
+  Widget _buildHeroImage(Product p) {
+    final img = p.imageUrl;
+    if (img != null && img.isNotEmpty) {
+      if (img.startsWith('data:image/')) {
+        try {
+          final commaIdx = img.indexOf(',');
+          final base64Str = commaIdx != -1 ? img.substring(commaIdx + 1) : img;
+          final bytes = base64Decode(base64Str);
+          return Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) => _buildFallbackCategoryGraphic(p),
+          );
+        } catch (_) {
+          return _buildFallbackCategoryGraphic(p);
+        }
+      } else if (img.startsWith('http://') || img.startsWith('https://')) {
+        return Image.network(
+          img,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground),
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => _buildFallbackCategoryGraphic(p),
         );
-      } catch (_) {
-        return const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground);
       }
-    } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground),
-      );
     }
-    return const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground);
+    return _buildFallbackCategoryGraphic(p);
+  }
+
+  Widget _buildFallbackCategoryGraphic(Product p) {
+    IconData icon;
+    final cat = p.category.toLowerCase();
+    if (cat.contains('egg') || cat.contains('dairy') || cat.contains('milk')) {
+      icon = Icons.egg_outlined;
+    } else if (cat.contains('grain') || cat.contains('flour') || cat.contains('atta') || cat.contains('rice')) {
+      icon = Icons.grain;
+    } else if (cat.contains('snack') || cat.contains('biscuit')) {
+      icon = Icons.fastfood_outlined;
+    } else if (cat.contains('drink') || cat.contains('beverage') || cat.contains('tea') || cat.contains('coffee')) {
+      icon = Icons.local_cafe_outlined;
+    } else if (cat.contains('clean') || cat.contains('soap') || cat.contains('detergent') || cat.contains('house')) {
+      icon = Icons.cleaning_services_outlined;
+    } else if (cat.contains('bakery') || cat.contains('bread')) {
+      icon = Icons.bakery_dining_outlined;
+    } else {
+      icon = Icons.inventory_2_outlined;
+    }
+
+    return Container(
+      color: ShadcnColors.secondary.withOpacity(0.65),
+      child: Center(
+        child: Icon(
+          icon,
+          size: 38,
+          color: ShadcnColors.mutedForeground.withOpacity(0.65),
+        ),
+      ),
+    );
   }
 }
 

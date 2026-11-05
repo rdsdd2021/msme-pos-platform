@@ -232,27 +232,37 @@ class MainActivity : FlutterActivity() {
 
                 "requestPermission" -> {
                     val permission = call.argument<String>("permission")
-                    pendingPermissionResult = result
                     when (permission) {
                         "camera" -> {
-                            ActivityCompat.requestPermissions(
-                                this,
-                                arrayOf(Manifest.permission.CAMERA),
-                                CAMERA_PERMISSION_REQUEST_CODE
-                            )
+                            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                                result.success(true)
+                            } else {
+                                pendingPermissionResult = result
+                                ActivityCompat.requestPermissions(
+                                    this,
+                                    arrayOf(Manifest.permission.CAMERA),
+                                    CAMERA_PERMISSION_REQUEST_CODE
+                                )
+                            }
                         }
                         "storage" -> {
-                            val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+                            if (hasStoragePermissions()) {
+                                result.success(true)
                             } else {
-                                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                pendingPermissionResult = result
+                                val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+                                } else {
+                                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                }
+                                ActivityCompat.requestPermissions(this, perms, STORAGE_PERMISSION_REQUEST_CODE)
                             }
-                            ActivityCompat.requestPermissions(this, perms, STORAGE_PERMISSION_REQUEST_CODE)
                         }
                         else -> {
                             if (hasBluetoothPermissions()) {
                                 result.success(true)
                             } else {
+                                pendingPermissionResult = result
                                 val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                     arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
                                 } else {

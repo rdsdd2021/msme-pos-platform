@@ -148,6 +148,7 @@ export function ProductDrawer<T extends ProductFormData = ProductFormData>({
                   <div className="mt-1">
                     <ProductPhotoUpload
                       imageUrl={data.imageUrl}
+                      productName={data.name}
                       onChange={(url) => updateField('imageUrl', url)}
                       disabled={data.isSubmitting}
                     />

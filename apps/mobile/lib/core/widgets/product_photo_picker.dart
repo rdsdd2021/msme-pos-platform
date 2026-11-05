@@ -4,17 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/shadcn_colors.dart';
 import '../theme/shadcn_typography.dart';
+import 'internet_photo_search_dialog.dart';
 
 /// Reusable Product Photo Picker widget supporting Camera capture, Gallery upload,
-/// client-side compression, base64 data URL persistence, and photo deletion.
+/// Internet web search, client-side compression, base64 data URL persistence, and deletion.
 class ProductPhotoPicker extends StatefulWidget {
   final String? initialImageUrl;
+  final String? initialSearchQuery;
   final ValueChanged<String?> onPhotoChanged;
   final bool isTestMode;
 
   const ProductPhotoPicker({
     super.key,
     this.initialImageUrl,
+    this.initialSearchQuery,
     required this.onPhotoChanged,
     this.isTestMode = false,
   });
@@ -87,6 +90,19 @@ class _ProductPhotoPickerState extends State<ProductPhotoPicker> {
     }
   }
 
+  Future<void> _searchFromInternet() async {
+    final result = await InternetPhotoSearchSheet.show(
+      context,
+      initialQuery: widget.initialSearchQuery ?? '',
+      isTestMode: widget.isTestMode,
+    );
+
+    if (result != null && result.isNotEmpty) {
+      setState(() => _currentImageUrl = result);
+      widget.onPhotoChanged(result);
+    }
+  }
+
   void _removePhoto() {
     setState(() => _currentImageUrl = null);
     widget.onPhotoChanged(null);
@@ -123,6 +139,15 @@ class _ProductPhotoPickerState extends State<ProductPhotoPicker> {
                 ),
               ),
               const Divider(color: ShadcnColors.border, height: 1),
+              ListTile(
+                leading: const Icon(Icons.travel_explore, color: ShadcnColors.primary),
+                title: const Text('Search Photos from Internet', style: ShadcnTypography.bodySemibold),
+                subtitle: const Text('Find FMCG brand & grocery images online', style: ShadcnTypography.caption),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await _searchFromInternet();
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: ShadcnColors.primary),
                 title: const Text('Take Photo with Camera', style: ShadcnTypography.bodySemibold),

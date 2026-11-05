@@ -14,6 +14,7 @@ describe('ProductPhotoUpload', () => {
 
     expect(screen.getByTestId('product-photo-upload')).toBeInTheDocument();
     expect(screen.getByText('Add Product Photo')).toBeInTheDocument();
+    expect(screen.getByText('Search from Internet')).toBeInTheDocument();
     expect(screen.getByText('Take Photo')).toBeInTheDocument();
     expect(screen.getByText('Choose File')).toBeInTheDocument();
     expect(screen.queryByTestId('product-photo-preview')).not.toBeInTheDocument();

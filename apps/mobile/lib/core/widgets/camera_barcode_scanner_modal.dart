@@ -53,7 +53,7 @@ class CameraBarcodeScannerModal extends ConsumerStatefulWidget {
 }
 
 class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScannerModal>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   MobileScannerController? _scannerController;
   late AnimationController _laserAnimController;
   late Animation<double> _laserAnimation;
@@ -62,6 +62,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
   bool _isFrontCamera = false;
   bool _hasScanned = false;
   bool _showManualInput = false;
+  bool _isStartingCamera = false;
   final TextEditingController _manualTextController = TextEditingController();
 
   bool get _isTestingEnvironment =>
@@ -70,6 +71,8 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     _laserAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -82,19 +85,69 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
     if (!_isTestingEnvironment) {
       _laserAnimController.repeat(reverse: true);
       _initScanner();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndStartCamera();
+      });
     }
   }
 
   void _initScanner() {
+    _scannerController?.dispose();
     _scannerController = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
       torchEnabled: false,
+      autoStart: false,
     );
+  }
+
+  Future<void> _checkAndStartCamera() async {
+    if (_isTestingEnvironment || !mounted || _isStartingCamera) return;
+
+    setState(() => _isStartingCamera = true);
+
+    try {
+      final permissions = ref.read(permissionServiceProvider);
+      bool hasPermission = permissions.camera;
+
+      if (!hasPermission) {
+        hasPermission = await ref
+            .read(permissionServiceProvider.notifier)
+            .requestPermission(HardwarePermission.camera);
+      }
+
+      if (hasPermission && mounted) {
+        await _scannerController?.start();
+      }
+    } catch (e) {
+      debugPrint('Camera startup exception: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isStartingCamera = false);
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (_isTestingEnvironment || _scannerController == null) return;
+
+    if (state == AppLifecycleState.resumed) {
+      final isGranted = ref.read(permissionServiceProvider).camera;
+      if (isGranted) {
+        _scannerController?.start();
+      }
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _scannerController?.stop();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _laserAnimController.dispose();
     _scannerController?.dispose();
     _manualTextController.dispose();
@@ -257,24 +310,68 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
             controller: _scannerController,
             onDetect: _onDetect,
             errorBuilder: (ctx, err, child) {
+              final isPermissionError = err.errorCode == MobileScannerErrorCode.permissionDenied;
               return Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 48),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: const BoxDecoration(
+                          color: Colors.white10,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isPermissionError ? Icons.lock_outline : Icons.videocam_off_outlined,
+                          color: Colors.amberAccent,
+                          size: 38,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       Text(
-                        'Camera unavailable (${err.errorCode.name})',
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        isPermissionError
+                            ? 'Camera Permission Needed'
+                            : 'Camera Unavailable (${err.errorCode.name})',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
-                      ShadcnButton(
-                        text: 'Type Barcode Manually',
-                        variant: ShadcnButtonVariant.outline,
-                        onPressed: () => setState(() => _showManualInput = true),
+                      const SizedBox(height: 6),
+                      Text(
+                        isPermissionError
+                            ? 'Please allow camera access in device settings to scan barcodes.'
+                            : 'Ensure another app is not using the camera, or retry connection.',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ShadcnButton(
+                            text: 'Retry Camera',
+                            leadingIcon: const Icon(Icons.refresh, size: 16),
+                            variant: ShadcnButtonVariant.primary,
+                            size: ShadcnButtonSize.sm,
+                            onPressed: () async {
+                              _initScanner();
+                              await _checkAndStartCamera();
+                            },
+                          ),
+                          const SizedBox(width: 10),
+                          ShadcnButton(
+                            text: 'Enter Manually',
+                            leadingIcon: const Icon(Icons.keyboard_outlined, size: 16),
+                            variant: ShadcnButtonVariant.secondary,
+                            size: ShadcnButtonSize.sm,
+                            onPressed: () => setState(() => _showManualInput = true),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -520,13 +617,14 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
             ShadcnButton(
               text: 'Grant Camera Permission',
               leadingIcon: const Icon(Icons.security, size: 16),
+              variant: ShadcnButtonVariant.primary,
               onPressed: () async {
                 final granted = await ref
                     .read(permissionServiceProvider.notifier)
                     .requestPermission(HardwarePermission.camera);
                 if (granted) {
                   _initScanner();
-                  setState(() {});
+                  await _checkAndStartCamera();
                 }
               },
             ),

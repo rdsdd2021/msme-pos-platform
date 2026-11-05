@@ -224,6 +224,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                         // Product Photo Attachment
                         ProductPhotoPicker(
                           initialImageUrl: _selectedImageUrl,
+                          initialSearchQuery: _nameController.text.trim(),
                           onPhotoChanged: (url) {
                             setState(() => _selectedImageUrl = url);
                           },
