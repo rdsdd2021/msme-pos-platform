@@ -111,11 +111,18 @@ class ShadcnButton extends StatelessWidget {
           const SizedBox(width: 8),
         ] else if (leadingIcon != null) ...[
           leadingIcon!,
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
         ],
-        Text(text, style: textStyle),
+        Flexible(
+          child: Text(
+            text,
+            style: textStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         if (trailingIcon != null && !isLoading) ...[
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           trailingIcon!,
         ],
       ],

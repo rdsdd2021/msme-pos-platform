@@ -6,6 +6,7 @@ import '../theme/shadcn_colors.dart';
 class ShadcnCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? margin;
   final VoidCallback? onTap;
   final Color? backgroundColor;
   final Color? borderColor;
@@ -16,6 +17,7 @@ class ShadcnCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
+    this.margin,
     this.onTap,
     this.backgroundColor,
     this.borderColor,
@@ -26,6 +28,7 @@ class ShadcnCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardContent = Container(
+      margin: margin,
       padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor ?? ShadcnColors.card,
