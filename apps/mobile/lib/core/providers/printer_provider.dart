@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/receipt_document.dart';
@@ -11,6 +12,8 @@ class PrinterState {
   final PrintResult? lastResult;
   final String? lastError;
   final bool isDrawerSupported;
+  final List<BluetoothDeviceItem> pairedDevices;
+  final bool isScanning;
 
   const PrinterState({
     required this.status,
@@ -19,6 +22,8 @@ class PrinterState {
     this.lastResult,
     this.lastError,
     this.isDrawerSupported = true,
+    this.pairedDevices = const [],
+    this.isScanning = false,
   });
 
   bool get isReady => status == PrinterStatus.connected;
@@ -32,6 +37,8 @@ class PrinterState {
     PrintResult? lastResult,
     String? lastError,
     bool? isDrawerSupported,
+    List<BluetoothDeviceItem>? pairedDevices,
+    bool? isScanning,
   }) {
     return PrinterState(
       status: status ?? this.status,
@@ -40,6 +47,8 @@ class PrinterState {
       lastResult: lastResult ?? this.lastResult,
       lastError: lastError ?? this.lastError,
       isDrawerSupported: isDrawerSupported ?? this.isDrawerSupported,
+      pairedDevices: pairedDevices ?? this.pairedDevices,
+      isScanning: isScanning ?? this.isScanning,
     );
   }
 }
@@ -64,6 +73,8 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
   }
 
   PrinterService get service => _service;
+
+  bool get _isTestEnv => Platform.environment.containsKey('FLUTTER_TEST');
 
   Future<void> loadSavedPrinter() async {
     try {
@@ -97,8 +108,70 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
           status: _service.status,
         );
         await reconnect();
+      } else if (type == 'mock') {
+        final transport = MockPrinterTransport(name: 'Demo Simulated Printer');
+        _service.setTransport(transport);
+        state = state.copyWith(
+          activeTransportName: transport.name,
+          status: _service.status,
+        );
+      } else if (!_isTestEnv && Platform.isAndroid) {
+        // Cold boot on real Android device without saved config: Auto-detect bonded Bluetooth devices
+        await scanPairedBluetoothDevices(autoConnectFirst: true);
       }
     } catch (_) {}
+  }
+
+  /// Scans bonded Bluetooth devices on Android and optionally auto-binds to the most likely printer
+  Future<List<BluetoothDeviceItem>> scanPairedBluetoothDevices({bool autoConnectFirst = false}) async {
+    state = state.copyWith(isScanning: true);
+    try {
+      final devices = await BluetoothPrinterTransport.getPairedDevices();
+      state = state.copyWith(pairedDevices: devices, isScanning: false);
+
+      if (devices.isNotEmpty && autoConnectFirst) {
+        // Prefer devices with keywords indicating a thermal receipt printer
+        final matched = devices.firstWhere(
+          (d) {
+            final n = d.name.toLowerCase();
+            return n.contains('print') ||
+                n.contains('pos') ||
+                n.contains('rpp') ||
+                n.contains('mpt') ||
+                n.contains('bt') ||
+                n.contains('thermal') ||
+                n.contains('58') ||
+                n.contains('80');
+          },
+          orElse: () => devices.first,
+        );
+        final transport = BluetoothPrinterTransport(address: matched.address, name: matched.name);
+        setTransport(transport);
+        await reconnect();
+      } else if (devices.isEmpty && !_isTestEnv) {
+        final disconnected = DisconnectedPrinterTransport(name: 'No Bluetooth Printer Paired');
+        _service.setTransport(disconnected);
+        state = state.copyWith(
+          activeTransportName: disconnected.name,
+          status: PrinterStatus.disconnected,
+          lastError: 'No paired Bluetooth printer found. Pair your printer in phone Bluetooth settings.',
+        );
+      }
+      return devices;
+    } catch (e) {
+      state = state.copyWith(isScanning: false, lastError: e.toString());
+      return [];
+    }
+  }
+
+  /// Explicitly enable demo simulation mode for testing or demonstration
+  void enableDemoPrinter() {
+    final mock = MockPrinterTransport(name: 'Demo Simulated Printer');
+    setTransport(mock);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(_keyType, 'mock');
+      prefs.setString(_keyName, mock.name);
+    }).catchError((_) {});
   }
 
   void setPaperWidth(PaperWidth width) {

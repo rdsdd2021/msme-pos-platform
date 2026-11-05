@@ -6,6 +6,8 @@ import '../../core/providers/analytics_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/catalog_provider.dart';
 import '../../core/providers/customer_provider.dart';
+import '../../core/providers/printer_provider.dart';
+import '../../core/providers/store_mode_provider.dart';
 import '../../core/providers/sync_provider.dart';
 
 class MobileOwnerScreen extends ConsumerWidget {
@@ -131,7 +133,109 @@ class MobileOwnerScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Store Vertical Mode Selector
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.tune, size: 16, color: Color(0xFF10B981)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Store Business Mode (Industry Vertical)',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<StoreVerticalMode>(
+                      segments: const [
+                        ButtonSegment(
+                          value: StoreVerticalMode.retail,
+                          icon: Icon(Icons.shopping_basket_outlined, size: 16),
+                          label: Text('Kirana / Retail', style: TextStyle(fontSize: 12)),
+                        ),
+                        ButtonSegment(
+                          value: StoreVerticalMode.restaurant,
+                          icon: Icon(Icons.restaurant, size: 16),
+                          label: Text('Restaurant / Food', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                      selected: {ref.watch(storeModeProvider)},
+                      onSelectionChanged: (set) {
+                        ref.read(storeModeProvider.notifier).setMode(set.first);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Switched store to ${set.first.label}!'),
+                            backgroundColor: const Color(0xFF10B981),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Quick Hardware Actions Row
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.point_of_sale, size: 16),
+                      label: const Text('Kick Drawer', style: TextStyle(fontSize: 12)),
+                      onPressed: () async {
+                        final ok = await ref.read(printerProvider.notifier).kickCashDrawer();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(ok ? 'Cash drawer pulse triggered!' : 'Drawer pulse sent to printer'),
+                              backgroundColor: ok ? Colors.green : Colors.grey.shade800,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.print, size: 16),
+                      label: const Text('Test Receipt', style: TextStyle(fontSize: 12)),
+                      onPressed: () async {
+                        final res = await ref.read(printerProvider.notifier).printTestPage();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(res.success ? 'Test slip printed!' : 'Printer error: ${res.errorMessage}'),
+                              backgroundColor: res.success ? Colors.green : Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
 
               // Live Metrics Cards
               Builder(

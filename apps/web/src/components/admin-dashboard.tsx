@@ -51,6 +51,7 @@ import { SubscriptionView } from '@/features/settings/subscription-view';
 import { BranchesView } from '@/features/settings/branches-view';
 import { BranchGstinModal } from '@/features/settings/branch-gstin-modal';
 import { cn } from '@/lib/utils';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 
 function generateUuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -619,6 +620,28 @@ export default function AdminDashboard({
   useEffect(() => {
     fetchAllData();
   }, [fetchAllData]);
+
+  // Realtime Live Event Stream Subscription
+  useRealtimeEvents({
+    tenantId: activeTenant?.tenantId,
+    onOrderCreated: (data) => {
+      fetchAllData();
+      toast.success(`Live Update: New sale ${data?.invoiceNumber || ''} synced`, { duration: 3000 });
+    },
+    onStockChanged: () => {
+      fetchAllData();
+    },
+    onCatalogChanged: () => {
+      fetchAllData();
+    },
+    onCustomerUpdated: () => {
+      fetchAllData();
+    },
+    onPoll: () => {
+      fetchAllData();
+    },
+    pollIntervalMs: 25000,
+  });
 
   // Filtered Products
   const filteredProducts = useMemo(() => {

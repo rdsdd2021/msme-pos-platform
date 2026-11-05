@@ -105,6 +105,21 @@ class CustomerNotifier extends StateNotifier<CustomerState> {
     return newCust;
   }
 
+  Future<int> recordRepayment({
+    required String customerId,
+    required int amountPaisa,
+    required String paymentMethod,
+  }) async {
+    final remaining = await _repo.recordRepayment(
+      customerId: customerId,
+      amountPaisa: amountPaisa,
+      paymentMethod: paymentMethod,
+    );
+    final customers = await _repo.getAllCustomers();
+    state = state.copyWith(allCustomers: customers);
+    return remaining;
+  }
+
   Future<void> reload() async {
     final customers = await _repo.getAllCustomers();
     if (customers.isNotEmpty) {

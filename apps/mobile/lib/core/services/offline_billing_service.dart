@@ -73,6 +73,11 @@ class OfflineBillingService {
     return repository.getAllInvoices();
   }
 
+  /// Retrieve all lines for an invoice
+  static Future<List<LocalInvoiceLine>> getInvoiceLines(String invoiceId) async {
+    return repository.getInvoiceLines(invoiceId);
+  }
+
   /// Reconstruct a ReceiptDocument for an existing invoice for duplicate reprint
   static Future<ReceiptDocument?> getReceiptDocument(String invoiceId) async {
     return repository.getReceiptDocument(invoiceId);

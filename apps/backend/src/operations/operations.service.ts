@@ -13,6 +13,7 @@ import { CashierShiftEntity } from './entities/cashier-shift.entity';
 import { InvoiceEntity } from '../billing/entities/invoice.entity';
 import { PaymentEntity } from '../billing/entities/payment.entity';
 import { AuditService } from '../tenants/audit.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import {
   CreateCustomerDto,
   MergeCustomerDto,
@@ -113,6 +114,8 @@ export class OperationsService {
     private readonly dataSource: DataSource,
     @Optional()
     private readonly auditService?: AuditService,
+    @Optional()
+    private readonly realtimeService?: RealtimeEventsService,
   ) {}
 
   async createCustomer(tenantId: string, dto: CreateCustomerDto): Promise<CustomerEntity> {
@@ -145,7 +148,11 @@ export class OperationsService {
       currentBalance: '0.00',
       isActive: true,
     });
-    return this.customerRepo.save(customer);
+    const saved = await this.customerRepo.save(customer);
+    if (this.realtimeService) {
+      this.realtimeService.emit(tenantId, 'CUSTOMER_UPDATED', { customerId: saved.id, action: 'CREATE' });
+    }
+    return saved;
   }
 
   async searchCustomers(tenantId: string, query: string): Promise<CustomerEntity[]> {
@@ -455,7 +462,7 @@ export class OperationsService {
     customerId: string,
     dto: RecordCustomerPaymentDto,
   ): Promise<{ ledger: CustomerLedgerEntity; customer: CustomerEntity }> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       // Idempotency check: if already processed, return existing record
       const existingLedger = await manager.findOne(CustomerLedgerEntity, {
         where: { tenantId, idempotencyKey: dto.idempotencyKey },
@@ -528,6 +535,16 @@ export class OperationsService {
         customer: savedCustomer,
       };
     });
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(tenantId, 'CUSTOMER_UPDATED', {
+        customerId,
+        amount: dto.amount,
+        action: 'PAYMENT',
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -539,7 +556,7 @@ export class OperationsService {
     customerId: string,
     dto: CustomerAdjustmentDto,
   ): Promise<{ ledger: CustomerLedgerEntity; customer: CustomerEntity }> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const existingLedger = await manager.findOne(CustomerLedgerEntity, {
         where: { tenantId, idempotencyKey: dto.idempotencyKey },
       });
@@ -616,6 +633,16 @@ export class OperationsService {
         customer: savedCustomer,
       };
     });
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(tenantId, 'CUSTOMER_UPDATED', {
+        customerId,
+        amount: dto.amount,
+        action: 'ADJUSTMENT',
+      });
+    }
+
+    return result;
   }
 
   /**

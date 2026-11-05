@@ -21,6 +21,7 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { TableOrderDrawer } from './table-order-drawer';
 import { SplitBillModal } from './split-bill-modal';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   UtensilsCrossed,
   Users,
@@ -90,6 +91,18 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
   useEffect(() => {
     fetchTables();
   }, [activeTenant?.tenantId, activeBranch?.id]);
+
+  // Live Realtime updates when mobile waiters or other cashiers update tables
+  useRealtimeEvents({
+    tenantId: activeTenant?.tenantId,
+    onRestaurantTableChanged: () => {
+      fetchTables();
+    },
+    onPoll: () => {
+      fetchTables();
+    },
+    pollIntervalMs: 15000,
+  });
 
   // Seed default 12 tables
   const handleSeedDefaults = async () => {

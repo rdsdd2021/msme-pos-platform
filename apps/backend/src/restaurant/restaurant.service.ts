@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
@@ -12,6 +13,7 @@ import { RestaurantKotEntity } from './entities/restaurant-kot.entity';
 import { RestaurantKotLineEntity } from './entities/restaurant-kot-line.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
 import { BillingService } from '../billing/billing.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import {
   TableStatus,
   RestaurantOrderType,
@@ -44,6 +46,8 @@ export class RestaurantService {
     private readonly productRepo: Repository<ProductEntity>,
     private readonly billingService: BillingService,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly realtimeService?: RealtimeEventsService,
   ) {}
 
   // =========================================================================
@@ -211,7 +215,7 @@ export class RestaurantService {
     captainUserId?: string,
     captainName?: string,
   ): Promise<RestaurantOrderEntity> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       let table: RestaurantTableEntity | null = null;
       if (dto.tableId) {
         table = await manager.findOne(RestaurantTableEntity, {
@@ -267,6 +271,17 @@ export class RestaurantService {
 
       return savedOrder;
     });
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        { orderId: result.id, tableId: result.tableId, status: 'OPEN' },
+        branchId,
+      );
+    }
+
+    return result;
   }
 
   // =========================================================================
@@ -279,7 +294,7 @@ export class RestaurantService {
     dto: DispatchKotDto,
     captainName?: string,
   ): Promise<{ kot: RestaurantKotEntity; order: RestaurantOrderEntity }> {
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       const order = await manager.findOne(RestaurantOrderEntity, {
         where: { id: dto.orderId, tenantId, branchId },
         relations: ['kots', 'lines'],
@@ -376,6 +391,17 @@ export class RestaurantService {
 
       return { kot: savedKot, order: updatedOrder };
     });
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        { kotId: result.kot.id, orderId: result.order.id, status: 'ORDERED' },
+        branchId,
+      );
+    }
+
+    return result;
   }
 
   // =========================================================================
@@ -568,6 +594,15 @@ export class RestaurantService {
           currentGuestCount: 0,
           occupiedAt: null,
         },
+      );
+    }
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        { orderId: order.id, tableId: order.tableId, status: 'VACANT', action: 'SETTLED' },
+        branchId,
       );
     }
 

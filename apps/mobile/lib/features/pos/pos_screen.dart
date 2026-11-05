@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/models/cart_item.dart';
 import '../../core/models/product.dart';
 import '../../core/models/customer.dart';
 import '../../core/models/receipt_document.dart';
@@ -79,8 +81,9 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
             // Clear Cart
             ref.read(cartProvider.notifier).clearCart();
 
-            // Refresh pending outbox sync count
+            // Refresh pending outbox sync count & trigger non-blocking real-time push
             await ref.read(syncStateProvider.notifier).refreshStatus();
+            unawaited(ref.read(syncStateProvider.notifier).syncNow());
 
             if (!mounted) return;
             _showReceiptDialog(result);
@@ -365,6 +368,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
   void _showPrinterSettingsDialog(BuildContext context) {
     List<BluetoothDeviceItem> pairedDevices = [];
     bool isLoadingDevices = false;
+    bool hasAutoScanned = false;
 
     showDialog(
       context: context,
@@ -383,6 +387,11 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                   isLoadingDevices = false;
                 });
               }
+            }
+
+            if (!hasAutoScanned) {
+              hasAutoScanned = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) => loadDevices());
             }
 
             return AlertDialog(
@@ -524,6 +533,27 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                         ],
                       ),
                       const Divider(height: 20),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blueGrey,
+                          side: BorderSide(color: Colors.blueGrey.shade200),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        icon: const Icon(Icons.developer_mode, size: 16),
+                        label: const Text('Use Demo Simulated Printer (Testing Mode)', style: TextStyle(fontSize: 11)),
+                        onPressed: () {
+                          notifier.enableDemoPrinter();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Switched to Demo Simulated Printer for testing!'),
+                                backgroundColor: Color(0xFF10B981),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -929,25 +959,52 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
 }
 }
 
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends ConsumerWidget {
   final Product product;
   final VoidCallback onTap;
 
   const _ProductCard({required this.product, required this.onTap});
 
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'groceries':
+        return const Color(0xFF10B981);
+      case 'dairy':
+        return const Color(0xFF0284C7);
+      case 'snacks':
+        return const Color(0xFFF59E0B);
+      case 'beverages':
+        return const Color(0xFF8B5CF6);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    final inCart = cart.items.firstWhere(
+      (i) => i.product.id == product.id,
+      orElse: () => CartItem(product: product, quantity: 0),
+    );
+    final catColor = _getCategoryColor(product.category);
+
     return InkWell(
-      onTap: onTap,
+      onTap: inCart.quantity == 0 ? onTap : null,
       borderRadius: BorderRadius.circular(10),
       child: Ink(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(
+            color: inCart.quantity > 0 ? const Color(0xFF10B981) : Colors.grey.shade200,
+            width: inCart.quantity > 0 ? 1.5 : 1.0,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: inCart.quantity > 0
+                  ? const Color(0xFF10B981).withOpacity(0.08)
+                  : Colors.black.withOpacity(0.02),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -962,15 +1019,43 @@ class _ProductCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: catColor.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          product.category,
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: catColor),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: product.isLowStock ? Colors.red.shade50 : Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '${product.currentStock.toInt()} ${product.isLowStock ? "⚠️" : "left"}',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: product.isLowStock ? Colors.red.shade700 : Colors.green.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  Text(
-                    '${product.sku} | ${product.unit}',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                   ),
                 ],
               ),
@@ -981,21 +1066,63 @@ class _ProductCard extends StatelessWidget {
                     '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
                     style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0F172A)),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: product.isLowStock ? Colors.red.shade50 : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${product.currentStock.toInt()} ${product.isLowStock ? "⚠️" : "left"}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: product.isLowStock ? Colors.red.shade700 : Colors.green.shade700,
+                  if (inCart.quantity > 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            ref.read(cartProvider.notifier).decrementProduct(product.id);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: const Icon(Icons.remove, size: 14),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 5),
+                          child: Text(
+                            '${inCart.quantity}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF10B981)),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: onTap,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Icon(Icons.add, size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    InkWell(
+                      onTap: onTap,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, size: 12, color: Color(0xFF10B981)),
+                            SizedBox(width: 2),
+                            Text('ADD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ],

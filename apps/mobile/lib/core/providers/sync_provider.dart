@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../database/app_database.dart';
@@ -53,9 +54,27 @@ class SyncState {
 class SyncNotifier extends StateNotifier<SyncState> {
   final SyncWorker _worker;
   final Ref _ref;
+  Timer? _autoSyncTimer;
 
   SyncNotifier(this._worker, this._ref) : super(const SyncState()) {
     refreshStatus();
+    _startAutoSync();
+  }
+
+  void _startAutoSync() {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
+      final hasPending = await _worker.getPendingCount() > 0;
+      if (hasPending || !state.isSyncing) {
+        await syncNow();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> refreshStatus() async {

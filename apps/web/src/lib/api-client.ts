@@ -1083,6 +1083,10 @@ class ApiClient {
     return this.accessToken;
   }
 
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   setActiveContext(tenantId: string | null, branchId: string | null): void {
     this.activeTenantId = tenantId;
     this.activeBranchId = branchId;

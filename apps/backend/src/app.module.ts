@@ -13,6 +13,7 @@ import { OperationsModule } from './operations/operations.module';
 import { CommercialModule } from './commercial/commercial.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { RestaurantModule } from './restaurant/restaurant.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { getDatabaseConfig } from './database/database.config';
 
 @Module({
@@ -31,6 +32,7 @@ import { getDatabaseConfig } from './database/database.config';
         limit: 100,
       },
     ]),
+    RealtimeModule,
     HealthModule,
     AuthModule,
     TenantsModule,

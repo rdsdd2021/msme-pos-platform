@@ -20,6 +20,7 @@ import { CustomerLedgerEntity } from '../operations/entities/customer-ledger.ent
 import { BranchEntity } from '../tenants/entities/branch.entity';
 import { TenantEntity } from '../tenants/entities/tenant.entity';
 import { AuditService } from '../tenants/audit.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateSaleDto } from './dto/billing.dto';
 import { CreateSalesReturnDto, CreditNoteQueryDto } from './dto/returns.dto';
 import {
@@ -64,6 +65,8 @@ export class BillingService {
     private readonly dataSource: DataSource,
     @Optional()
     private readonly auditService?: AuditService,
+    @Optional()
+    private readonly realtimeService?: RealtimeEventsService,
   ) {}
 
   /**
@@ -75,7 +78,7 @@ export class BillingService {
     cashierUserId: string,
     dto: CreateSaleDto,
   ): Promise<InvoiceEntity> {
-    return this.dataSource.transaction(async (manager) => {
+    const invoice = await this.dataSource.transaction(async (manager) => {
       // 1. Idempotency Check
       const existing = await manager.findOne(InvoiceEntity, {
         where: { tenantId, idempotencyKey: dto.idempotencyKey },
@@ -367,6 +370,32 @@ export class BillingService {
 
       return savedInvoice;
     });
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'ORDER_CREATED',
+        {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          totalAmount: invoice.grandTotal,
+          branchId: invoice.branchId,
+        },
+        invoice.branchId,
+      );
+      this.realtimeService.emit(
+        tenantId,
+        'STOCK_CHANGED',
+        {
+          reason: 'SALE',
+          invoiceId: invoice.id,
+          branchId: invoice.branchId,
+        },
+        invoice.branchId,
+      );
+    }
+
+    return invoice;
   }
 
   async getInvoices(tenantId: string, branchId?: string): Promise<InvoiceEntity[]> {

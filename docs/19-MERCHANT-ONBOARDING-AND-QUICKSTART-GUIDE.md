@@ -132,3 +132,4 @@ Assistt POS automatically snapshots HSN codes and calculates intra-state (CGST +
 - **Documentation**: [https://pos.assistt.in/docs](https://pos.assistt.in)
 - **Support Email**: support@assistt.in
 - **Operating Hours**: Monday – Saturday, 8:00 AM – 10:00 PM IST
+

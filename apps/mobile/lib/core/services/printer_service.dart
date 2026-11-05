@@ -83,6 +83,33 @@ abstract class PrinterTransport {
   Future<void> disconnect();
 }
 
+/// Fallback transport when no physical Bluetooth or LAN thermal printer is configured
+class DisconnectedPrinterTransport implements PrinterTransport {
+  @override
+  final String id;
+  @override
+  final String name;
+
+  DisconnectedPrinterTransport({
+    this.id = 'none',
+    this.name = 'No Printer Paired',
+  });
+
+  @override
+  bool get isConnected => false;
+
+  @override
+  Future<bool> connect() async => false;
+
+  @override
+  Future<void> sendBytes(List<int> bytes) async {
+    throw const SocketException('No thermal printer connected. Pair your printer in phone Bluetooth settings.');
+  }
+
+  @override
+  Future<void> disconnect() async {}
+}
+
 /// Simulated in-memory thermal printer transport for offline Kirana POS testing and verification
 class MockPrinterTransport implements PrinterTransport {
   @override

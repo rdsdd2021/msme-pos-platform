@@ -20,6 +20,7 @@ import { StockTransferEntity } from './entities/stock-transfer.entity';
 import { StockTransferLineEntity } from './entities/stock-transfer-line.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
 import { AuditService } from '../tenants/audit.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { Permission, StockMovementType, StockTransferStatus, TenantContext } from '@pos/shared-types';
 import {
   CreateCategoryDto,
@@ -68,6 +69,8 @@ export class CatalogService {
     private readonly dataSource: DataSource,
     @Optional()
     private readonly auditService?: AuditService,
+    @Optional()
+    private readonly realtimeService?: RealtimeEventsService,
   ) {}
 
   // --- Category Management ---
@@ -205,7 +208,7 @@ export class CatalogService {
       dto.openingStockBranchId;
 
     if (hasOpeningStock) {
-      return this.dataSource.transaction(async (manager) => {
+      const res = await this.dataSource.transaction(async (manager) => {
         const product = manager.create(ProductEntity, {
           tenantId,
           sku: dto.sku.toUpperCase(),
@@ -264,6 +267,12 @@ export class CatalogService {
 
         return savedProduct;
       });
+
+      if (this.realtimeService) {
+        this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId: res.id, action: 'CREATE' });
+        this.realtimeService.emit(tenantId, 'STOCK_CHANGED', { productId: res.id, reason: 'OPENING_STOCK' }, dto.openingStockBranchId);
+      }
+      return res;
     }
 
     // Direct product creation without opening stock
@@ -286,7 +295,11 @@ export class CatalogService {
       allowFractionalQuantity: dto.allowFractionalQuantity ?? false,
     });
 
-    return this.productRepo.save(product);
+    const saved = await this.productRepo.save(product);
+    if (this.realtimeService) {
+      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId: saved.id, action: 'CREATE' });
+    }
+    return saved;
   }
 
   async getProducts(tenantId: string): Promise<ProductEntity[]> {
@@ -361,7 +374,11 @@ export class CatalogService {
     if (dto.isActive !== undefined) product.isActive = dto.isActive;
 
     product.version += 1;
-    return this.productRepo.save(product);
+    const saved = await this.productRepo.save(product);
+    if (this.realtimeService) {
+      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId: saved.id, action: 'UPDATE' });
+    }
+    return saved;
   }
 
   async deleteProduct(tenantId: string, productId: string): Promise<{ success: boolean; message: string }> {
@@ -369,6 +386,9 @@ export class CatalogService {
     product.isActive = false;
     product.archivedAt = new Date();
     await this.productRepo.save(product);
+    if (this.realtimeService) {
+      this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { productId, action: 'DELETE' });
+    }
     return { success: true, message: 'Product archived successfully' };
   }
 
@@ -410,7 +430,7 @@ export class CatalogService {
       }
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const result = await this.dataSource.transaction(async (manager) => {
       // 1. Check idempotency
       const existingMovement = await manager.findOne(StockLedgerEntity, {
         where: { tenantId, idempotencyKey: dto.idempotencyKey },
@@ -500,6 +520,22 @@ export class CatalogService {
         balance: savedBalance,
       };
     });
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'STOCK_CHANGED',
+        {
+          productId: dto.productId,
+          branchId: dto.branchId,
+          quantityOnHand: result.balance.quantityOnHand,
+          reason: movementType,
+        },
+        dto.branchId,
+      );
+    }
+
+    return result;
   }
 
   async getLowStockProducts(tenantId: string, branchId: string): Promise<StockBalanceEntity[]> {

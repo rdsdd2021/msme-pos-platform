@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../models/product.dart';
 
@@ -24,115 +26,15 @@ class LocalCatalogRepository {
     );
   }
 
-  /// Purges old simulated demo data ('tenant-1') when a real merchant logs in
+  /// Purges any legacy seed or mock products ('tenant-1' or demo product IDs)
   Future<void> purgeMockDataIfPresent(String activeTenantId) async {
-    if (activeTenantId != 'tenant-1') {
-      await (_db.delete(_db.localProducts)..where((t) => t.tenantId.equals('tenant-1'))).go();
-      await (_db.delete(_db.localCustomers)..where((t) => t.tenantId.equals('tenant-1'))).go();
-    }
-  }
-
-  /// Seeds persistent initial catalog into SQLite if table is currently empty
-  Future<void> seedInitialProductsIfEmpty({String tenantId = 'tenant-1'}) async {
-    final count = await _db.localProducts.count().getSingle();
-    if (count > 0) return;
-
-    final initialSeeds = [
-      LocalProductsCompanion.insert(
-        id: 'prod-1',
-        tenantId: tenantId,
-        sku: 'GROC-001',
-        name: 'Aashirvaad Atta 5kg',
-        barcode: const Value('890103000001'),
-        sellingPricePaisa: 24000,
-        purchaseCostPaisa: const Value(21000),
-        mrpPaisa: const Value(26000),
-        gstRatePercent: const Value(5.0),
-        hsnCode: const Value('11010000'),
-        categoryName: const Value('Groceries'),
-        unit: const Value('PKT'),
-        stockQuantity: const Value(50.0),
-      ),
-      LocalProductsCompanion.insert(
-        id: 'prod-2',
-        tenantId: tenantId,
-        sku: 'DAIRY-001',
-        name: 'Amul Butter 500g',
-        barcode: const Value('890103000002'),
-        sellingPricePaisa: 27500,
-        purchaseCostPaisa: const Value(24500),
-        mrpPaisa: const Value(29000),
-        gstRatePercent: const Value(12.0),
-        hsnCode: const Value('04051000'),
-        categoryName: const Value('Dairy'),
-        unit: const Value('PKT'),
-        stockQuantity: const Value(4.0), // Low stock alert
-      ),
-      LocalProductsCompanion.insert(
-        id: 'prod-3',
-        tenantId: tenantId,
-        sku: 'GROC-002',
-        name: 'Tata Salt 1kg',
-        barcode: const Value('890103000003'),
-        sellingPricePaisa: 2800,
-        purchaseCostPaisa: const Value(2200),
-        mrpPaisa: const Value(3000),
-        gstRatePercent: const Value(0.0),
-        hsnCode: const Value('25010010'),
-        categoryName: const Value('Groceries'),
-        unit: const Value('PKT'),
-        stockQuantity: const Value(100.0),
-      ),
-      LocalProductsCompanion.insert(
-        id: 'prod-4',
-        tenantId: tenantId,
-        sku: 'GROC-003',
-        name: 'Fortune Sunflower Oil 1L',
-        barcode: const Value('890103000004'),
-        sellingPricePaisa: 16500,
-        purchaseCostPaisa: const Value(14000),
-        mrpPaisa: const Value(18000),
-        gstRatePercent: const Value(5.0),
-        hsnCode: const Value('15121110'),
-        categoryName: const Value('Groceries'),
-        unit: const Value('LTR'),
-        stockQuantity: const Value(60.0),
-      ),
-      LocalProductsCompanion.insert(
-        id: 'prod-5',
-        tenantId: tenantId,
-        sku: 'SNACK-001',
-        name: 'Parle-G Biscuit 800g',
-        barcode: const Value('890103000005'),
-        sellingPricePaisa: 8000,
-        purchaseCostPaisa: const Value(6800),
-        mrpPaisa: const Value(8500),
-        gstRatePercent: const Value(18.0),
-        hsnCode: const Value('19053100'),
-        categoryName: const Value('Snacks'),
-        unit: const Value('PKT'),
-        stockQuantity: const Value(80.0),
-      ),
-      LocalProductsCompanion.insert(
-        id: 'prod-6',
-        tenantId: tenantId,
-        sku: 'SNACK-002',
-        name: 'Maggi Masala 280g',
-        barcode: const Value('890103000006'),
-        sellingPricePaisa: 5500,
-        purchaseCostPaisa: const Value(4600),
-        mrpPaisa: const Value(6000),
-        gstRatePercent: const Value(12.0),
-        hsnCode: const Value('19023010'),
-        categoryName: const Value('Snacks'),
-        unit: const Value('PKT'),
-        stockQuantity: const Value(3.0), // Low stock alert
-      ),
-    ];
-
-    await _db.batch((batch) {
-      batch.insertAll(_db.localProducts, initialSeeds);
-    });
+    final mockIds = ['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5', 'prod-6', 'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6'];
+    await (_db.delete(_db.localProducts)
+          ..where((t) => t.tenantId.equals('tenant-1') | t.id.isIn(mockIds)))
+        .go();
+    await (_db.delete(_db.localCustomers)
+          ..where((t) => t.tenantId.equals('tenant-1') | t.id.isIn(['c-1', 'c-2', 'c-3'])))
+        .go();
   }
 
   /// Reactive stream of all products, ordered by name
@@ -178,6 +80,200 @@ class LocalCatalogRepository {
         ),
       );
     }
+  }
+
+  /// Create a new product locally and queue for background sync
+  Future<Product> createProduct({
+    required String name,
+    required String sku,
+    String? barcode,
+    required String category,
+    required int sellingPricePaisa,
+    int purchaseCostPaisa = 0,
+    int mrpPaisa = 0,
+    double gstRate = 0.0,
+    String? hsnCode,
+    String unit = 'PCS',
+    double initialStock = 0.0,
+    String tenantId = 'tenant-1',
+    String deviceId = 'pos-mobile-01',
+  }) async {
+    final id = const Uuid().v4();
+    final now = DateTime.now();
+
+    await _db.transaction(() async {
+      await _db.into(_db.localProducts).insert(
+        LocalProductsCompanion.insert(
+          id: id,
+          tenantId: tenantId,
+          sku: sku.trim().toUpperCase(),
+          name: name.trim(),
+          barcode: Value(barcode?.trim()),
+          sellingPricePaisa: sellingPricePaisa,
+          purchaseCostPaisa: Value(purchaseCostPaisa),
+          mrpPaisa: Value(mrpPaisa > 0 ? mrpPaisa : sellingPricePaisa),
+          gstRatePercent: Value(gstRate),
+          hsnCode: Value(hsnCode?.trim()),
+          categoryName: Value(category.trim()),
+          unit: Value(unit),
+          stockQuantity: Value(initialStock),
+          updatedAt: Value(now),
+        ),
+      );
+
+      if (initialStock > 0) {
+        await _db.into(_db.localStockMovements).insert(
+          LocalStockMovementsCompanion.insert(
+            id: const Uuid().v4(),
+            productId: id,
+            movementType: 'initial_stock',
+            quantity: initialStock,
+            referenceId: 'INIT-$id',
+            reason: 'Initial stock on item creation',
+            createdAt: Value(now),
+          ),
+        );
+      }
+
+      // Outbox operation
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: deviceId,
+          sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
+          operationType: 'CREATE_PRODUCT',
+          schemaVersion: const Value(1),
+          payload: jsonEncode({
+            'name': name.trim(),
+            'sku': sku.trim().toUpperCase(),
+            'barcode': barcode?.trim(),
+            'category': category.trim(),
+            'sellingPrice': (sellingPricePaisa / 100.0).toStringAsFixed(2),
+            'costPrice': (purchaseCostPaisa / 100.0).toStringAsFixed(2),
+            'taxRate': gstRate.toString(),
+            'hsnCode': hsnCode?.trim(),
+            'unit': unit,
+            'initialStock': initialStock,
+          }),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(now),
+        ),
+      );
+    });
+
+    return Product(
+      id: id,
+      name: name.trim(),
+      sku: sku.trim().toUpperCase(),
+      barcode: barcode?.trim(),
+      category: category.trim(),
+      unit: unit,
+      sellingPricePaisa: sellingPricePaisa,
+      purchaseCostPaisa: purchaseCostPaisa,
+      gstRate: gstRate.round(),
+      currentStock: initialStock,
+      hsnCode: hsnCode?.trim(),
+    );
+  }
+
+  /// Update an existing product's details and price
+  Future<void> updateProduct(Product product, {String deviceId = 'pos-mobile-01'}) async {
+    final now = DateTime.now();
+    await (_db.update(_db.localProducts)..where((p) => p.id.equals(product.id))).write(
+      LocalProductsCompanion(
+        name: Value(product.name.trim()),
+        sku: Value(product.sku.trim().toUpperCase()),
+        barcode: Value(product.barcode?.trim()),
+        categoryName: Value(product.category),
+        unit: Value(product.unit),
+        sellingPricePaisa: Value(product.sellingPricePaisa),
+        purchaseCostPaisa: Value(product.purchaseCostPaisa),
+        gstRatePercent: Value(product.gstRate.toDouble()),
+        hsnCode: Value(product.hsnCode?.trim()),
+        updatedAt: Value(now),
+      ),
+    );
+
+    // Queue sync outbox
+    await _db.into(_db.syncOutbox).insert(
+      SyncOutboxCompanion.insert(
+        operationId: const Uuid().v4(),
+        deviceId: deviceId,
+        sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
+        operationType: 'UPDATE_PRODUCT',
+        schemaVersion: const Value(1),
+        payload: jsonEncode({
+          'id': product.id,
+          'name': product.name.trim(),
+          'sku': product.sku.trim().toUpperCase(),
+          'barcode': product.barcode?.trim(),
+          'category': product.category,
+          'sellingPrice': (product.sellingPricePaisa / 100.0).toStringAsFixed(2),
+          'costPrice': (product.purchaseCostPaisa / 100.0).toStringAsFixed(2),
+          'taxRate': product.gstRate.toString(),
+          'hsnCode': product.hsnCode?.trim(),
+          'unit': product.unit,
+        }),
+        status: const Value('pending'),
+        retryCount: const Value(0),
+        createdAt: Value(now),
+      ),
+    );
+  }
+
+  /// Adjust stock quantity (Restock / Damage / Audit)
+  Future<void> adjustStock({
+    required String productId,
+    required double delta,
+    required String reason,
+    String deviceId = 'pos-mobile-01',
+  }) async {
+    final now = DateTime.now();
+    final existing = await (_db.select(_db.localProducts)..where((p) => p.id.equals(productId))).getSingleOrNull();
+    if (existing == null) return;
+
+    final newStock = (existing.stockQuantity + delta).clamp(0.0, double.infinity);
+
+    await _db.transaction(() async {
+      await (_db.update(_db.localProducts)..where((p) => p.id.equals(productId))).write(
+        LocalProductsCompanion(
+          stockQuantity: Value(newStock),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await _db.into(_db.localStockMovements).insert(
+        LocalStockMovementsCompanion.insert(
+          id: const Uuid().v4(),
+          productId: productId,
+          movementType: delta >= 0 ? 'restock' : 'damage_correction',
+          quantity: delta,
+          referenceId: 'ADJ-$productId-${now.millisecondsSinceEpoch}',
+          reason: reason,
+          createdAt: Value(now),
+        ),
+      );
+
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: deviceId,
+          sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
+          operationType: 'STOCK_ADJUSTMENT',
+          schemaVersion: const Value(1),
+          payload: jsonEncode({
+            'productId': productId,
+            'delta': delta,
+            'reason': reason,
+            'newStock': newStock,
+          }),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(now),
+        ),
+      );
+    });
   }
 
   /// Fetch low stock items for owner dashboard

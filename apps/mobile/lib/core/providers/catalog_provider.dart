@@ -194,6 +194,72 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     state = state.copyWith(allProducts: updated);
   }
 
+  Future<Product> addProduct({
+    required String name,
+    required String sku,
+    String? barcode,
+    required String category,
+    required int sellingPricePaisa,
+    int purchaseCostPaisa = 0,
+    int mrpPaisa = 0,
+    double gstRate = 0.0,
+    String? hsnCode,
+    String unit = 'PCS',
+    double initialStock = 0.0,
+    String tenantId = 'tenant-1',
+  }) async {
+    final newProduct = await _repo.createProduct(
+      name: name,
+      sku: sku,
+      barcode: barcode,
+      category: category,
+      sellingPricePaisa: sellingPricePaisa,
+      purchaseCostPaisa: purchaseCostPaisa,
+      mrpPaisa: mrpPaisa,
+      gstRate: gstRate,
+      hsnCode: hsnCode,
+      unit: unit,
+      initialStock: initialStock,
+      tenantId: tenantId,
+    );
+    state = state.copyWith(allProducts: [newProduct, ...state.allProducts]);
+    return newProduct;
+  }
+
+  Future<void> updateProduct(Product product) async {
+    await _repo.updateProduct(product);
+    final updated = state.allProducts.map((p) => p.id == product.id ? product : p).toList();
+    state = state.copyWith(allProducts: updated);
+  }
+
+  Future<void> adjustStock({
+    required String productId,
+    required double delta,
+    required String reason,
+  }) async {
+    await _repo.adjustStock(productId: productId, delta: delta, reason: reason);
+    final updated = state.allProducts.map((p) {
+      if (p.id == productId) {
+        return Product(
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          barcode: p.barcode,
+          category: p.category,
+          unit: p.unit,
+          sellingPricePaisa: p.sellingPricePaisa,
+          purchaseCostPaisa: p.purchaseCostPaisa,
+          gstRate: p.gstRate,
+          currentStock: (p.currentStock + delta).clamp(0.0, double.infinity),
+          hsnCode: p.hsnCode,
+          imageUrl: p.imageUrl,
+        );
+      }
+      return p;
+    }).toList();
+    state = state.copyWith(allProducts: updated);
+  }
+
   Future<void> reload() async {
     final items = await _repo.getAllProducts();
     state = state.copyWith(allProducts: items);

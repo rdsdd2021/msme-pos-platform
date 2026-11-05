@@ -31,6 +31,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { CameraBarcodeModal } from '@/components/camera-barcode-modal';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -175,6 +176,21 @@ export default function PosCheckoutScreen() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Realtime Live Event Stream Subscription
+  useRealtimeEvents({
+    tenantId: activeTenant?.tenantId,
+    onStockChanged: () => {
+      loadData();
+    },
+    onCatalogChanged: () => {
+      loadData();
+    },
+    onPoll: () => {
+      loadData();
+    },
+    pollIntervalMs: 30000,
+  });
 
   // Keyboard shortcut listener for high-speed cashier billing
   useEffect(() => {

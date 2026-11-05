@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
@@ -126,6 +127,51 @@ class LocalCustomerRepository {
         ),
       );
     }
+  }
+
+  /// Record customer credit repayment atomically and queue sync outbox
+  Future<int> recordRepayment({
+    required String customerId,
+    required int amountPaisa,
+    required String paymentMethod,
+    String deviceId = 'pos-mobile-01',
+  }) async {
+    final now = DateTime.now();
+    final existing = await (_db.select(_db.localCustomers)..where((c) => c.id.equals(customerId))).getSingleOrNull();
+    if (existing == null) throw ArgumentError('Customer not found');
+
+    final updatedBalance = (existing.currentBalancePaisa - amountPaisa).clamp(0, 1000000000);
+
+    await _db.transaction(() async {
+      await (_db.update(_db.localCustomers)..where((c) => c.id.equals(customerId))).write(
+        LocalCustomersCompanion(
+          currentBalancePaisa: Value(updatedBalance),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: deviceId,
+          sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
+          operationType: 'CUSTOMER_REPAYMENT',
+          schemaVersion: const Value(1),
+          payload: jsonEncode({
+            'customerId': customerId,
+            'customerName': existing.name,
+            'amount': (amountPaisa / 100.0).toStringAsFixed(2),
+            'method': paymentMethod,
+            'remainingBalance': (updatedBalance / 100.0).toStringAsFixed(2),
+          }),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(now),
+        ),
+      );
+    });
+
+    return updatedBalance;
   }
 
   /// Compute total outstanding Khata ledger balance across all customers
