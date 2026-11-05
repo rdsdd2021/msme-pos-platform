@@ -20,44 +20,11 @@ class LocalCustomerRepository {
     );
   }
 
-  /// Seeds initial Kirana customers if table is currently empty
-  Future<void> seedInitialCustomersIfEmpty({String tenantId = 'tenant-1'}) async {
-    final count = await _db.localCustomers.count().getSingle();
-    if (count > 0) return;
-
-    final initialCustomers = [
-      LocalCustomersCompanion.insert(
-        id: 'c-1',
-        tenantId: tenantId,
-        name: 'Ramesh Sharma',
-        phone: '+919876543210',
-        creditLimitPaisa: const Value(500000), // ₹5,000.00
-        currentBalancePaisa: const Value(125000), // ₹1,250.00 outstanding
-        updatedAt: Value(DateTime.now()),
-      ),
-      LocalCustomersCompanion.insert(
-        id: 'c-2',
-        tenantId: tenantId,
-        name: 'Pooja Verma',
-        phone: '+919876543211',
-        creditLimitPaisa: const Value(300000), // ₹3,000.00
-        currentBalancePaisa: const Value(42000), // ₹420.00 outstanding
-        updatedAt: Value(DateTime.now()),
-      ),
-      LocalCustomersCompanion.insert(
-        id: 'c-3',
-        tenantId: tenantId,
-        name: 'Suresh Patel',
-        phone: '+919876543212',
-        creditLimitPaisa: const Value(1000000), // ₹10,000.00
-        currentBalancePaisa: const Value(0),
-        updatedAt: Value(DateTime.now()),
-      ),
-    ];
-
-    await _db.batch((batch) {
-      batch.insertAll(_db.localCustomers, initialCustomers);
-    });
+  /// Purges any legacy mock customers
+  Future<void> purgeMockCustomersIfPresent() async {
+    await (_db.delete(_db.localCustomers)
+          ..where((t) => t.tenantId.equals('tenant-1') | t.id.isIn(['c-1', 'c-2', 'c-3'])))
+        .go();
   }
 
   /// Reactive stream of all customers ordered by name

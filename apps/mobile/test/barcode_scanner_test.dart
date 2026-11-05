@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pos_mobile/core/database/app_database.dart';
+import 'package:pos_mobile/core/models/product.dart';
+import 'package:pos_mobile/core/providers/catalog_provider.dart';
 import 'package:pos_mobile/core/providers/printer_provider.dart';
 import 'package:pos_mobile/core/services/barcode_scanner_listener.dart';
 import 'package:pos_mobile/core/services/offline_billing_service.dart';
@@ -93,9 +95,40 @@ void main() {
     });
 
     Widget createTestPosScreen() {
+      final testProducts = [
+        const Product(
+          id: 'prod-5',
+          name: 'Parle-G Biscuit 800g',
+          sku: 'SNACK-001',
+          barcode: '890103000005',
+          category: 'Snacks',
+          unit: 'PKT',
+          sellingPricePaisa: 8000,
+          purchaseCostPaisa: 6800,
+          gstRate: 18,
+          currentStock: 80.0,
+        ),
+        const Product(
+          id: 'prod-1',
+          name: 'Aashirvaad Atta 5kg',
+          sku: 'GROC-001',
+          barcode: '890103000001',
+          category: 'Groceries',
+          unit: 'PKT',
+          sellingPricePaisa: 24000,
+          purchaseCostPaisa: 21000,
+          gstRate: 5,
+          currentStock: 50.0,
+        ),
+      ];
+
       return ProviderScope(
         overrides: [
           printerServiceProvider.overrideWithValue(testPrinterService),
+          catalogProvider.overrideWith(
+            (ref) => CatalogNotifier(ref.watch(localCatalogRepoProvider))
+              ..state = CatalogState(allProducts: testProducts),
+          ),
         ],
         child: const MaterialApp(
           home: MobilePosScreen(),

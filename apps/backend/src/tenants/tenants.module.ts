@@ -21,7 +21,7 @@ import { AuditService } from './audit.service';
   ],
   controllers: [TenantsController],
   providers: [TenantsService, TenantGuard, PermissionsGuard, AuditService],
-  exports: [TenantsService, TenantGuard, PermissionsGuard, AuditService],
+  exports: [TenantsService, TenantGuard, PermissionsGuard, AuditService, TypeOrmModule],
 })
 export class TenantsModule {}
 

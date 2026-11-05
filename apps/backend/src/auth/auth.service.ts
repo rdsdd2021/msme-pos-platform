@@ -137,8 +137,8 @@ export class AuthService {
       });
       await manager.save(membership);
 
-      // 5. Seed sample industry catalog if requested (default true)
-      if (dto.seedSampleCatalog !== false) {
+      // 5. Seed sample industry catalog only if explicitly requested (default false for clean commercial store)
+      if (dto.seedSampleCatalog === true) {
         await this.seedIndustryCatalog(manager, persistedTenant.id, persistedBranch.id, dto.businessType);
       }
 
@@ -153,7 +153,7 @@ export class AuthService {
           storeName: persistedTenant.displayName,
           businessType: persistedTenant.businessType,
           stateCode: persistedBranch.stateCode,
-          seeded: dto.seedSampleCatalog !== false,
+          seeded: dto.seedSampleCatalog === true,
         },
       });
       await manager.save(auditLog);

@@ -9,29 +9,7 @@ final localCustomerRepoProvider = Provider<LocalCustomerRepository>((ref) {
   return LocalCustomerRepository(db);
 });
 
-const defaultInitialCustomers = <Customer>[
-  Customer(
-    id: 'c-1',
-    name: 'Ramesh Sharma',
-    phone: '+919876543210',
-    creditLimitPaisa: 500000,
-    currentBalancePaisa: 125000,
-  ),
-  Customer(
-    id: 'c-2',
-    name: 'Pooja Verma',
-    phone: '+919876543211',
-    creditLimitPaisa: 300000,
-    currentBalancePaisa: 42000,
-  ),
-  Customer(
-    id: 'c-3',
-    name: 'Suresh Patel',
-    phone: '+919876543212',
-    creditLimitPaisa: 1000000,
-    currentBalancePaisa: 0,
-  ),
-];
+const defaultInitialCustomers = <Customer>[];
 
 class CustomerState {
   final List<Customer> allCustomers;
@@ -75,11 +53,12 @@ class CustomerNotifier extends StateNotifier<CustomerState> {
 
   Future<void> _init() async {
     try {
-      // Ensure initial baseline seeds exist
-      await _repo.seedInitialCustomersIfEmpty();
+      await _repo.purgeMockCustomersIfPresent();
       final customers = await _repo.getAllCustomers();
       if (customers.isNotEmpty) {
         state = state.copyWith(allCustomers: customers, isLoading: false);
+      } else {
+        state = state.copyWith(isLoading: false);
       }
     } catch (_) {
       state = state.copyWith(isLoading: false);

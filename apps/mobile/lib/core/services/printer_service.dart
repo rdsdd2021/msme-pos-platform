@@ -287,21 +287,37 @@ class BluetoothPrinterTransport implements PrinterTransport {
     _connected = false;
   }
 
+  /// Explicitly request Android Bluetooth & Nearby Devices runtime permissions
+  static Future<bool> requestPermissions() async {
+    try {
+      final ok = await _channel.invokeMethod<bool>('requestPermissions');
+      return ok ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Check whether device Bluetooth hardware is currently toggled on
+  static Future<bool> isBluetoothEnabled() async {
+    try {
+      final ok = await _channel.invokeMethod<bool>('isBluetoothEnabled');
+      return ok ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Query bonded/paired Bluetooth thermal printers from Android OS
   static Future<List<BluetoothDeviceItem>> getPairedDevices() async {
-    try {
-      final list = await _channel.invokeListMethod<dynamic>('getPairedDevices');
-      if (list == null) return [];
-      return list.map((item) {
-        final map = Map<String, dynamic>.from(item as Map);
-        return BluetoothDeviceItem(
-          name: map['name']?.toString() ?? 'Thermal Printer',
-          address: map['address']?.toString() ?? '',
-        );
-      }).toList();
-    } catch (_) {
-      return [];
-    }
+    final list = await _channel.invokeListMethod<dynamic>('getPairedDevices');
+    if (list == null) return [];
+    return list.map((item) {
+      final map = Map<String, dynamic>.from(item as Map);
+      return BluetoothDeviceItem(
+        name: map['name']?.toString() ?? 'Thermal Printer',
+        address: map['address']?.toString() ?? '',
+      );
+    }).toList();
   }
 }
 
@@ -319,7 +335,7 @@ class PrinterService {
   PrinterService({
     PrinterTransport? transport,
     PaperWidth paperWidth = PaperWidth.mm58,
-  })  : _transport = transport ?? MockPrinterTransport(),
+  })  : _transport = transport ?? DisconnectedPrinterTransport(),
         _paperWidth = paperWidth {
     if (_transport.isConnected) {
       _status = PrinterStatus.connected;

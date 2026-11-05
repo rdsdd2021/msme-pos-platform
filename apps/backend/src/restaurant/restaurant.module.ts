@@ -9,6 +9,7 @@ import { RestaurantKotLineEntity } from './entities/restaurant-kot-line.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
 import { TenantsModule } from '../tenants/tenants.module';
 import { BillingModule } from '../billing/billing.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { BillingModule } from '../billing/billing.module';
     ]),
     TenantsModule,
     BillingModule,
+    AuthModule,
   ],
   controllers: [RestaurantController],
   providers: [RestaurantService],

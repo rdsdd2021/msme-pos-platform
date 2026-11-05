@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/cart_item.dart';
 import '../../core/models/product.dart';
@@ -16,6 +17,15 @@ import '../../core/services/barcode_scanner_listener.dart';
 import '../../core/services/escpos_builder.dart';
 import '../../core/services/offline_billing_service.dart';
 import '../../core/config/app_config.dart';
+import '../../core/theme/shadcn_colors.dart';
+import '../../core/theme/shadcn_typography.dart';
+import '../../core/widgets/shadcn_card.dart';
+import '../../core/widgets/shadcn_button.dart';
+import '../../core/widgets/shadcn_badge.dart';
+import '../../core/widgets/shadcn_input.dart';
+import '../../core/widgets/shadcn_sheet.dart';
+import '../../core/widgets/shadcn_quantity_stepper.dart';
+import '../../core/widgets/shadcn_empty_state.dart';
 
 class MobilePosScreen extends ConsumerStatefulWidget {
   const MobilePosScreen({super.key});
@@ -38,58 +48,53 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
 
     final customerList = ref.read(customerProvider).allCustomers;
 
-    showModalBottomSheet(
+    ShadcnSheet.show(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      title: 'Collect Payment',
+      description: '${cart.totalItemsCount} items | Tax: ₹${cart.taxRupees.toStringAsFixed(2)}',
+      child: _CheckoutSheetContent(
+        cart: cart,
+        customers: customerList,
+        onAddCustomer: (name, phone) async {
+          final newC = await ref.read(customerProvider.notifier).addCustomer(
+            name: name,
+            phone: phone,
+          );
+          return newC;
+        },
+        onComplete: (paymentMethod, customerId, customerName) async {
+          Navigator.pop(context);
+          final authState = ref.read(authProvider);
+          final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+          final branchId = authState.activeBranchId ?? 'branch-1';
+          final deviceId = await AppConfig.getDeviceId();
+
+          final result = await OfflineBillingService.processSale(
+            items: cart.items,
+            paymentMethod: paymentMethod,
+            customerId: customerId,
+            customerName: customerName,
+            tenantId: tenantId,
+            branchId: branchId,
+            deviceId: deviceId,
+          );
+
+          // Deduct stock in catalog
+          for (final item in cart.items) {
+            await ref.read(catalogProvider.notifier).deductStock(item.product.id, item.quantity);
+          }
+
+          // Clear Cart
+          ref.read(cartProvider.notifier).clearCart();
+
+          // Refresh pending outbox sync count & trigger non-blocking real-time push
+          await ref.read(syncStateProvider.notifier).refreshStatus();
+          unawaited(ref.read(syncStateProvider.notifier).syncNow());
+
+          if (!mounted) return;
+          _showReceiptDialog(result);
+        },
       ),
-      builder: (ctx) {
-        return _CheckoutBottomSheet(
-          cart: cart,
-          customers: customerList,
-          onAddCustomer: (name, phone) async {
-            final newC = await ref.read(customerProvider.notifier).addCustomer(
-              name: name,
-              phone: phone,
-            );
-            return newC;
-          },
-          onComplete: (paymentMethod, customerId, customerName) async {
-            Navigator.pop(ctx);
-            final authState = ref.read(authProvider);
-            final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
-            final branchId = authState.activeBranchId ?? 'branch-1';
-            final deviceId = await AppConfig.getDeviceId();
-
-            final result = await OfflineBillingService.processSale(
-              items: cart.items,
-              paymentMethod: paymentMethod,
-              customerId: customerId,
-              customerName: customerName,
-              tenantId: tenantId,
-              branchId: branchId,
-              deviceId: deviceId,
-            );
-
-            // Deduct stock in catalog
-            for (final item in cart.items) {
-              await ref.read(catalogProvider.notifier).deductStock(item.product.id, item.quantity);
-            }
-
-            // Clear Cart
-            ref.read(cartProvider.notifier).clearCart();
-
-            // Refresh pending outbox sync count & trigger non-blocking real-time push
-            await ref.read(syncStateProvider.notifier).refreshStatus();
-            unawaited(ref.read(syncStateProvider.notifier).syncNow());
-
-            if (!mounted) return;
-            _showReceiptDialog(result);
-          },
-        );
-      },
     );
   }
 
@@ -109,11 +114,12 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (matchedProduct != null) {
       final success = ref.read(cartProvider.notifier).addProduct(matchedProduct);
+      HapticFeedback.mediumImpact();
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Cannot add more: Only ${matchedProduct.currentStock.toInt()} units in stock for ${matchedProduct.name}'),
-            backgroundColor: Colors.orange.shade800,
+            backgroundColor: ShadcnColors.warning,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -121,16 +127,17 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Scanned: ${matchedProduct.name} (₹${matchedProduct.sellingPriceRupees.toStringAsFixed(2)}) added to cart!'),
-          backgroundColor: Colors.green.shade700,
+          content: Text('Added to cart: ${matchedProduct.name} (₹${matchedProduct.sellingPriceRupees.toStringAsFixed(2)})'),
+          backgroundColor: ShadcnColors.primary,
           duration: const Duration(seconds: 1),
         ),
       );
     } else {
+      HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Barcode "$barcode" not recognized in catalog.'),
-          backgroundColor: Colors.red.shade700,
+          backgroundColor: ShadcnColors.destructive,
           duration: const Duration(seconds: 2),
           action: SnackBarAction(
             label: 'Search',
@@ -161,11 +168,16 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
             final isPrinting = ref.watch(printerProvider).isPrinting;
 
             return AlertDialog(
+              backgroundColor: ShadcnColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: ShadcnColors.border, width: 1),
+              ),
               title: const Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  Icon(Icons.check_circle_rounded, color: ShadcnColors.success, size: 24),
                   SizedBox(width: 8),
-                  Text('Sale Complete!'),
+                  Text('Sale Complete!', style: ShadcnTypography.h3),
                 ],
               ),
               content: SizedBox(
@@ -175,49 +187,56 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        'Bill No: ${result.invoiceNumber}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Bill No: ${result.invoiceNumber}', style: ShadcnTypography.bodySemibold),
+                          ShadcnBadge(
+                            text: result.paymentMethod.toUpperCase(),
+                            variant: ShadcnBadgeVariant.success,
+                          ),
+                        ],
                       ),
-                      Text('Tender: ${result.paymentMethod.toUpperCase()}'),
+                      const SizedBox(height: 4),
                       Text(
                         'Amount Paid: ₹${result.totalRupees.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                        style: ShadcnTypography.currency.copyWith(color: ShadcnColors.primary),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: ShadcnColors.secondary,
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.blue.shade200),
+                          border: Border.all(color: ShadcnColors.border),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.print, size: 14, color: Colors.blue.shade700),
+                            const Icon(Icons.print_outlined, size: 14, color: ShadcnColors.mutedForeground),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 'Printer: ${printerState.activeTransportName} (${printerState.paperWidth.name.toUpperCase()})',
-                                style: TextStyle(fontSize: 11, color: Colors.blue.shade900),
+                                style: ShadcnTypography.caption,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const Divider(height: 20),
-                      const Text('Thermal Receipt Preview:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      const SizedBox(height: 12),
+                      const Text('Thermal Receipt Preview:', style: ShadcnTypography.caption),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: ShadcnColors.border),
                         ),
                         child: Text(
                           result.receiptText,
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                          style: ShadcnTypography.code.copyWith(fontSize: 11, height: 1.3),
                         ),
                       ),
                     ],
@@ -227,7 +246,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('New Sale (Done)'),
+                  child: const Text('New Sale', style: TextStyle(color: ShadcnColors.mutedForeground)),
                 ),
                 ElevatedButton.icon(
                   key: const Key('print_receipt_btn'),
@@ -246,7 +265,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text('Receipt printed successfully (${printRes.bytesSent} bytes)!'),
-                                backgroundColor: Colors.green,
+                                backgroundColor: ShadcnColors.success,
                                 duration: const Duration(seconds: 2),
                               ),
                             );
@@ -257,19 +276,24 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                                 content: Text(
                                   'Print Error: ${printRes.errorMessage ?? "Printer offline"}\nSale recorded safely in database (Rule 14).',
                                 ),
-                                backgroundColor: Colors.red.shade700,
+                                backgroundColor: ShadcnColors.destructive,
                                 duration: const Duration(seconds: 3),
                               ),
                             );
                           }
                         },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ShadcnColors.primary,
+                    foregroundColor: ShadcnColors.primaryForeground,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
                   icon: isPrinting
                       ? const SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Icon(Icons.print),
+                      : const Icon(Icons.print, size: 16),
                   label: Text(isPrinting ? 'Printing...' : 'Print Receipt'),
                 ),
               ],
@@ -288,67 +312,83 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
+          backgroundColor: ShadcnColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: ShadcnColors.border, width: 1),
+          ),
           title: const Row(
             children: [
-              Icon(Icons.receipt_long, color: Color(0xFF0F172A)),
+              Icon(Icons.receipt_long, color: ShadcnColors.foreground, size: 20),
               SizedBox(width: 8),
-              Text('Recent Invoices'),
+              Text('Recent Invoices', style: ShadcnTypography.h3),
             ],
           ),
           content: SizedBox(
             width: double.maxFinite,
-            height: 350,
+            height: 380,
             child: invoices.isEmpty
-                ? const Center(child: Text('No invoices recorded locally yet.'))
+                ? const ShadcnEmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'No Invoices Yet',
+                    description: 'Completed customer sales will appear here.',
+                  )
                 : ListView.separated(
                     itemCount: invoices.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: ShadcnColors.border),
                     itemBuilder: (context, index) {
                       final inv = invoices[index];
                       final dateStr = '${inv.createdAt.day}/${inv.createdAt.month}/${inv.createdAt.year} '
                           '${inv.createdAt.hour}:${inv.createdAt.minute.toString().padLeft(2, '0')}';
                       return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        title: Text(
-                          inv.invoiceNumber,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        title: Text(inv.invoiceNumber, style: ShadcnTypography.bodySemibold),
+                        subtitle: Text(
+                          '$dateStr • ${inv.paymentMethod.toUpperCase()}',
+                          style: ShadcnTypography.caption,
                         ),
-                        subtitle: Text('$dateStr | ${inv.paymentMethod.toUpperCase()} | ₹${(inv.grandTotalPaisa / 100).toStringAsFixed(2)}'),
-                        trailing: ElevatedButton.icon(
-                          key: Key('reprint_btn_${inv.invoiceNumber}'),
-                          icon: const Icon(Icons.print, size: 14),
-                          label: const Text('Reprint', style: TextStyle(fontSize: 11)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0F172A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          ),
-                          onPressed: () async {
-                            final messenger = ScaffoldMessenger.of(context);
-                            final navigator = Navigator.of(ctx);
-                            final doc = await OfflineBillingService.getReceiptDocument(inv.id);
-                            if (doc == null) return;
-                            final printRes = await ref.read(printerProvider.notifier).reprintReceipt(doc);
-                            if (!mounted) return;
-                            messenger.hideCurrentSnackBar();
-                            if (printRes.success) {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Duplicate receipt printed for ${inv.invoiceNumber}!'),
-                                  backgroundColor: Colors.green,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                              navigator.pop();
-                            } else {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text('Reprint failed: ${printRes.errorMessage}'),
-                                  backgroundColor: Colors.red.shade700,
-                                ),
-                              );
-                            }
-                          },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '₹${(inv.grandTotalPaisa / 100).toStringAsFixed(2)}',
+                              style: ShadcnTypography.bodySemibold.copyWith(color: ShadcnColors.primary),
+                            ),
+                            const SizedBox(width: 8),
+                            ShadcnButton(
+                              key: Key('reprint_btn_${inv.invoiceNumber}'),
+                              text: 'Reprint',
+                              size: ShadcnButtonSize.sm,
+                              variant: ShadcnButtonVariant.outline,
+                              leadingIcon: const Icon(Icons.print, size: 14),
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                final navigator = Navigator.of(ctx);
+                                final doc = await OfflineBillingService.getReceiptDocument(inv.id);
+                                if (doc == null) return;
+                                final printRes = await ref.read(printerProvider.notifier).reprintReceipt(doc);
+                                if (!mounted) return;
+                                messenger.hideCurrentSnackBar();
+                                if (printRes.success) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Duplicate receipt printed for ${inv.invoiceNumber}!'),
+                                      backgroundColor: ShadcnColors.success,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  navigator.pop();
+                                } else {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('Reprint failed: ${printRes.errorMessage}'),
+                                      backgroundColor: ShadcnColors.destructive,
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -357,7 +397,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+              child: const Text('Close', style: TextStyle(color: ShadcnColors.mutedForeground)),
             ),
           ],
         );
@@ -378,14 +418,54 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
             final printer = ref.watch(printerProvider);
             final notifier = ref.read(printerProvider.notifier);
 
+            String? scanErrorMessage;
+
             void loadDevices() async {
-              setDlgState(() => isLoadingDevices = true);
-              final devs = await BluetoothPrinterTransport.getPairedDevices();
-              if (ctx.mounted) {
-                setDlgState(() {
-                  pairedDevices = devs;
-                  isLoadingDevices = false;
-                });
+              setDlgState(() {
+                isLoadingDevices = true;
+                scanErrorMessage = null;
+              });
+
+              try {
+                final hasPerm = await BluetoothPrinterTransport.requestPermissions();
+                if (!hasPerm) {
+                  if (ctx.mounted) {
+                    setDlgState(() {
+                      isLoadingDevices = false;
+                      scanErrorMessage = 'Bluetooth / Nearby Devices permission is required. Please grant permission in Phone Settings.';
+                    });
+                  }
+                  return;
+                }
+
+                final isBtOn = await BluetoothPrinterTransport.isBluetoothEnabled();
+                if (!isBtOn) {
+                  if (ctx.mounted) {
+                    setDlgState(() {
+                      isLoadingDevices = false;
+                      scanErrorMessage = 'Bluetooth is turned OFF. Please enable Bluetooth in Android Settings.';
+                    });
+                  }
+                  return;
+                }
+
+                final devs = await BluetoothPrinterTransport.getPairedDevices();
+                if (ctx.mounted) {
+                  setDlgState(() {
+                    pairedDevices = devs;
+                    isLoadingDevices = false;
+                    if (devs.isEmpty) {
+                      scanErrorMessage = 'No paired Bluetooth printers found.\nPair your thermal printer in Phone Settings > Bluetooth (PIN: 0000 or 1234), then tap Scan.';
+                    }
+                  });
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  setDlgState(() {
+                    isLoadingDevices = false;
+                    scanErrorMessage = 'Bluetooth scan error: ${e.toString()}';
+                  });
+                }
               }
             }
 
@@ -395,11 +475,16 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
             }
 
             return AlertDialog(
+              backgroundColor: ShadcnColors.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: ShadcnColors.border, width: 1),
+              ),
               title: const Row(
                 children: [
-                  Icon(Icons.print, color: Color(0xFF0F172A)),
+                  Icon(Icons.print_outlined, color: ShadcnColors.foreground, size: 20),
                   SizedBox(width: 8),
-                  Text('Thermal Printer Setup'),
+                  Text('Thermal Printer Setup', style: ShadcnTypography.h3),
                 ],
               ),
               content: SizedBox(
@@ -409,186 +494,190 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.circle,
-                            size: 12,
-                            color: printer.isReady
-                                ? Colors.green
-                                : (printer.hasError ? Colors.red : Colors.grey),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Status: ${printer.status.label}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                      // Status card
+                      ShadcnCard(
+                        padding: const EdgeInsets.all(12),
+                        backgroundColor: printer.isReady
+                            ? ShadcnColors.successLight
+                            : ShadcnColors.secondary,
+                        borderColor: printer.isReady
+                            ? ShadcnColors.success.withValues(alpha: 0.3)
+                            : ShadcnColors.border,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: printer.isReady
+                                    ? ShadcnColors.success
+                                    : ShadcnColors.destructive,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    printer.isReady ? 'Printer Connected' : 'Printer Disconnected',
+                                    style: ShadcnTypography.bodySemibold.copyWith(
+                                      color: printer.isReady
+                                          ? ShadcnColors.successForeground
+                                          : ShadcnColors.foreground,
+                                    ),
+                                  ),
+                                  Text(
+                                    printer.activeTransportName,
+                                    style: ShadcnTypography.caption,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Device: ${printer.activeTransportName}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const Divider(height: 20),
 
-                      // Bluetooth Pairing Section
+                      const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.bluetooth, size: 16, color: Colors.blue),
-                              SizedBox(width: 4),
-                              Text('Bluetooth Thermal Printers', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                            ],
-                          ),
+                          const Text('Paired Devices', style: ShadcnTypography.bodySemibold),
                           TextButton.icon(
                             onPressed: isLoadingDevices ? null : loadDevices,
                             icon: isLoadingDevices
                                 ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2))
                                 : const Icon(Icons.refresh, size: 14),
-                            label: const Text('Scan', style: TextStyle(fontSize: 11)),
+                            label: const Text('Scan', style: TextStyle(fontSize: 12, color: ShadcnColors.primary)),
                           ),
                         ],
                       ),
-                      if (pairedDevices.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: pairedDevices.length,
-                          itemBuilder: (ctx, i) {
-                            final dev = pairedDevices[i];
-                            final isCurrent = printer.activeTransportName.contains(dev.address);
-                            return ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(
-                                Icons.print,
-                                color: isCurrent ? Colors.green : Colors.grey,
-                                size: 18,
-                              ),
-                              title: Text(dev.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              subtitle: Text(dev.address, style: const TextStyle(fontSize: 10)),
-                              trailing: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isCurrent ? Colors.green : const Color(0xFF0F172A),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                ),
-                                onPressed: () async {
-                                  final transport = BluetoothPrinterTransport(address: dev.address, name: dev.name);
-                                  notifier.setTransport(transport);
-                                  final ok = await notifier.reconnect();
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(ok ? 'Connected to ${dev.name}!' : 'Failed to connect to ${dev.name}'),
-                                        backgroundColor: ok ? Colors.green : Colors.red,
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: Text(isCurrent ? 'Connected' : 'Connect', style: const TextStyle(fontSize: 11)),
-                              ),
-                            );
-                          },
-                        ),
-                      ] else ...[
+
+                      if (scanErrorMessage != null) ...[
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
+                            color: ShadcnColors.warningLight,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.blue.shade100),
+                            border: Border.all(color: ShadcnColors.warning.withValues(alpha: 0.3)),
                           ),
-                          child: const Text(
-                            'Pair your 58mm/80mm Bluetooth printer in Android Phone Settings (PIN: 0000 or 1234), then tap "Scan" above to connect.',
-                            style: TextStyle(fontSize: 11, color: Colors.blueGrey),
+                          child: Text(
+                            scanErrorMessage!,
+                            style: ShadcnTypography.caption.copyWith(color: ShadcnColors.warningForeground),
                           ),
                         ),
+                        const SizedBox(height: 8),
                       ],
 
-                      const Divider(height: 20),
-                      const Text('Paper Width Profile:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      if (pairedDevices.isNotEmpty) ...[
+                        ...pairedDevices.map((d) {
+                          final isSelected = printer.isReady &&
+                              (printer.activeTransportName.contains(d.name) ||
+                                  printer.activeTransportName.contains(d.address));
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? ShadcnColors.successLight : ShadcnColors.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected ? ShadcnColors.success : ShadcnColors.border,
+                              ),
+                            ),
+                            child: ListTile(
+                              dense: true,
+                              title: Text(d.name, style: ShadcnTypography.bodySemibold),
+                              subtitle: Text(d.address, style: ShadcnTypography.caption),
+                              trailing: isSelected
+                                   ? const Icon(Icons.check_circle, color: ShadcnColors.success, size: 18)
+                                  : OutlinedButton(
+                                      onPressed: () => notifier.connectToBluetoothDevice(d),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        side: const BorderSide(color: ShadcnColors.border),
+                                      ),
+                                      child: const Text('Connect', style: TextStyle(fontSize: 11)),
+                                    ),
+                            ),
+                          );
+                        }),
+                      ],
+
+                      const SizedBox(height: 12),
+                      const Text('Paper Width Profile', style: ShadcnTypography.bodySemibold),
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          ChoiceChip(
-                            label: const Text('58mm (32 cols)'),
-                            selected: printer.paperWidth == PaperWidth.mm58,
-                            onSelected: (val) {
-                              if (val) notifier.setPaperWidth(PaperWidth.mm58);
-                            },
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(child: Text('58mm (32 cols)')),
+                              selected: printer.paperWidth == PaperWidth.mm58,
+                              selectedColor: ShadcnColors.primary,
+                              labelStyle: TextStyle(
+                                color: printer.paperWidth == PaperWidth.mm58 ? Colors.white : ShadcnColors.foreground,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                              onSelected: (val) {
+                                if (val) notifier.setPaperWidth(PaperWidth.mm58);
+                              },
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('80mm (48 cols)'),
-                            selected: printer.paperWidth == PaperWidth.mm80,
-                            onSelected: (val) {
-                              if (val) notifier.setPaperWidth(PaperWidth.mm80);
-                            },
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Center(child: Text('80mm (48 cols)')),
+                              selected: printer.paperWidth == PaperWidth.mm80,
+                              selectedColor: ShadcnColors.primary,
+                              labelStyle: TextStyle(
+                                color: printer.paperWidth == PaperWidth.mm80 ? Colors.white : ShadcnColors.foreground,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                              onSelected: (val) {
+                                if (val) notifier.setPaperWidth(PaperWidth.mm80);
+                              },
+                            ),
                           ),
                         ],
                       ),
-                      const Divider(height: 20),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.blueGrey,
-                          side: BorderSide(color: Colors.blueGrey.shade200),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        icon: const Icon(Icons.developer_mode, size: 16),
-                        label: const Text('Use Demo Simulated Printer (Testing Mode)', style: TextStyle(fontSize: 11)),
-                        onPressed: () {
-                          notifier.enableDemoPrinter();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Switched to Demo Simulated Printer for testing!'),
-                                backgroundColor: Color(0xFF10B981),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 10),
+
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton.icon(
+                            child: ShadcnButton(
+                              text: 'Test Print',
+                              variant: ShadcnButtonVariant.outline,
+                              leadingIcon: const Icon(Icons.receipt_outlined, size: 14),
                               onPressed: () async {
                                 final res = await notifier.printTestPage();
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                      res.success ? 'Test page printed!' : 'Test print error: ${res.errorMessage}',
-                                    ),
-                                    backgroundColor: res.success ? Colors.green : Colors.red,
+                                    content: Text(res.success ? 'Test page printed!' : 'Test print error: ${res.errorMessage}'),
+                                    backgroundColor: res.success ? ShadcnColors.success : ShadcnColors.destructive,
                                   ),
                                 );
                               },
-                              icon: const Icon(Icons.receipt, size: 16),
-                              label: const Text('Test Print', style: TextStyle(fontSize: 12)),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: OutlinedButton.icon(
+                            child: ShadcnButton(
+                              text: 'Kick Drawer',
+                              variant: ShadcnButtonVariant.outline,
+                              leadingIcon: const Icon(Icons.point_of_sale_outlined, size: 14),
                               onPressed: () async {
                                 final ok = await notifier.kickCashDrawer();
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(ok ? 'Cash drawer pulse sent!' : 'Drawer kick failed'),
-                                    backgroundColor: ok ? Colors.green : Colors.red,
+                                    backgroundColor: ok ? ShadcnColors.success : ShadcnColors.destructive,
                                   ),
                                 );
                               },
-                              icon: const Icon(Icons.point_of_sale, size: 16),
-                              label: const Text('Kick Drawer', style: TextStyle(fontSize: 12)),
                             ),
                           ),
                         ],
@@ -600,7 +689,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Done'),
+                  child: const Text('Done', style: TextStyle(color: ShadcnColors.foreground)),
                 ),
               ],
             );
@@ -621,11 +710,16 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: ShadcnColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: ShadcnColors.border, width: 1),
+        ),
         title: const Row(
           children: [
-            Icon(Icons.qr_code_scanner, color: Color(0xFF0F172A)),
+            Icon(Icons.qr_code_scanner, color: ShadcnColors.foreground, size: 20),
             SizedBox(width: 8),
-            Text('Scan Barcode'),
+            Text('Scan Barcode', style: ShadcnTypography.h3),
           ],
         ),
         content: Column(
@@ -633,43 +727,52 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'External USB & Bluetooth scanners scan automatically in the background.\nOr enter an item barcode / SKU below:',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              'Handheld laser scanners and USB guns scan directly.\nOr type SKU / Barcode below:',
+              style: ShadcnTypography.caption,
             ),
             const SizedBox(height: 12),
-            TextField(
+            ShadcnInput(
               controller: controller,
               autofocus: true,
-              keyboardType: TextInputType.text,
-              decoration: InputDecoration(
-                hintText: 'Enter Barcode or SKU (e.g. 890103000005)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                isDense: true,
-              ),
-              onSubmitted: (code) {
-                if (code.trim().isNotEmpty) {
+              placeholder: 'e.g. 890103000005 or GROC-002',
+              onEditingComplete: () {
+                final code = controller.text.trim();
+                if (code.isNotEmpty) {
                   Navigator.pop(ctx);
-                  _onBarcodeScanned(code.trim());
+                  _onBarcodeScanned(code);
                 }
               },
             ),
             if (popularWithBarcodes.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text('Active Catalog Items with Barcode:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
+              const Text('Catalog Items with Barcodes:', style: ShadcnTypography.caption),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
-                runSpacing: 4,
-                children: popularWithBarcodes.map((item) {
-                  final label = item.name.contains('Parle-G') ? 'Parle-G 800g' : item.name;
-                  return ActionChip(
-                    label: Text(label, style: const TextStyle(fontSize: 11)),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _onBarcodeScanned(item.barcode!);
-                    },
-                  );
-                }).toList(),
+                runSpacing: 6,
+                children: [
+                  if (popularWithBarcodes.any((p) => p.barcode == '890103000005'))
+                    ActionChip(
+                      backgroundColor: ShadcnColors.secondary,
+                      label: const Text('Parle-G 800g', style: TextStyle(fontSize: 11, color: ShadcnColors.foreground)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _onBarcodeScanned('890103000005');
+                      },
+                    ),
+                  ...popularWithBarcodes
+                      .where((p) => p.barcode != '890103000005')
+                      .map((item) {
+                    return ActionChip(
+                      backgroundColor: ShadcnColors.secondary,
+                      label: Text(item.name, style: const TextStyle(fontSize: 11, color: ShadcnColors.foreground)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _onBarcodeScanned(item.barcode!);
+                      },
+                    );
+                  }),
+                ],
               ),
             ],
           ],
@@ -677,9 +780,14 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: ShadcnColors.mutedForeground)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ShadcnColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
             onPressed: () {
               final code = controller.text.trim();
               if (code.isNotEmpty) {
@@ -694,35 +802,37 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     );
   }
 
-  Future<void> _confirmLogout(BuildContext context) async {
-    final authState = ref.read(authProvider);
-    final confirm = await showDialog<bool>(
+  void _showLogoutDialog(BuildContext context, String storeName) {
+    showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: Text(
-          'Are you sure you want to sign out from ${authState.user?.fullName ?? "this terminal"}?',
+        backgroundColor: ShadcnColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: ShadcnColors.border, width: 1),
         ),
+        title: const Text('Sign Out', style: ShadcnTypography.h3),
+        content: Text('Are you sure you want to sign out of $storeName?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: ShadcnColors.mutedForeground)),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: ShadcnColors.destructive,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(authProvider.notifier).logout();
+            },
             child: const Text('Sign Out'),
           ),
         ],
       ),
     );
-
-    if (confirm == true) {
-      await ref.read(authProvider.notifier).logout();
-    }
   }
 
   @override
@@ -733,230 +843,235 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     final cartState = ref.watch(cartProvider);
 
     final categories = catalogState.availableCategories;
+    final storeName = authState.activeMembership?.tenantName ?? 'Kirana Supermart';
+    final branchName = authState.activeBranchId ?? 'BR-001';
 
     return HardwareBarcodeScannerListener(
       onBarcodeScanned: _onBarcodeScanned,
       child: Scaffold(
+        backgroundColor: ShadcnColors.background,
         appBar: AppBar(
-          backgroundColor: const Color(0xFF0F172A),
-          foregroundColor: Colors.white,
+          backgroundColor: ShadcnColors.surface,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                authState.activeMembership?.tenantName ?? 'Kirana Supermart',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '${authState.activeBranchId ?? "BR-001"} | ${authState.user?.fullName ?? "Cashier"}',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-              ),
+              Text(storeName, style: ShadcnTypography.h3),
+              Text('$branchName • ${authState.user?.fullName ?? "Cashier"}', style: ShadcnTypography.caption),
             ],
           ),
           actions: [
             IconButton(
               key: const Key('pos_recent_bills_btn'),
-              icon: const Icon(Icons.receipt_long, size: 20),
+              icon: const Icon(Icons.receipt_long_outlined, size: 20),
               tooltip: 'Recent Invoices & Reprint',
               onPressed: _showRecentBillsDialog,
             ),
             IconButton(
               key: const Key('pos_printer_btn'),
-              icon: const Icon(Icons.print, size: 20),
+              icon: const Icon(Icons.print_outlined, size: 20),
               tooltip: 'Thermal Printer Setup',
               onPressed: () => _showPrinterSettingsDialog(context),
             ),
             InkWell(
               key: const Key('pos_sync_badge'),
-            onTap: () async {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              final success = await ref.read(syncStateProvider.notifier).syncNow();
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    success
-                        ? 'Synchronization complete!'
-                        : 'Sync status: ${ref.read(syncStateProvider).lastError ?? "Offline (saved locally)"}',
+              onTap: () async {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                final success = await ref.read(syncStateProvider.notifier).syncNow();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Synchronization complete!'
+                          : 'Sync status: ${ref.read(syncStateProvider).lastError ?? "Offline (saved locally)"}',
+                    ),
+                    backgroundColor: success ? ShadcnColors.success : ShadcnColors.warning,
+                    duration: const Duration(seconds: 2),
                   ),
-                  backgroundColor: success ? Colors.green : Colors.orange.shade800,
-                  duration: const Duration(seconds: 2),
+                );
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: syncState.hasPending ? ShadcnColors.warningLight : ShadcnColors.secondary,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: syncState.hasPending ? ShadcnColors.warning.withOpacity(0.4) : ShadcnColors.border,
+                  ),
                 ),
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: syncState.isSyncing
-                    ? const Color(0xFF3B82F6).withValues(alpha: 0.2)
-                    : (syncState.hasPending
-                        ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
-                        : const Color(0xFF10B981).withValues(alpha: 0.2)),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: syncState.isSyncing
-                      ? Colors.blue.shade600
-                      : (syncState.hasPending
-                          ? Colors.amber.shade600
-                          : Colors.green.shade600),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (syncState.isSyncing) ...[
-                    const SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.lightBlueAccent,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Syncing...',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.lightBlueAccent,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ] else ...[
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Icon(
-                      syncState.hasPending ? Icons.cloud_upload_outlined : Icons.cloud_done,
+                      syncState.isSyncing
+                          ? Icons.sync
+                          : (syncState.hasPending ? Icons.cloud_upload_outlined : Icons.cloud_done_outlined),
                       size: 14,
-                      color: syncState.hasPending ? Colors.amberAccent : Colors.greenAccent,
+                      color: syncState.hasPending ? ShadcnColors.warningForeground : ShadcnColors.mutedForeground,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       syncState.hasPending
                           ? 'Offline Ready (${syncState.pendingCount})'
                           : 'Offline Ready',
-                      style: TextStyle(
+                      style: ShadcnTypography.caption.copyWith(
+                        color: syncState.hasPending ? ShadcnColors.warningForeground : ShadcnColors.mutedForeground,
+                        fontWeight: FontWeight.w600,
                         fontSize: 11,
-                        color: syncState.hasPending ? Colors.amberAccent : Colors.greenAccent,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+            IconButton(
+              key: const Key('pos_logout_btn'),
+              icon: const Icon(Icons.logout, size: 18, color: ShadcnColors.mutedForeground),
+              tooltip: 'Sign Out',
+              onPressed: () => _showLogoutDialog(context, storeName),
+            ),
+            const SizedBox(width: 6),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Search & Barcode Action Bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ShadcnInput(
+                      controller: _searchController,
+                      placeholder: 'Scan Barcode / Search Product...',
+                      prefixIcon: const Icon(Icons.search, size: 18, color: ShadcnColors.mutedForeground),
+                      showClearButton: true,
+                      onChanged: (val) => ref.read(catalogProvider.notifier).updateSearch(val),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 44,
+                    width: 44,
+                    child: ElevatedButton(
+                      key: const Key('pos_manual_scan_btn'),
+                      onPressed: () => _showManualBarcodeDialog(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ShadcnColors.foreground,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
+                      ),
+                      child: const Icon(Icons.qr_code_scanner, size: 20),
+                    ),
+                  ),
                 ],
               ),
             ),
-          ),
-          IconButton(
-            key: const Key('pos_logout_btn'),
-            icon: const Icon(Icons.logout, size: 20),
-            tooltip: 'Sign Out',
-            onPressed: () => _confirmLogout(context),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Barcode & Search Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (val) => ref.read(catalogProvider.notifier).updateSearch(val),
-                    decoration: InputDecoration(
-                      hintText: 'Scan Barcode / Search Product...',
-                      prefixIcon: const Icon(Icons.search),
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+
+            // Category Filter Pills
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: categories.map((cat) {
+                  final isSelected = catalogState.selectedCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        ref.read(catalogProvider.notifier).selectCategory(cat);
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? ShadcnColors.primary : ShadcnColors.surface,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected ? ShadcnColors.primary : ShadcnColors.border,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Text(
+                          cat,
+                          style: ShadcnTypography.caption.copyWith(
+                            color: isSelected ? Colors.white : ShadcnColors.foreground,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  key: const Key('pos_manual_scan_btn'),
-                  onPressed: () => _showManualBarcodeDialog(context),
-                  icon: const Icon(Icons.qr_code_scanner),
-                  tooltip: 'Scan Barcode',
-                  style: IconButton.styleFrom(backgroundColor: const Color(0xFF0F172A)),
-                ),
-              ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
 
-          // Category Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-              children: categories.map((cat) {
-                final isSelected = catalogState.selectedCategory == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(cat),
-                    selected: isSelected,
-                    onSelected: (_) => ref.read(catalogProvider.notifier).selectCategory(cat),
-                    selectedColor: const Color(0xFF10B981),
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12,
+            const SizedBox(height: 6),
+
+            // Product Grid
+            Expanded(
+              child: catalogState.filteredProducts.isEmpty
+                  ? ShadcnEmptyState(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'No Products Found',
+                      description: 'No catalog items match "${_searchController.text}".',
+                      actionText: 'Clear Search',
+                      onActionPressed: () {
+                        _searchController.clear();
+                        ref.read(catalogProvider.notifier).updateSearch('');
+                      },
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 1.15,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: catalogState.filteredProducts.length,
+                      itemBuilder: (context, index) {
+                        final p = catalogState.filteredProducts[index];
+                        return _ProductCard(
+                          product: p,
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            final success = ref.read(cartProvider.notifier).addProduct(p);
+                            if (!success) {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Cannot add more: Only ${p.currentStock.toInt()} units in stock for ${p.name}'),
+                                  backgroundColor: ShadcnColors.warning,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                        );
+                      },
                     ),
-                  ),
-                );
-              }).toList(),
             ),
-          ),
 
-          // Product Grid
-          Expanded(
-            child: catalogState.filteredProducts.isEmpty
-                ? const Center(child: Text('No products match search.'))
-                : GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 1.35,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemCount: catalogState.filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final p = catalogState.filteredProducts[index];
-                      return _ProductCard(
-                        product: p,
-                        onTap: () {
-                          final success = ref.read(cartProvider.notifier).addProduct(p);
-                          if (!success) {
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Cannot add more: Only ${p.currentStock.toInt()} units in stock for ${p.name}'),
-                                backgroundColor: Colors.orange.shade800,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
-          ),
-
-          // Bottom Cart Bar
-          _BottomCartBar(
-            cart: cartState,
-            onCheckout: () => _showCheckoutSheet(context, cartState),
-            onClear: () => ref.read(cartProvider.notifier).clearCart(),
-          ),
-        ],
+            // Sticky Bottom Checkout Dock
+            if (!cartState.isEmpty)
+              _BottomCartBar(
+                cart: cartState,
+                onCheckout: () => _showCheckoutSheet(context, cartState),
+                onClear: () {
+                  HapticFeedback.mediumImpact();
+                  ref.read(cartProvider.notifier).clearCart();
+                },
+              ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _ProductCard extends ConsumerWidget {
@@ -965,21 +1080,6 @@ class _ProductCard extends ConsumerWidget {
 
   const _ProductCard({required this.product, required this.onTap});
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'groceries':
-        return const Color(0xFF10B981);
-      case 'dairy':
-        return const Color(0xFF0284C7);
-      case 'snacks':
-        return const Color(0xFFF59E0B);
-      case 'beverages':
-        return const Color(0xFF8B5CF6);
-      default:
-        return const Color(0xFF64748B);
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.watch(cartProvider);
@@ -987,147 +1087,109 @@ class _ProductCard extends ConsumerWidget {
       (i) => i.product.id == product.id,
       orElse: () => CartItem(product: product, quantity: 0),
     );
-    final catColor = _getCategoryColor(product.category);
 
-    return InkWell(
-      onTap: inCart.quantity == 0 ? onTap : null,
-      borderRadius: BorderRadius.circular(10),
-      child: Ink(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: inCart.quantity > 0 ? const Color(0xFF10B981) : Colors.grey.shade200,
-            width: inCart.quantity > 0 ? 1.5 : 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: inCart.quantity > 0
-                  ? const Color(0xFF10B981).withOpacity(0.08)
-                  : Colors.black.withOpacity(0.02),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final isSelected = inCart.quantity > 0;
+
+    return ShadcnCard(
+      padding: const EdgeInsets.all(10),
+      backgroundColor: isSelected ? ShadcnColors.successLight.withOpacity(0.3) : ShadcnColors.card,
+      borderColor: isSelected ? ShadcnColors.primary : ShadcnColors.border,
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Top Tags
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: ShadcnColors.secondary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  product.category,
+                  style: ShadcnTypography.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600),
+                ),
+              ),
+              ShadcnBadge(
+                text: product.isLowStock
+                    ? '${product.currentStock.toInt()} left'
+                    : '${product.currentStock.toInt()} in stock',
+                variant: product.isLowStock ? ShadcnBadgeVariant.destructive : ShadcnBadgeVariant.secondary,
+              ),
+            ],
+          ),
+
+          // Title & SKU
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                product.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13, height: 1.25),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${product.sku} • ${product.unit}',
+                style: ShadcnTypography.caption.copyWith(fontSize: 10),
+              ),
+            ],
+          ),
+
+          // Price & Quick Stepper / Add Action
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
+                style: ShadcnTypography.currency.copyWith(
+                  fontSize: 15,
+                  color: ShadcnColors.foreground,
+                ),
+              ),
+              if (inCart.quantity > 0)
+                ShadcnQuantityStepper(
+                  quantity: inCart.quantity,
+                  height: 28,
+                  isDestructiveOnZero: true,
+                  onIncrement: onTap,
+                  onDecrement: () {
+                    HapticFeedback.selectionClick();
+                    ref.read(cartProvider.notifier).decrementProduct(product.id);
+                  },
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ShadcnColors.primaryLight,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: catColor.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          product.category,
-                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: catColor),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: product.isLowStock ? Colors.red.shade50 : Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '${product.currentStock.toInt()} ${product.isLowStock ? "⚠️" : "left"}',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: product.isLowStock ? Colors.red.shade700 : Colors.green.shade700,
-                          ),
+                      const Icon(Icons.add, size: 12, color: ShadcnColors.primary),
+                      const SizedBox(width: 2),
+                      Text(
+                        'ADD',
+                        style: ShadcnTypography.caption.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: ShadcnColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0F172A)),
-                  ),
-                  if (inCart.quantity > 0)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: () {
-                            ref.read(cartProvider.notifier).decrementProduct(product.id);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: const Icon(Icons.remove, size: 14),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 5),
-                          child: Text(
-                            '${inCart.quantity}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF10B981)),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: onTap,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Icon(Icons.add, size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    InkWell(
-                      onTap: onTap,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, size: 12, color: Color(0xFF10B981)),
-                            SizedBox(width: 2),
-                            Text('ADD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1146,25 +1208,16 @@ class _BottomCartBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (cart.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        color: Colors.grey.shade100,
-        child: const Center(
-          child: Text('Cart is empty. Tap items to add.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-        ),
-      );
-    }
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: ShadcnColors.surface,
+        border: Border(top: BorderSide(color: ShadcnColors.border, width: 1.0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
+            color: Color(0x0A000000),
             blurRadius: 8,
-            offset: const Offset(0, -2),
+            offset: Offset(0, -2),
           ),
         ],
       ),
@@ -1178,30 +1231,27 @@ class _BottomCartBar extends StatelessWidget {
               children: [
                 Text(
                   '${cart.totalItemsCount} items | Tax: ₹${cart.taxRupees.toStringAsFixed(2)}',
-                  style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+                  style: ShadcnTypography.caption,
                 ),
                 Text(
                   '₹${cart.grandTotalRupees.toStringAsFixed(2)}',
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  style: ShadcnTypography.currencyLarge.copyWith(color: ShadcnColors.primary),
                 ),
               ],
             ),
             const Spacer(),
             IconButton(
               onPressed: onClear,
-              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              icon: const Icon(Icons.delete_outline, size: 20, color: ShadcnColors.destructive),
               tooltip: 'Clear Cart',
             ),
             const SizedBox(width: 8),
-            ElevatedButton(
+            ShadcnButton(
+              text: 'PAY / BILL',
+              size: ShadcnButtonSize.lg,
+              variant: ShadcnButtonVariant.primary,
+              leadingIcon: const Icon(Icons.payments_outlined, size: 18),
               onPressed: onCheckout,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('PAY / BILL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             ),
           ],
         ),
@@ -1210,13 +1260,13 @@ class _BottomCartBar extends StatelessWidget {
   }
 }
 
-class _CheckoutBottomSheet extends StatefulWidget {
+class _CheckoutSheetContent extends StatefulWidget {
   final CartState cart;
   final List<Customer> customers;
   final Future<Customer?> Function(String name, String phone)? onAddCustomer;
   final Function(String paymentMethod, String? customerId, String? customerName) onComplete;
 
-  const _CheckoutBottomSheet({
+  const _CheckoutSheetContent({
     required this.cart,
     required this.customers,
     this.onAddCustomer,
@@ -1224,12 +1274,25 @@ class _CheckoutBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_CheckoutBottomSheet> createState() => _CheckoutBottomSheetState();
+  State<_CheckoutSheetContent> createState() => _CheckoutSheetContentState();
 }
 
-class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
+class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
   String _selectedMethod = 'cash';
   Customer? _selectedCustomer;
+  final TextEditingController _cashTenderController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _cashTenderController.text = widget.cart.grandTotalRupees.toStringAsFixed(0);
+  }
+
+  @override
+  void dispose() {
+    _cashTenderController.dispose();
+    super.dispose();
+  }
 
   void _showNewCustomerDialog() {
     final nameCtrl = TextEditingController();
@@ -1237,35 +1300,24 @@ class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
     showDialog(
       context: context,
       builder: (dlgCtx) => AlertDialog(
-        title: const Text('Add Khata Customer'),
+        backgroundColor: ShadcnColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: ShadcnColors.border),
+        ),
+        title: const Text('Add Khata Customer', style: ShadcnTypography.h3),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Customer Full Name *',
-                isDense: true,
-              ),
-            ),
+            ShadcnInput(controller: nameCtrl, label: 'Customer Full Name', placeholder: 'e.g. Ramesh Kumar'),
             const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Mobile Phone *',
-                isDense: true,
-              ),
-            ),
+            ShadcnInput(controller: phoneCtrl, label: 'Phone Number', placeholder: '+91 9876543210', keyboardType: TextInputType.phone),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dlgCtx),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dlgCtx), child: const Text('Cancel')),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: ShadcnColors.primary, foregroundColor: Colors.white),
             onPressed: () async {
               final name = nameCtrl.text.trim();
               final phone = phoneCtrl.text.trim();
@@ -1274,9 +1326,7 @@ class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
               if (widget.onAddCustomer != null) {
                 final created = await widget.onAddCustomer!(name, phone);
                 if (created != null && mounted) {
-                  setState(() {
-                    _selectedCustomer = created;
-                  });
+                  setState(() => _selectedCustomer = created);
                 }
               }
             },
@@ -1289,128 +1339,188 @@ class _CheckoutBottomSheetState extends State<_CheckoutBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final grandTotal = widget.cart.grandTotalRupees;
+    final tenderDouble = double.tryParse(_cashTenderController.text) ?? grandTotal;
+    final changeDue = (tenderDouble - grandTotal).clamp(0.0, 999999.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Total summary banner
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: ShadcnColors.primaryLight,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: ShadcnColors.primary.withOpacity(0.3)),
+          ),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Collect Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('Total Amount Due', style: ShadcnTypography.bodySemibold),
               Text(
-                'Total: ₹${widget.cart.grandTotalRupees.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                '₹${grandTotal.toStringAsFixed(2)}',
+                style: ShadcnTypography.currencyLarge.copyWith(color: ShadcnColors.primary),
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 16),
+        const Text('Select Payment Method', style: ShadcnTypography.bodySemibold),
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            _TenderCard(
+              label: 'Cash',
+              icon: Icons.payments_outlined,
+              isSelected: _selectedMethod == 'cash',
+              onTap: () => setState(() => _selectedMethod = 'cash'),
+            ),
+            const SizedBox(width: 8),
+            _TenderCard(
+              label: 'UPI QR',
+              icon: Icons.qr_code_2,
+              isSelected: _selectedMethod == 'upi',
+              onTap: () => setState(() => _selectedMethod = 'upi'),
+            ),
+            const SizedBox(width: 8),
+            _TenderCard(
+              label: 'Card',
+              icon: Icons.credit_card,
+              isSelected: _selectedMethod == 'card',
+              onTap: () => setState(() => _selectedMethod = 'card'),
+            ),
+            const SizedBox(width: 8),
+            _TenderCard(
+              label: 'Khata',
+              icon: Icons.book_outlined,
+              isSelected: _selectedMethod == 'credit',
+              onTap: () => setState(() => _selectedMethod = 'credit'),
+            ),
+          ],
+        ),
+
+        if (_selectedMethod == 'cash') ...[
           const SizedBox(height: 16),
-          const Text('Select Tender:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const Text('Cash Tendered & Change', style: ShadcnTypography.bodySemibold),
           const SizedBox(height: 8),
           Row(
             children: [
-              _TenderButton(
-                label: 'Cash',
-                icon: Icons.payments,
-                isSelected: _selectedMethod == 'cash',
-                onTap: () => setState(() => _selectedMethod = 'cash'),
+              Expanded(
+                child: ShadcnInput(
+                  controller: _cashTenderController,
+                  prefixIcon: const Icon(Icons.currency_rupee, size: 16),
+                  keyboardType: TextInputType.number,
+                  onChanged: (_) => setState(() {}),
+                ),
               ),
-              const SizedBox(width: 8),
-              _TenderButton(
-                label: 'UPI QR',
-                icon: Icons.qr_code,
-                isSelected: _selectedMethod == 'upi',
-                onTap: () => setState(() => _selectedMethod = 'upi'),
-              ),
-              const SizedBox(width: 8),
-              _TenderButton(
-                label: 'Card',
-                icon: Icons.credit_card,
-                isSelected: _selectedMethod == 'card',
-                onTap: () => setState(() => _selectedMethod = 'card'),
-              ),
-              const SizedBox(width: 8),
-              _TenderButton(
-                label: 'Khata',
-                icon: Icons.book,
-                isSelected: _selectedMethod == 'credit',
-                onTap: () => setState(() => _selectedMethod = 'credit'),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: ShadcnColors.secondary,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: ShadcnColors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Change Due', style: ShadcnTypography.caption),
+                    Text(
+                      '₹${changeDue.toStringAsFixed(2)}',
+                      style: ShadcnTypography.bodySemibold.copyWith(
+                        color: changeDue > 0 ? ShadcnColors.destructive : ShadcnColors.foreground,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-
-          if (_selectedMethod == 'credit') ...[
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Select Khata Customer:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                TextButton.icon(
-                  onPressed: _showNewCustomerDialog,
-                  icon: const Icon(Icons.person_add, size: 14),
-                  label: const Text('+ New Customer', style: TextStyle(fontSize: 11)),
+          const SizedBox(height: 8),
+          // Quick cash buttons
+          Row(
+            children: [100, 200, 500, 2000].map((amt) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ActionChip(
+                  label: Text('₹$amt', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  backgroundColor: ShadcnColors.secondary,
+                  side: const BorderSide(color: ShadcnColors.border),
+                  onPressed: () {
+                    setState(() {
+                      _cashTenderController.text = '$amt';
+                    });
+                  },
                 ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<Customer>(
-              initialValue: _selectedCustomer,
-              hint: const Text('Choose customer account'),
-              items: widget.customers.map((c) {
-                return DropdownMenuItem(
-                  value: c,
-                  child: Text('${c.name} (${c.phone}) - Due: ₹${c.currentBalanceRupees.toStringAsFixed(1)}'),
-                );
-              }).toList(),
-              onChanged: (val) => setState(() => _selectedCustomer = val),
-              decoration: InputDecoration(
-                isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ],
+              );
+            }).toList(),
+          ),
+        ],
 
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () {
-                if (_selectedMethod == 'credit' && _selectedCustomer == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select a customer for Khata credit')),
-                  );
-                  return;
-                }
-                widget.onComplete(_selectedMethod, _selectedCustomer?.id, _selectedCustomer?.name);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        if (_selectedMethod == 'credit') ...[
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Khata Customer Account', style: ShadcnTypography.bodySemibold),
+              TextButton.icon(
+                onPressed: _showNewCustomerDialog,
+                icon: const Icon(Icons.person_add, size: 14, color: ShadcnColors.primary),
+                label: const Text('+ New', style: TextStyle(fontSize: 12, color: ShadcnColors.primary)),
               ),
-              child: const Text('CONFIRM PAYMENT & SAVE INVOICE', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          DropdownButtonFormField<Customer>(
+            initialValue: _selectedCustomer,
+            hint: const Text('Select customer...'),
+            items: widget.customers.map((c) {
+              return DropdownMenuItem(
+                value: c,
+                child: Text('${c.name} (${c.phone}) - Due: ₹${c.currentBalanceRupees.toStringAsFixed(1)}'),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _selectedCustomer = val),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: ShadcnColors.border)),
             ),
           ),
         ],
-      ),
+
+        const SizedBox(height: 24),
+        ShadcnButton(
+          text: 'CONFIRM PAYMENT & SAVE INVOICE',
+          size: ShadcnButtonSize.lg,
+          variant: ShadcnButtonVariant.primary,
+          leadingIcon: const Icon(Icons.check_circle_outline, size: 18),
+          onPressed: () {
+            if (_selectedMethod == 'credit' && _selectedCustomer == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Please select a customer for Khata credit')),
+              );
+              return;
+            }
+            widget.onComplete(_selectedMethod, _selectedCustomer?.id, _selectedCustomer?.name);
+          },
+        ),
+      ],
     );
   }
 }
 
-class _TenderButton extends StatelessWidget {
+class _TenderCard extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _TenderButton({
+  const _TenderCard({
     required this.label,
     required this.icon,
     required this.isSelected,
@@ -1420,31 +1530,38 @@ class _TenderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade300,
-            ),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: isSelected ? Colors.white : Colors.black87, size: 20),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black87,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? ShadcnColors.primaryLight : ShadcnColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected ? ShadcnColors.primary : ShadcnColors.border,
+                width: isSelected ? 1.5 : 1.0,
               ),
-            ],
+            ),
+            child: Column(
+              children: [
+                Icon(icon, color: isSelected ? ShadcnColors.primary : ShadcnColors.mutedForeground, size: 20),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: ShadcnTypography.caption.copyWith(
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? ShadcnColors.primary : ShadcnColors.foreground,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/sync_provider.dart';
+import '../../core/theme/shadcn_colors.dart';
+import '../../core/theme/shadcn_typography.dart';
+import '../../core/widgets/shadcn_card.dart';
+import '../../core/widgets/shadcn_button.dart';
+import '../../core/widgets/shadcn_input.dart';
 
 class MobileLoginScreen extends ConsumerStatefulWidget {
   const MobileLoginScreen({super.key});
@@ -38,11 +44,16 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: ShadcnColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: ShadcnColors.border),
+        ),
         title: const Row(
           children: [
-            Icon(Icons.dns_rounded, color: Color(0xFF10B981), size: 24),
+            Icon(Icons.dns_outlined, color: ShadcnColors.primary, size: 22),
             SizedBox(width: 8),
-            Text('Server Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Server Settings', style: ShadcnTypography.h3),
           ],
         ),
         content: Column(
@@ -51,22 +62,18 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
           children: [
             const Text(
               'Backend API & Sync Endpoint:',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+              style: ShadcnTypography.caption,
             ),
             const SizedBox(height: 8),
-            TextField(
+            ShadcnInput(
               controller: urlController,
-              decoration: InputDecoration(
-                hintText: 'e.g. https://pos.assistt.in',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              ),
+              placeholder: 'e.g. https://pos.assistt.in',
               keyboardType: TextInputType.url,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
               'Default Hosted Server: https://pos.assistt.in',
-              style: TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 10, color: ShadcnColors.mutedForeground),
             ),
           ],
         ),
@@ -84,12 +91,13 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 );
               }
             },
-            child: const Text('Reset Default', style: TextStyle(color: Color(0xFFEF4444))),
+            child: const Text('Reset Default', style: TextStyle(color: ShadcnColors.destructive)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: ShadcnColors.primary,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             ),
             onPressed: () async {
               final newUrl = urlController.text.trim();
@@ -144,6 +152,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
   }
 
   void _fillDemoCredentials({required bool isOwner}) {
+    HapticFeedback.selectionClick();
     setState(() {
       _emailController.text = isOwner ? 'admin@kirana.dev' : 'cashier@kirana.dev';
       _passwordController.text = 'Password@123';
@@ -157,24 +166,24 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     final regEmailController = TextEditingController();
     final regPasswordController = TextEditingController();
     String selectedVertical = 'grocery';
-    String selectedState = '27';
     String? regError;
     bool isSubmitting = false;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
+        builder: (ctx, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: ShadcnColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
           padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -184,55 +193,46 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Register Store',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    ),
+                    const Text('Register New Store', style: ShadcnTypography.h3),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
+                      icon: const Icon(Icons.close, size: 20, color: ShadcnColors.mutedForeground),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
                 const Text(
-                  'Instant 45-second setup with pre-loaded fast items',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  'Clean setup for production commerce. No dummy items seeded.',
+                  style: ShadcnTypography.caption,
                 ),
                 if (regError != null) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF1F2),
+                      color: ShadcnColors.destructiveLight,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFFECDD3)),
+                      border: Border.all(color: ShadcnColors.destructive.withOpacity(0.3)),
                     ),
-                    child: Text(
-                      regError!,
-                      style: const TextStyle(color: Color(0xFF9F1239), fontSize: 12),
-                    ),
+                    child: Text(regError!, style: const TextStyle(color: ShadcnColors.destructive, fontSize: 12)),
                   ),
                 ],
                 const SizedBox(height: 16),
-                TextField(
+                ShadcnInput(
                   controller: regStoreController,
-                  decoration: InputDecoration(
-                    labelText: 'Store Name (e.g. Gupta Super Store)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
+                  label: 'Store Name (e.g. Rana General Store)',
+                  placeholder: 'Store name',
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: selectedVertical,
                   decoration: InputDecoration(
                     labelText: 'Retail Vertical',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    isDense: true,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'grocery', child: Text('Kirana & Grocery')),
-                    DropdownMenuItem(value: 'restaurant', child: Text('Restaurant & Cafe')),
+                    DropdownMenuItem(value: 'grocery', child: Text('Kirana & Grocery POS')),
+                    DropdownMenuItem(value: 'restaurant', child: Text('Restaurant & Cafe POS')),
                     DropdownMenuItem(value: 'pharmacy', child: Text('Pharmacy & Chemist')),
                   ],
                   onChanged: (val) {
@@ -240,42 +240,31 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                ShadcnInput(
                   controller: regNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Owner Full Name',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
+                  label: 'Owner Full Name',
+                  placeholder: 'Full name',
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                ShadcnInput(
                   controller: regEmailController,
+                  label: 'Email Address (Login)',
+                  placeholder: 'owner@store.in',
                   keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email Address (Login)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                ShadcnInput(
                   controller: regPasswordController,
+                  label: 'Password',
+                  placeholder: 'min 8 characters',
                   obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: 'Password (min 8 chars, 1 upper, 1 number)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
+                ShadcnButton(
+                  text: 'COMPLETE REGISTRATION',
+                  size: ShadcnButtonSize.lg,
+                  variant: ShadcnButtonVariant.primary,
+                  isLoading: isSubmitting,
                   onPressed: isSubmitting
                       ? null
                       : () async {
@@ -299,32 +288,23 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                           });
 
                           try {
-                            await ref.read(authProvider.notifier).registerMerchant(
+                            await ref.read(authRepositoryProvider).registerMerchant(
+                                  storeName: storeName,
+                                  fullName: fullName,
                                   email: email,
                                   password: password,
-                                  fullName: fullName,
-                                  storeName: storeName,
                                   businessType: selectedVertical,
-                                  stateCode: selectedState,
+                                  stateCode: '27',
                                 );
+                            await ref.read(authProvider.notifier).login(email, password);
                             if (ctx.mounted) Navigator.pop(ctx);
-                          } catch (err) {
+                          } catch (e) {
                             setModalState(() {
                               isSubmitting = false;
-                              regError = err.toString().replaceFirst('Exception: ', '');
+                              regError = e.toString().replaceFirst('Exception: ', '');
                             });
                           }
                         },
-                  child: isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text(
-                          'Complete Setup & Launch POS',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
                 ),
               ],
             ),
@@ -340,148 +320,83 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     final errorMessage = _localError ?? authState.error;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: ShadcnColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Server Settings Action
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.settings_ethernet_rounded, color: Color(0xFF64748B)),
-                        tooltip: 'Configure Server URL',
-                        onPressed: _showServerConfigDialog,
-                      ),
-                    ],
+                  // Server config trigger
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.settings_outlined, size: 20, color: ShadcnColors.mutedForeground),
+                      tooltip: 'Server Settings',
+                      onPressed: _showServerConfigDialog,
+                    ),
                   ),
-                  // App Branding Header
+
+                  // Brand Icon & Header
                   Center(
                     child: Column(
                       children: [
                         Container(
-                          width: 56,
-                          height: 56,
+                          width: 52,
+                          height: 52,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.25),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                            color: ShadcnColors.primaryLight,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: ShadcnColors.primary.withOpacity(0.3)),
                           ),
-                          child: const Icon(
-                            Icons.storefront_rounded,
-                            color: Colors.white,
-                            size: 32,
-                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.point_of_sale_rounded, size: 28, color: ShadcnColors.primary),
                         ),
-                        const SizedBox(height: 16),
-                        RichText(
-                          text: const TextSpan(
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -0.5,
-                            ),
-                            children: [
-                              TextSpan(text: 'KIRANA '),
-                              TextSpan(
-                                text: 'POS',
-                                style: TextStyle(color: Color(0xFF10B981)),
-                              ),
-                            ],
-                          ),
-                        ),
+                        const SizedBox(height: 12),
+                        Text('Kirana POS', style: ShadcnTypography.h1),
                         const SizedBox(height: 4),
                         const Text(
-                          'Mobile Kirana Retail & POS Terminal',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF64748B),
-                          ),
+                          'Enterprise Offline-First Retail POS & ERP',
+                          style: ShadcnTypography.caption,
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
-                  // Login Card Container
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
+                  // Login Form Card
+                  ShadcnCard(
+                    padding: const EdgeInsets.all(20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Sign in to your Store',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
+                        const Text('Sign in to your Store', style: ShadcnTypography.h3),
                         const SizedBox(height: 4),
-                        const Text(
-                          'Offline-first terminal authentication & RBAC',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
+                        const Text('Enter your credentials to access the POS register', style: ShadcnTypography.caption),
 
                         if (errorMessage != null) ...[
                           const SizedBox(height: 16),
                           Container(
                             key: const Key('login_error_banner'),
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF1F2),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFFECDD3)),
+                              color: ShadcnColors.destructiveLight,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: ShadcnColors.destructive.withOpacity(0.3)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.error_outline_rounded,
-                                  color: Color(0xFFE11D48),
-                                  size: 18,
-                                ),
+                                const Icon(Icons.error_outline, size: 16, color: ShadcnColors.destructive),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     errorMessage,
-                                    style: const TextStyle(
-                                      color: Color(0xFF9F1239),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: const TextStyle(color: ShadcnColors.destructive, fontSize: 12),
                                   ),
                                 ),
                               ],
@@ -492,142 +407,83 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                         const SizedBox(height: 20),
 
                         // Email Field
-                        const Text(
-                          'Email Address',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
-                          key: const Key('login_email_input'),
+                        ShadcnInput(
+                          textFieldKey: const Key('login_email_input'),
                           controller: _emailController,
+                          label: 'Email Address',
+                          placeholder: 'admin@kirana.dev',
+                          prefixIcon: const Icon(Icons.email_outlined, size: 18, color: ShadcnColors.mutedForeground),
                           keyboardType: TextInputType.emailAddress,
-                          decoration: InputDecoration(
-                            hintText: 'name@kirana.dev',
-                            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                            prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20, color: Color(0xFF64748B)),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
-                            ),
-                          ),
                         ),
 
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
                         // Password Field
-                        const Text(
-                          'Password',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
-                          key: const Key('login_password_input'),
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: InputDecoration(
-                            hintText: '••••••••••••',
-                            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                            prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF64748B)),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                size: 18,
-                                color: const Color(0xFF64748B),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Password', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ShadcnColors.foreground)),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 44,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: ShadcnColors.surface,
+                                borderRadius: BorderRadius.circular(8.0),
+                                border: Border.all(color: ShadcnColors.border),
                               ),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Color(0xFF10B981), width: 1.5),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // Submit Button
-                        ElevatedButton(
-                          key: const Key('login_submit_btn'),
-                          onPressed: authState.isLoading ? null : _handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF10B981),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: authState.isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Sign In to Terminal',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.lock_outline, size: 18, color: ShadcnColors.mutedForeground),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      key: const Key('login_password_input'),
+                                      controller: _passwordController,
+                                      obscureText: _obscurePassword,
+                                      style: ShadcnTypography.bodyMedium,
+                                      decoration: const InputDecoration(
+                                        hintText: '••••••••••••',
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.zero,
                                       ),
                                     ),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward_rounded, size: 16),
-                                  ],
-                                ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => setState(() => _obscurePassword = !_obscurePassword),
+                                    child: Icon(
+                                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                      size: 18,
+                                      color: ShadcnColors.mutedForeground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
-                        // Quick Test Credentials
-                        const Divider(color: Color(0xFFF1F5F9)),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Quick Test Credentials',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                            color: Color(0xFF94A3B8),
-                          ),
+                        // Login Action Button
+                        ShadcnButton(
+                          key: const Key('login_submit_btn'),
+                          text: 'Sign In to Register',
+                          size: ShadcnButtonSize.lg,
+                          variant: ShadcnButtonVariant.primary,
+                          isLoading: authState.isLoading,
+                          isFullWidth: true,
+                          leadingIcon: const Icon(Icons.login, size: 18),
+                          onPressed: authState.isLoading ? null : _handleLogin,
                         ),
+
+                        const SizedBox(height: 20),
+                        const Divider(height: 1, color: ShadcnColors.border),
+                        const SizedBox(height: 14),
+
+                        // Quick Demo Fill Credentials
+                        const Center(child: Text('Evaluation Demo Accounts', style: ShadcnTypography.caption)),
                         const SizedBox(height: 10),
 
                         Row(
@@ -636,34 +492,20 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                               child: InkWell(
                                 key: const Key('demo_owner_btn'),
                                 onTap: () => _fillDemoCredentials(isOwner: true),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 child: Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    color: ShadcnColors.secondary,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: ShadcnColors.border),
                                   ),
-                                  child: const Column(
+                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Store Owner',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: Color(0xFF047857),
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Text(
-                                        'admin@kirana.dev',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                      Text('Store Owner', style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold, color: ShadcnColors.primary)),
+                                      const SizedBox(height: 2),
+                                      const Text('admin@kirana.dev', style: TextStyle(fontSize: 10, color: ShadcnColors.mutedForeground), overflow: TextOverflow.ellipsis),
                                     ],
                                   ),
                                 ),
@@ -674,34 +516,20 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                               child: InkWell(
                                 key: const Key('demo_cashier_btn'),
                                 onTap: () => _fillDemoCredentials(isOwner: false),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(8),
                                 child: Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF8FAFC),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    color: ShadcnColors.secondary,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: ShadcnColors.border),
                                   ),
-                                  child: const Column(
+                                  child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        'Cashier',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: Color(0xFF1D4ED8),
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Text(
-                                        'cashier@kirana.dev',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                      Text('Cashier (POS Only)', style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold, color: ShadcnColors.info)),
+                                      const SizedBox(height: 2),
+                                      const Text('cashier@kirana.dev', style: TextStyle(fontSize: 10, color: ShadcnColors.mutedForeground), overflow: TextOverflow.ellipsis),
                                     ],
                                   ),
                                 ),
@@ -715,37 +543,17 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
 
                   const SizedBox(height: 16),
 
-                  // Register New Store Action
-                  TextButton.icon(
-                    key: const Key('mobile_register_store_btn'),
-                    onPressed: _showRegisterBottomSheet,
-                    icon: const Icon(Icons.storefront_outlined, size: 18, color: Color(0xFF10B981)),
-                    label: const Text(
-                      'New Store? Register & Setup Free',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF047857),
+                  // Register New Store Button
+                  Center(
+                    child: TextButton.icon(
+                      key: const Key('mobile_register_store_btn'),
+                      onPressed: _showRegisterBottomSheet,
+                      icon: const Icon(Icons.add_business_outlined, size: 16, color: ShadcnColors.foreground),
+                      label: const Text(
+                        'New Merchant? Register Store',
+                        style: TextStyle(color: ShadcnColors.foreground, fontWeight: FontWeight.w600, fontSize: 13),
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Security Footnote
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.shield_outlined, size: 14, color: Color(0xFF94A3B8)),
-                      SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Secure local credential cache & encrypted tokens',
-                          style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),

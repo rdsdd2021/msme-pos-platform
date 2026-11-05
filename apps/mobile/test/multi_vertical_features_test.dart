@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drift/native.dart';
 import 'package:pos_mobile/core/database/app_database.dart';
 import 'package:pos_mobile/core/models/cart_item.dart';
 import 'package:pos_mobile/core/models/product.dart';
@@ -22,8 +21,37 @@ void main() {
     billingRepo = LocalBillingRepository(db);
     OfflineBillingService.setDatabase(db);
 
-    await catalogRepo.seedInitialProductsIfEmpty();
-    await customerRepo.seedInitialCustomersIfEmpty();
+    await catalogRepo.createProduct(
+      name: 'Amul Butter 500g',
+      sku: 'DAIRY-001',
+      category: 'Dairy',
+      unit: 'PKT',
+      sellingPricePaisa: 27500,
+      initialStock: 20.0,
+      gstRate: 12.0,
+    );
+
+    await catalogRepo.createProduct(
+      name: 'Tata Salt 1kg',
+      sku: 'GROC-002',
+      category: 'Groceries',
+      unit: 'PKT',
+      sellingPricePaisa: 2800,
+      initialStock: 50.0,
+      gstRate: 0.0,
+    );
+
+    final c1 = await customerRepo.createCustomer(
+      name: 'Ramesh Sharma',
+      phone: '+919876543210',
+    );
+    await customerRepo.adjustCustomerBalance(c1.id, 125000);
+
+    final c2 = await customerRepo.createCustomer(
+      name: 'Pooja Verma',
+      phone: '+919876543211',
+    );
+    await customerRepo.adjustCustomerBalance(c2.id, 42000);
   });
 
   tearDown(() async {

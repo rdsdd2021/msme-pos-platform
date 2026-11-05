@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/auth_provider.dart';
-import 'core/providers/store_mode_provider.dart';
+import 'core/providers/cart_provider.dart';
 import 'core/providers/sync_provider.dart';
 import 'core/services/realtime_sync_service.dart';
+import 'core/theme/shadcn_colors.dart';
+import 'core/theme/shadcn_typography.dart';
 import 'features/auth/login_screen.dart';
 import 'features/history/order_history_screen.dart';
 import 'features/inventory/inventory_screen.dart';
@@ -34,13 +37,34 @@ class KiranaPosApp extends ConsumerWidget {
       title: 'Kirana POS',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF10B981), // Emerald Kirana green
-          primary: const Color(0xFF10B981),
-          surface: Colors.white,
-        ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        scaffoldBackgroundColor: ShadcnColors.background,
+        colorScheme: const ColorScheme(
+          brightness: Brightness.light,
+          primary: ShadcnColors.primary,
+          onPrimary: ShadcnColors.primaryForeground,
+          secondary: ShadcnColors.secondary,
+          onSecondary: ShadcnColors.secondaryForeground,
+          error: ShadcnColors.destructive,
+          onError: ShadcnColors.destructiveForeground,
+          surface: ShadcnColors.surface,
+          onSurface: ShadcnColors.foreground,
+        ),
+        dividerColor: ShadcnColors.border,
+        dividerTheme: const DividerThemeData(
+          color: ShadcnColors.border,
+          thickness: 1,
+          space: 1,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: ShadcnColors.surface,
+          foregroundColor: ShadcnColors.foreground,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: false,
+          titleTextStyle: ShadcnTypography.h3,
+          iconTheme: IconThemeData(color: ShadcnColors.foreground, size: 20),
+        ),
       ),
       home: !authState.isAuthenticated
           ? const MobileLoginScreen()
@@ -91,92 +115,104 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final verticalMode = ref.watch(storeModeProvider);
+    final membership = authState.activeMembership;
     final isCashier = authState.isCashier;
+    final isRestaurant = membership?.hasRestaurantModule ?? false;
+    final hasKhata = membership?.hasKhataModule ?? true;
+    final hasInventory = membership?.hasInventoryModule ?? true;
+    final cartState = ref.watch(cartProvider);
 
-    // Rule 11: Scoped cashiers cannot access store owner analytics or switch branches
+    // Rule 11: Scoped cashiers cannot access store owner analytics or inventory management
     if (isCashier) {
-      if (verticalMode == StoreVerticalMode.restaurant) {
+      if (isRestaurant) {
         return const RestaurantTablesScreen();
       }
       return const MobilePosScreen();
     }
 
-    // Build screens and navigation destinations dynamically based on active store vertical
-    final List<Widget> screens;
-    final List<NavigationDestination> destinations;
+    // Build screens and navigation items dynamically based on active tenant's authorized modules
+    final screens = <Widget>[];
+    final items = <_NavItem>[];
 
-    if (verticalMode == StoreVerticalMode.restaurant) {
-      screens = const [
-        RestaurantTablesScreen(),
-        OrderHistoryScreen(),
-        MobileInventoryScreen(),
-        MobileKhataScreen(),
-        MobileOwnerScreen(),
-      ];
-      destinations = const [
-        NavigationDestination(
-          icon: Icon(Icons.table_restaurant_outlined),
-          selectedIcon: Icon(Icons.table_restaurant, color: Color(0xFF10B981)),
-          label: 'Tables',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.receipt_long_outlined),
-          selectedIcon: Icon(Icons.receipt_long, color: Color(0xFF10B981)),
-          label: 'Orders',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.restaurant_menu_outlined),
-          selectedIcon: Icon(Icons.restaurant_menu, color: Color(0xFF10B981)),
+    if (isRestaurant) {
+      screens.add(const RestaurantTablesScreen());
+      items.add(const _NavItem(
+        icon: Icons.table_restaurant_outlined,
+        activeIcon: Icons.table_restaurant,
+        label: 'Tables',
+      ));
+
+      screens.add(const OrderHistoryScreen());
+      items.add(const _NavItem(
+        icon: Icons.receipt_long_outlined,
+        activeIcon: Icons.receipt_long,
+        label: 'Orders',
+      ));
+
+      if (hasInventory) {
+        screens.add(const MobileInventoryScreen());
+        items.add(const _NavItem(
+          icon: Icons.restaurant_menu_outlined,
+          activeIcon: Icons.restaurant_menu,
           label: 'Menu',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.menu_book_outlined),
-          selectedIcon: Icon(Icons.menu_book, color: Color(0xFF10B981)),
+        ));
+      }
+
+      if (hasKhata) {
+        screens.add(const MobileKhataScreen());
+        items.add(const _NavItem(
+          icon: Icons.menu_book_outlined,
+          activeIcon: Icons.menu_book,
           label: 'Khata',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.storefront_outlined),
-          selectedIcon: Icon(Icons.storefront, color: Color(0xFF10B981)),
-          label: 'Store Owner',
-        ),
-      ];
+        ));
+      }
+
+      screens.add(const MobileOwnerScreen());
+      items.add(const _NavItem(
+        icon: Icons.storefront_outlined,
+        activeIcon: Icons.storefront,
+        label: 'Store Owner',
+      ));
     } else {
-      // Retail / Kirana POS
-      screens = const [
-        MobilePosScreen(),
-        OrderHistoryScreen(),
-        MobileInventoryScreen(),
-        MobileKhataScreen(),
-        MobileOwnerScreen(),
-      ];
-      destinations = const [
-        NavigationDestination(
-          icon: Icon(Icons.point_of_sale_outlined),
-          selectedIcon: Icon(Icons.point_of_sale, color: Color(0xFF10B981)),
-          label: 'Kirana POS',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.receipt_long_outlined),
-          selectedIcon: Icon(Icons.receipt_long, color: Color(0xFF10B981)),
-          label: 'Orders',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.inventory_2_outlined),
-          selectedIcon: Icon(Icons.inventory_2, color: Color(0xFF10B981)),
+      screens.add(const MobilePosScreen());
+      items.add(_NavItem(
+        icon: Icons.point_of_sale_outlined,
+        activeIcon: Icons.point_of_sale,
+        label: 'Kirana POS',
+        badgeCount: cartState.totalItemsCount,
+      ));
+
+      screens.add(const OrderHistoryScreen());
+      items.add(const _NavItem(
+        icon: Icons.receipt_long_outlined,
+        activeIcon: Icons.receipt_long,
+        label: 'Orders',
+      ));
+
+      if (hasInventory) {
+        screens.add(const MobileInventoryScreen());
+        items.add(const _NavItem(
+          icon: Icons.inventory_2_outlined,
+          activeIcon: Icons.inventory_2,
           label: 'Inventory',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.menu_book_outlined),
-          selectedIcon: Icon(Icons.menu_book, color: Color(0xFF10B981)),
+        ));
+      }
+
+      if (hasKhata) {
+        screens.add(const MobileKhataScreen());
+        items.add(const _NavItem(
+          icon: Icons.menu_book_outlined,
+          activeIcon: Icons.menu_book,
           label: 'Khata',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.storefront_outlined),
-          selectedIcon: Icon(Icons.storefront, color: Color(0xFF10B981)),
-          label: 'Store Owner',
-        ),
-      ];
+        ));
+      }
+
+      screens.add(const MobileOwnerScreen());
+      items.add(const _NavItem(
+        icon: Icons.storefront_outlined,
+        activeIcon: Icons.storefront,
+        label: 'Store Owner',
+      ));
     }
 
     final safeIndex = _currentIndex >= screens.length ? 0 : _currentIndex;
@@ -186,15 +222,111 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         index: safeIndex,
         children: screens,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: safeIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: destinations,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: ShadcnColors.surface,
+          border: Border(
+            top: BorderSide(color: ShadcnColors.border, width: 1.0),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x06000000),
+              blurRadius: 8,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 56,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(items.length, (index) {
+                final item = items[index];
+                final isSelected = safeIndex == index;
+
+                return Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              isSelected ? item.activeIcon : item.icon,
+                              size: 22,
+                              color: isSelected
+                                  ? ShadcnColors.primary
+                                  : ShadcnColors.mutedForeground,
+                            ),
+                            if (item.badgeCount != null && item.badgeCount! > 0)
+                              Positioned(
+                                right: -8,
+                                top: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: ShadcnColors.primary,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                                  child: Text(
+                                    '${item.badgeCount}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected
+                                ? ShadcnColors.primary
+                                : ShadcnColors.mutedForeground,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final int? badgeCount;
+
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    this.badgeCount,
+  });
 }

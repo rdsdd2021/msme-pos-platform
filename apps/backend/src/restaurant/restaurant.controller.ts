@@ -25,11 +25,13 @@ import {
   TransferTableDto,
   SettleRestaurantOrderDto,
 } from './dto/restaurant.dto';
-import { Permission, TenantContext, KitchenStation } from '@pos/shared-types';
+import { Permission, TenantContext, KitchenStation, AppModule } from '@pos/shared-types';
+import { ModuleGuard, RequireModule } from '../auth/guards/module.guard';
 
 @ApiTags('restaurant')
 @Controller({ path: 'tenants/:tenantId/restaurant', version: '1' })
-@UseGuards(AuthGuard('jwt'), TenantGuard, PermissionsGuard)
+@UseGuards(AuthGuard('jwt'), TenantGuard, PermissionsGuard, ModuleGuard)
+@RequireModule(AppModule.RESTAURANT)
 @ApiBearerAuth('access-token')
 @ApiParam({ name: 'tenantId', type: 'string', format: 'uuid' })
 export class RestaurantController {

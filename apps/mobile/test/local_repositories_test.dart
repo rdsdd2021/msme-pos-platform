@@ -5,13 +5,67 @@ import 'package:pos_mobile/core/repositories/local_catalog_repository.dart';
 import 'package:pos_mobile/core/repositories/local_customer_repository.dart';
 import 'package:pos_mobile/core/services/offline_billing_service.dart';
 import 'package:pos_mobile/core/models/cart_item.dart';
-import 'package:pos_mobile/core/models/product.dart';
 
 void main() {
   late AppDatabase db;
   late LocalCatalogRepository catalogRepo;
   late LocalCustomerRepository customerRepo;
   late LocalBillingRepository billingRepo;
+
+  Future<void> _insertTestProducts() async {
+    await catalogRepo.createProduct(
+      sku: 'GROC-001',
+      name: 'Aashirvaad Atta 5kg',
+      barcode: '890103000001',
+      sellingPricePaisa: 24000,
+      purchaseCostPaisa: 21000,
+      initialStock: 50.0,
+      gstRate: 5.0,
+      hsnCode: '11010000',
+      category: 'Groceries',
+      unit: 'PKT',
+    );
+    await catalogRepo.createProduct(
+      sku: 'DAIRY-001',
+      name: 'Amul Butter 500g',
+      barcode: '890103000002',
+      sellingPricePaisa: 27500,
+      purchaseCostPaisa: 24500,
+      initialStock: 4.0,
+      gstRate: 12.0,
+      hsnCode: '04051000',
+      category: 'Dairy',
+      unit: 'PKT',
+    );
+    await catalogRepo.createProduct(
+      sku: 'SNACK-002',
+      name: 'Maggi Masala 280g',
+      barcode: '890103000006',
+      sellingPricePaisa: 5500,
+      purchaseCostPaisa: 4600,
+      initialStock: 3.0,
+      gstRate: 12.0,
+      hsnCode: '19023010',
+      category: 'Snacks',
+      unit: 'PKT',
+    );
+  }
+
+  Future<void> _insertTestCustomers() async {
+    final c1 = await customerRepo.createCustomer(
+      name: 'Ramesh Sharma',
+      phone: '+919876543210',
+      creditLimitPaisa: 500000,
+    );
+    await customerRepo.adjustCustomerBalance(c1.id, 125000);
+
+    final c2 = await customerRepo.createCustomer(
+      name: 'Pooja Verma',
+      phone: '+919876543211',
+      creditLimitPaisa: 300000,
+    );
+    await customerRepo.adjustCustomerBalance(c2.id, 42000);
+  }
 
   setUp(() async {
     db = AppDatabase.inMemory();
@@ -26,19 +80,19 @@ void main() {
   });
 
   group('LocalCatalogRepository Tests', () {
-    test('seeds initial catalog into SQLite idempotently', () async {
-      await catalogRepo.seedInitialProductsIfEmpty();
+    test('inserts and retrieves catalog products in SQLite', () async {
+      await _insertTestProducts();
       final products = await catalogRepo.getAllProducts();
-      expect(products.length, 6);
+      expect(products.length, 3);
 
-      // Re-running seed must be idempotent (Rule 12)
-      await catalogRepo.seedInitialProductsIfEmpty();
-      final productsAfter = await catalogRepo.getAllProducts();
-      expect(productsAfter.length, 6);
+      // Verify purge routine purges legacy mock data
+      await catalogRepo.purgeMockDataIfPresent('test-tenant');
+      final productsAfterPurge = await catalogRepo.getAllProducts();
+      expect(productsAfterPurge.length, 0);
     });
 
     test('finds product by barcode or SKU and deducts stock in SQLite', () async {
-      await catalogRepo.seedInitialProductsIfEmpty();
+      await _insertTestProducts();
 
       final byBarcode = await catalogRepo.findByBarcodeOrSku('890103000001');
       expect(byBarcode, isNotNull);
@@ -56,7 +110,7 @@ void main() {
     });
 
     test('identifies low stock products with threshold <= 5.0', () async {
-      await catalogRepo.seedInitialProductsIfEmpty();
+      await _insertTestProducts();
 
       final lowStock = await catalogRepo.getLowStockProducts(threshold: 5.0);
       expect(lowStock.length, 2); // Amul Butter (4.0) & Maggi Masala (3.0)
@@ -66,18 +120,18 @@ void main() {
   });
 
   group('LocalCustomerRepository & Khata Ledger Tests', () {
-    test('seeds initial customers and calculates total Khata due', () async {
-      await customerRepo.seedInitialCustomersIfEmpty();
+    test('inserts customers and calculates total Khata due', () async {
+      await _insertTestCustomers();
       final customers = await customerRepo.getAllCustomers();
-      expect(customers.length, 3);
+      expect(customers.length, 2);
 
       final totalDuePaisa = await customerRepo.getTotalKhataOutstandingPaisa();
-      // Ramesh (125000) + Pooja (42000) + Suresh (0) = 167000 Paisa (₹1,670.00)
+      // 125000 + 42000 = 167000 Paisa (₹1,670.00)
       expect(totalDuePaisa, 167000);
     });
 
     test('creates new customer record and updates Khata debt balance', () async {
-      await customerRepo.seedInitialCustomersIfEmpty();
+      await _insertTestCustomers();
 
       final newCust = await customerRepo.createCustomer(
         name: 'Anita Desai',
@@ -99,11 +153,11 @@ void main() {
 
   group('LocalBillingRepository Today Metrics Tests', () {
     test('computes live daily sales performance metrics from real SQLite transactions', () async {
-      await catalogRepo.seedInitialProductsIfEmpty();
-      await customerRepo.seedInitialCustomersIfEmpty();
+      await _insertTestProducts();
+      await _insertTestCustomers();
 
       final products = await catalogRepo.getAllProducts();
-      final atta = products.firstWhere((p) => p.id == 'prod-1');
+      final atta = products.firstWhere((p) => p.name.contains('Atta'));
 
       // Process a sale for ₹240.00 via Cash
       await billingRepo.createSaleAtomic(

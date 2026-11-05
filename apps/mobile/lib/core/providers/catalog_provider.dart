@@ -9,86 +9,7 @@ final localCatalogRepoProvider = Provider<LocalCatalogRepository>((ref) {
   return LocalCatalogRepository(db);
 });
 
-const initialProducts = <Product>[
-  const Product(
-    id: 'prod-1',
-    name: 'Aashirvaad Atta 5kg',
-    sku: 'GROC-001',
-    barcode: '890103000001',
-    category: 'Groceries',
-    unit: 'PKT',
-    sellingPricePaisa: 24000, // ₹240.00
-    purchaseCostPaisa: 21000,
-    gstRate: 5,
-    currentStock: 50.0,
-    hsnCode: '11010000',
-  ),
-  const Product(
-    id: 'prod-2',
-    name: 'Amul Butter 500g',
-    sku: 'DAIRY-001',
-    barcode: '890103000002',
-    category: 'Dairy',
-    unit: 'PKT',
-    sellingPricePaisa: 27500, // ₹275.00
-    purchaseCostPaisa: 24500,
-    gstRate: 12,
-    currentStock: 4.0, // Low stock demo
-    hsnCode: '04051000',
-  ),
-  const Product(
-    id: 'prod-3',
-    name: 'Tata Salt 1kg',
-    sku: 'GROC-002',
-    barcode: '890103000003',
-    category: 'Groceries',
-    unit: 'PKT',
-    sellingPricePaisa: 2800, // ₹28.00
-    purchaseCostPaisa: 2200,
-    gstRate: 0,
-    currentStock: 100.0,
-    hsnCode: '25010010',
-  ),
-  const Product(
-    id: 'prod-4',
-    name: 'Fortune Sunflower Oil 1L',
-    sku: 'GROC-003',
-    barcode: '890103000004',
-    category: 'Groceries',
-    unit: 'LTR',
-    sellingPricePaisa: 16500, // ₹165.00
-    purchaseCostPaisa: 14000,
-    gstRate: 5,
-    currentStock: 60.0,
-    hsnCode: '15121110',
-  ),
-  const Product(
-    id: 'prod-5',
-    name: 'Parle-G Biscuit 800g',
-    sku: 'SNACK-001',
-    barcode: '890103000005',
-    category: 'Snacks',
-    unit: 'PKT',
-    sellingPricePaisa: 8000, // ₹80.00
-    purchaseCostPaisa: 6800,
-    gstRate: 18,
-    currentStock: 80.0,
-    hsnCode: '19053100',
-  ),
-  const Product(
-    id: 'prod-6',
-    name: 'Maggi Masala 280g',
-    sku: 'SNACK-002',
-    barcode: '890103000006',
-    category: 'Snacks',
-    unit: 'PKT',
-    sellingPricePaisa: 5500, // ₹55.00
-    purchaseCostPaisa: 4600,
-    gstRate: 12,
-    currentStock: 3.0, // Low stock demo
-    hsnCode: '19023010',
-  ),
-];
+const initialProducts = <Product>[];
 
 class CatalogState {
   final List<Product> allProducts;
@@ -150,14 +71,14 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
 
   Future<void> _init() async {
     try {
-      // Seed SQLite if empty so offline installs have working data immediately
-      await _repo.seedInitialProductsIfEmpty();
+      await _repo.purgeMockDataIfPresent('');
       final items = await _repo.getAllProducts();
       if (items.isNotEmpty) {
         state = state.copyWith(allProducts: items, isLoading: false);
+      } else {
+        state = state.copyWith(isLoading: false);
       }
     } catch (_) {
-      // Fallback gracefully to memory defaults if database initialization is delayed
       state = state.copyWith(isLoading: false);
     }
   }

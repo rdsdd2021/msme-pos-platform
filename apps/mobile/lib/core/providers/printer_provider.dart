@@ -124,8 +124,29 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
 
   /// Scans bonded Bluetooth devices on Android and optionally auto-binds to the most likely printer
   Future<List<BluetoothDeviceItem>> scanPairedBluetoothDevices({bool autoConnectFirst = false}) async {
-    state = state.copyWith(isScanning: true);
+    state = state.copyWith(isScanning: true, lastError: null);
     try {
+      // 1. Request Android runtime permissions
+      final hasPerm = await BluetoothPrinterTransport.requestPermissions();
+      if (!hasPerm && !_isTestEnv) {
+        state = state.copyWith(
+          isScanning: false,
+          lastError: 'Bluetooth permission is required. Please grant permission in Phone Settings.',
+        );
+        return [];
+      }
+
+      // 2. Check if Bluetooth is enabled
+      final isEnabled = await BluetoothPrinterTransport.isBluetoothEnabled();
+      if (!isEnabled && !_isTestEnv) {
+        state = state.copyWith(
+          isScanning: false,
+          lastError: 'Bluetooth is turned off. Please turn on Bluetooth in Android Settings.',
+        );
+        return [];
+      }
+
+      // 3. Scan bonded thermal printers
       final devices = await BluetoothPrinterTransport.getPairedDevices();
       state = state.copyWith(pairedDevices: devices, isScanning: false);
 
@@ -145,16 +166,14 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
           },
           orElse: () => devices.first,
         );
-        final transport = BluetoothPrinterTransport(address: matched.address, name: matched.name);
-        setTransport(transport);
-        await reconnect();
+        await connectToBluetoothDevice(matched);
       } else if (devices.isEmpty && !_isTestEnv) {
         final disconnected = DisconnectedPrinterTransport(name: 'No Bluetooth Printer Paired');
         _service.setTransport(disconnected);
         state = state.copyWith(
           activeTransportName: disconnected.name,
           status: PrinterStatus.disconnected,
-          lastError: 'No paired Bluetooth printer found. Pair your printer in phone Bluetooth settings.',
+          lastError: 'No paired Bluetooth printer found. Pair your printer in phone Bluetooth settings (PIN: 0000 or 1234), then tap Scan.',
         );
       }
       return devices;
@@ -164,9 +183,23 @@ class PrinterNotifier extends StateNotifier<PrinterState> {
     }
   }
 
+  /// Connects to a specific Bluetooth thermal printer and persists configuration
+  Future<bool> connectToBluetoothDevice(BluetoothDeviceItem device) async {
+    final transport = BluetoothPrinterTransport(address: device.address, name: device.name);
+    setTransport(transport);
+    final ok = await reconnect();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyType, 'bluetooth');
+      await prefs.setString(_keyAddress, device.address);
+      await prefs.setString(_keyName, device.name);
+    } catch (_) {}
+    return ok;
+  }
+
   /// Explicitly enable demo simulation mode for testing or demonstration
   void enableDemoPrinter() {
-    final mock = MockPrinterTransport(name: 'Demo Simulated Printer');
+    final mock = MockPrinterTransport(name: 'Simulated 58mm Virtual Printer');
     setTransport(mock);
     SharedPreferences.getInstance().then((prefs) {
       prefs.setString(_keyType, 'mock');

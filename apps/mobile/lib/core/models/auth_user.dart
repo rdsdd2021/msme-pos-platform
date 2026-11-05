@@ -6,6 +6,8 @@ class MembershipSummary {
   final List<String> roles;
   final List<String> permissions;
   final bool isOwner;
+  final String businessType;
+  final List<String> enabledModules;
 
   const MembershipSummary({
     required this.tenantId,
@@ -15,6 +17,8 @@ class MembershipSummary {
     this.roles = const [],
     this.permissions = const [],
     this.isOwner = false,
+    this.businessType = 'grocery',
+    this.enabledModules = const ['pos', 'inventory', 'khata', 'gst', 'shifts', 'invoices'],
   });
 
   factory MembershipSummary.fromJson(Map<String, dynamic> json) {
@@ -26,6 +30,9 @@ class MembershipSummary {
       roles: (json['roles'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       permissions: (json['permissions'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
       isOwner: json['isOwner'] as bool? ?? false,
+      businessType: json['businessType'] as String? ?? 'grocery',
+      enabledModules: (json['enabledModules'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          const ['pos', 'inventory', 'khata', 'gst', 'shifts', 'invoices'],
     );
   }
 
@@ -37,11 +44,17 @@ class MembershipSummary {
     'roles': roles,
     'permissions': permissions,
     'isOwner': isOwner,
+    'businessType': businessType,
+    'enabledModules': enabledModules,
   };
 
   bool get canAccessAdmin => isOwner || role == 'owner' || role == 'branch_manager' || role == 'accountant';
   bool get canAccessPos => isOwner || role == 'owner' || role == 'cashier' || role == 'branch_manager';
   bool get isCashierOnly => role == 'cashier' && !isOwner;
+
+  bool get hasRestaurantModule => enabledModules.contains('restaurant') || businessType == 'restaurant';
+  bool get hasKhataModule => enabledModules.contains('khata');
+  bool get hasInventoryModule => enabledModules.contains('inventory');
 }
 
 class AuthUser {

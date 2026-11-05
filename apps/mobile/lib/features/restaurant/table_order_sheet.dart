@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_config.dart';
-import '../../../core/models/cart_item.dart';
-import '../../../core/models/product.dart';
 import '../../../core/models/receipt_document.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/catalog_provider.dart';
 import '../../../core/providers/printer_provider.dart';
 import '../../../core/providers/restaurant_provider.dart';
 import '../../../core/providers/sync_provider.dart';
-import '../../../core/services/escpos_builder.dart';
 import '../../../core/services/offline_billing_service.dart';
 
 class TableOrderSheet extends ConsumerStatefulWidget {
@@ -34,7 +31,6 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
   Future<void> _handlePrintKot(RestaurantTable currentTable) async {
     if (currentTable.activeOrderLines.isEmpty) return;
 
-    final printerState = ref.read(printerProvider);
     final notifier = ref.read(printerProvider.notifier);
 
     // Format plain text KOT and ESC/POS payload

@@ -139,7 +139,7 @@ class AuthRepository {
           'stateCode': stateCode,
           if (gstin != null && gstin.isNotEmpty) 'gstin': gstin.trim().toUpperCase(),
           if (city != null && city.isNotEmpty) 'city': city.trim(),
-          'seedSampleCatalog': true,
+          'seedSampleCatalog': false,
         },
         options: Options(
           headers: {'Content-Type': 'application/json'},

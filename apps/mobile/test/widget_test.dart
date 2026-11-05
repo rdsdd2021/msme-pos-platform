@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_mobile/core/models/product.dart';
 import 'package:pos_mobile/core/providers/auth_provider.dart';
+import 'package:pos_mobile/core/providers/catalog_provider.dart';
 import 'package:pos_mobile/core/repositories/auth_repository.dart';
 import 'package:pos_mobile/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +27,24 @@ void main() {
                   isInitialized: true,
                 ),
               ),
+            ),
+            catalogProvider.overrideWith(
+              (ref) => CatalogNotifier(ref.watch(localCatalogRepoProvider))
+                ..state = const CatalogState(
+                  allProducts: [
+                    Product(
+                      id: 'test-salt',
+                      name: 'Tata Salt 1kg',
+                      sku: 'GROC-002',
+                      category: 'Groceries',
+                      unit: 'PKT',
+                      sellingPricePaisa: 2800,
+                      purchaseCostPaisa: 2200,
+                      currentStock: 100.0,
+                      gstRate: 0,
+                    ),
+                  ],
+                ),
             ),
           ],
           child: const KiranaPosApp(),
@@ -55,6 +75,24 @@ void main() {
                   isInitialized: true,
                 ),
               ),
+            ),
+            catalogProvider.overrideWith(
+              (ref) => CatalogNotifier(ref.watch(localCatalogRepoProvider))
+                ..state = const CatalogState(
+                  allProducts: [
+                    Product(
+                      id: 'test-salt',
+                      name: 'Tata Salt 1kg',
+                      sku: 'GROC-002',
+                      category: 'Groceries',
+                      unit: 'PKT',
+                      sellingPricePaisa: 2800,
+                      purchaseCostPaisa: 2200,
+                      currentStock: 100.0,
+                      gstRate: 0,
+                    ),
+                  ],
+                ),
             ),
           ],
           child: const KiranaPosApp(),
@@ -87,6 +125,24 @@ void main() {
                   isInitialized: true,
                 ),
               ),
+            ),
+            catalogProvider.overrideWith(
+              (ref) => CatalogNotifier(ref.watch(localCatalogRepoProvider))
+                ..state = const CatalogState(
+                  allProducts: [
+                    Product(
+                      id: 'test-salt',
+                      name: 'Tata Salt 1kg',
+                      sku: 'GROC-002',
+                      category: 'Groceries',
+                      unit: 'PKT',
+                      sellingPricePaisa: 2800,
+                      purchaseCostPaisa: 2200,
+                      currentStock: 100.0,
+                      gstRate: 0,
+                    ),
+                  ],
+                ),
             ),
           ],
           child: const KiranaPosApp(),

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/product.dart';
 import '../../core/providers/catalog_provider.dart';
+import '../../core/theme/shadcn_colors.dart';
+import '../../core/theme/shadcn_typography.dart';
+import '../../core/widgets/shadcn_card.dart';
+import '../../core/widgets/shadcn_badge.dart';
+import '../../core/widgets/shadcn_button.dart';
+import '../../core/widgets/shadcn_input.dart';
+import '../../core/widgets/shadcn_empty_state.dart';
 import 'widgets/add_edit_product_dialog.dart';
 import 'widgets/stock_adjustment_dialog.dart';
 
@@ -42,23 +50,6 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
     );
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
-      case 'groceries':
-        return const Color(0xFF10B981); // Emerald
-      case 'dairy':
-        return const Color(0xFF0284C7); // Sky Blue
-      case 'snacks':
-        return const Color(0xFFF59E0B); // Amber
-      case 'beverages':
-        return const Color(0xFF8B5CF6); // Purple
-      case 'restaurant / food':
-        return const Color(0xFFEC4899); // Pink
-      default:
-        return const Color(0xFF64748B); // Slate
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final catalogState = ref.watch(catalogProvider);
@@ -71,98 +62,77 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: ShadcnColors.background,
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Icon(Icons.inventory_2, color: Color(0xFF10B981), size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Inventory & Catalog',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ],
-        ),
+        title: const Text('Inventory & Stock'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Inventory',
-            onPressed: () => ref.read(catalogProvider.notifier).reload(),
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            tooltip: 'Refresh Catalog',
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              ref.read(catalogProvider.notifier).reload();
+            },
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          // Summary Stats Cards
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: Colors.white,
+          // Summary KPI Banner
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
-                    ),
+                  child: ShadcnCard(
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Total Items', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const Text('Total SKUs', style: ShadcnTypography.caption),
                         const SizedBox(height: 2),
                         Text(
                           '${catalogState.allProducts.length}',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          style: ShadcnTypography.h2.copyWith(color: ShadcnColors.foreground),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: lowStockCount > 0 ? Colors.amber.shade50 : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: lowStockCount > 0 ? Colors.amber.shade200 : Colors.grey.shade200),
-                    ),
+                  child: ShadcnCard(
+                    padding: const EdgeInsets.all(12),
+                    backgroundColor: lowStockCount > 0 ? ShadcnColors.warningLight : ShadcnColors.card,
+                    borderColor: lowStockCount > 0 ? ShadcnColors.warning.withOpacity(0.4) : ShadcnColors.border,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Low Stock (<5)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const Text('Low Stock (<5)', style: ShadcnTypography.caption),
                         const SizedBox(height: 2),
                         Text(
                           '$lowStockCount items',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: lowStockCount > 0 ? Colors.amber.shade900 : Colors.grey.shade700,
+                          style: ShadcnTypography.h2.copyWith(
+                            color: lowStockCount > 0 ? ShadcnColors.warningForeground : ShadcnColors.foreground,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade100),
-                    ),
+                  child: ShadcnCard(
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Stock Value', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const Text('Stock Value', style: ShadcnTypography.caption),
                         const SizedBox(height: 2),
                         Text(
                           '₹${(totalInventoryPaisa / 100).toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0284C7)),
+                          style: ShadcnTypography.h2.copyWith(color: ShadcnColors.primary),
                         ),
                       ],
                     ),
@@ -172,97 +142,80 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
             ),
           ),
 
-          // Search Bar
+          // Search Input
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: ShadcnInput(
               controller: _searchController,
+              placeholder: 'Search by product name, SKU or barcode...',
+              prefixIcon: const Icon(Icons.search, size: 18, color: ShadcnColors.mutedForeground),
+              showClearButton: true,
               onChanged: (val) => ref.read(catalogProvider.notifier).updateSearch(val),
-              decoration: InputDecoration(
-                hintText: 'Search by product name, SKU or barcode...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          ref.read(catalogProvider.notifier).updateSearch('');
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
             ),
           ),
 
           // Category Chips Filter
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               children: catalogState.availableCategories.map((cat) {
                 final isSelected = catalogState.selectedCategory == cat;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(cat, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF10B981),
-                    backgroundColor: Colors.white,
-                    side: BorderSide(color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade300),
-                    onSelected: (_) => ref.read(catalogProvider.notifier).selectCategory(cat),
+                  padding: const EdgeInsets.only(right: 6),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      ref.read(catalogProvider.notifier).selectCategory(cat);
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: isSelected ? ShadcnColors.foreground : ShadcnColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: isSelected ? ShadcnColors.foreground : ShadcnColors.border,
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Text(
+                        cat,
+                        style: ShadcnTypography.caption.copyWith(
+                          color: isSelected ? Colors.white : ShadcnColors.foreground,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
                   ),
                 );
               }).toList(),
             ),
           ),
-          const SizedBox(height: 6),
 
-          // Products List
+          const SizedBox(height: 4),
+
+          // Product List
           Expanded(
             child: products.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 54, color: Colors.grey.shade400),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No items found',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text('Tap "+ Add New Item" below to create a product.', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      ],
-                    ),
+                ? ShadcnEmptyState(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'No Products in Catalog',
+                    description: 'Tap "+ Add Item" below to register products and stock.',
+                    actionText: 'Add Product',
+                    onActionPressed: _openAddProductDialog,
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 80),
                     itemCount: products.length,
                     itemBuilder: (ctx, idx) {
                       final p = products[idx];
-                      final catColor = _getCategoryColor(p.category);
                       final isLowStock = p.currentStock <= 5.0;
                       final isOut = p.currentStock <= 0;
 
-                      return Card(
-                        elevation: 0.5,
-                        margin: const EdgeInsets.only(bottom: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(color: Colors.grey.shade200),
-                        ),
-                        child: Padding(
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ShadcnCard(
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,140 +223,90 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Category Avatar Icon
+                                  // Leading initial avatar
                                   Container(
-                                    width: 40,
-                                    height: 40,
+                                    width: 38,
+                                    height: 38,
                                     decoration: BoxDecoration(
-                                      color: catColor.withOpacity(0.12),
+                                      color: ShadcnColors.secondary,
                                       borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: ShadcnColors.border),
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        p.name.isNotEmpty ? p.name.substring(0, 1).toUpperCase() : 'P',
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: catColor),
-                                      ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      p.name.isNotEmpty ? p.name.substring(0, 1).toUpperCase() : 'P',
+                                      style: ShadcnTypography.bodySemibold.copyWith(color: ShadcnColors.foreground),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          p.name,
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                        ),
-                                        const SizedBox(height: 3),
+                                        Text(p.name, style: ShadcnTypography.bodySemibold),
+                                        const SizedBox(height: 2),
                                         Row(
                                           children: [
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                              decoration: BoxDecoration(
-                                                color: catColor.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                p.category,
-                                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: catColor),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
                                             Text(
-                                              'SKU: ${p.sku}',
-                                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                              '${p.category} • ${p.sku}',
+                                              style: ShadcnTypography.caption,
                                             ),
                                             if (p.barcode != null && p.barcode!.isNotEmpty) ...[
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                '• ${p.barcode}',
-                                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                                              ),
+                                              const SizedBox(width: 4),
+                                              Text('• ${p.barcode}', style: ShadcnTypography.code.copyWith(fontSize: 10)),
                                             ],
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                  // Price
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
                                         '₹${(p.sellingPricePaisa / 100).toStringAsFixed(2)}',
-                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                        style: ShadcnTypography.currency.copyWith(fontSize: 15),
                                       ),
                                       if (p.purchaseCostPaisa > 0)
                                         Text(
                                           'Cost: ₹${(p.purchaseCostPaisa / 100).toStringAsFixed(2)}',
-                                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                                          style: ShadcnTypography.caption.copyWith(fontSize: 10),
                                         ),
                                     ],
                                   ),
                                 ],
                               ),
-                              const Divider(height: 16),
+                              const SizedBox(height: 10),
+                              const Divider(height: 1, color: ShadcnColors.border),
+                              const SizedBox(height: 10),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  // Stock Status Badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: isOut
-                                          ? Colors.red.shade50
-                                          : (isLowStock ? Colors.amber.shade50 : Colors.green.shade50),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: isOut
-                                            ? Colors.red.shade200
-                                            : (isLowStock ? Colors.amber.shade200 : Colors.green.shade200),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          isOut ? Icons.cancel : (isLowStock ? Icons.warning_amber : Icons.check_circle),
-                                          size: 13,
-                                          color: isOut
-                                              ? Colors.red
-                                              : (isLowStock ? Colors.amber.shade800 : Colors.green),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Stock: ${p.currentStock.toStringAsFixed(0)} ${p.unit}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: isOut
-                                                ? Colors.red.shade800
-                                                : (isLowStock ? Colors.amber.shade900 : Colors.green.shade800),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  ShadcnBadge(
+                                    text: isOut
+                                        ? 'Out of Stock'
+                                        : (isLowStock
+                                            ? '${p.currentStock.toStringAsFixed(0)} ${p.unit} left'
+                                            : '${p.currentStock.toStringAsFixed(0)} ${p.unit} in stock'),
+                                    variant: isOut
+                                        ? ShadcnBadgeVariant.destructive
+                                        : (isLowStock ? ShadcnBadgeVariant.warning : ShadcnBadgeVariant.success),
                                   ),
-                                  // Action Buttons
                                   Row(
                                     children: [
-                                      OutlinedButton.icon(
-                                        icon: const Icon(Icons.sync_alt, size: 13),
-                                        label: const Text('Adjust', style: TextStyle(fontSize: 11)),
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          visualDensity: VisualDensity.compact,
-                                        ),
+                                      ShadcnButton(
+                                        text: 'Adjust',
+                                        size: ShadcnButtonSize.sm,
+                                        variant: ShadcnButtonVariant.outline,
+                                        leadingIcon: const Icon(Icons.tune_outlined, size: 14),
                                         onPressed: () => _openStockAdjustmentDialog(p),
                                       ),
                                       const SizedBox(width: 6),
-                                      OutlinedButton.icon(
-                                        icon: const Icon(Icons.edit, size: 13),
-                                        label: const Text('Edit', style: TextStyle(fontSize: 11)),
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          visualDensity: VisualDensity.compact,
-                                        ),
+                                      ShadcnButton(
+                                        text: 'Edit',
+                                        size: ShadcnButtonSize.sm,
+                                        variant: ShadcnButtonVariant.secondary,
+                                        leadingIcon: const Icon(Icons.edit_outlined, size: 14),
                                         onPressed: () => _openEditProductDialog(p),
                                       ),
                                     ],
@@ -422,10 +325,11 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('add_new_product_fab'),
         onPressed: _openAddProductDialog,
-        backgroundColor: const Color(0xFF10B981),
+        backgroundColor: ShadcnColors.primary,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Item', style: TextStyle(fontWeight: FontWeight.bold)),
+        icon: const Icon(Icons.add, size: 20),
+        label: const Text('Add Item', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        elevation: 2,
       ),
     );
   }

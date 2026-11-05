@@ -14,6 +14,8 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 
+import { ModuleGuard } from './guards/module.guard';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -30,8 +32,8 @@ import { CategoryEntity } from '../catalog/entities/category.entity';
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtStrategy, PassportModule],
+  providers: [AuthService, JwtStrategy, ModuleGuard],
+  exports: [AuthService, JwtStrategy, PassportModule, ModuleGuard],
 })
 export class AuthModule {}
 
