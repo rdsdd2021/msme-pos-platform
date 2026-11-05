@@ -50,6 +50,7 @@ import { DevicesView } from '@/features/settings/devices-view';
 import { SubscriptionView } from '@/features/settings/subscription-view';
 import { BranchesView } from '@/features/settings/branches-view';
 import { BranchGstinModal } from '@/features/settings/branch-gstin-modal';
+import { SettingsView } from '@/features/settings/settings-view';
 import { cn } from '@/lib/utils';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 
@@ -64,7 +65,7 @@ function generateUuid(): string {
   });
 }
 
-export type AdminTab = 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices';
+export type AdminTab = 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices' | 'settings';
 export type InventorySubTab = 'products' | 'stock' | 'suppliers' | 'purchases' | 'categories' | 'transfers';
 
 interface AdminDashboardProps {
@@ -102,6 +103,7 @@ export default function AdminDashboard({
   const canAccessDevices = isOwner() || isBranchManager();
   const canAccessBranches = isOwner();
   const canAccessSubscription = isOwner();
+  const canAccessSettings = isOwner() || isBranchManager();
 
   const canAccessTab = useCallback(
     (tab: AdminTab): boolean => {
@@ -124,6 +126,8 @@ export default function AdminDashboard({
           return canAccessBranches;
         case 'subscription':
           return canAccessSubscription;
+        case 'settings':
+          return canAccessSettings;
         default:
           return false;
       }
@@ -138,6 +142,7 @@ export default function AdminDashboard({
       canAccessDevices,
       canAccessBranches,
       canAccessSubscription,
+      canAccessSettings,
     ],
   );
 
@@ -151,6 +156,7 @@ export default function AdminDashboard({
     canAccessDevices,
     canAccessBranches,
     canAccessSubscription,
+    canAccessSettings,
   ].filter(Boolean).length;
 
   const [internalActiveTab, setInternalActiveTab] = useState<AdminTab>(() => {
@@ -1559,6 +1565,7 @@ export default function AdminDashboard({
             {activeTab === 'devices' && '📱'}
             {activeTab === 'branches' && '🏢'}
             {activeTab === 'subscription' && '💳'}
+            {activeTab === 'settings' && '⚙️'}
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -1571,6 +1578,7 @@ export default function AdminDashboard({
               {activeTab === 'devices' && 'Hardware & POS Terminals'}
               {activeTab === 'branches' && 'Store Branches & GSTIN Config'}
               {activeTab === 'subscription' && 'Subscription & Account Plan'}
+              {activeTab === 'settings' && 'Store Settings & Administration'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
               <span>{activeTenant?.tenantName || 'Kirana Supermart'}</span>
@@ -1743,6 +1751,22 @@ export default function AdminDashboard({
               <span>Subscription</span>
             </button>
           )}
+
+          {canAccessSettings && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              data-testid="tab-settings"
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
+                activeTab === 'settings'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              )}
+            >
+              <span>⚙️</span>
+              <span>Settings Hub</span>
+            </button>
+          )}
         </nav>
 
         {/* Hidden select for automated test backward compatibility */}
@@ -1763,6 +1787,7 @@ export default function AdminDashboard({
           {canAccessDevices && <option value="devices">POS Devices</option>}
           {canAccessBranches && <option value="branches">Branches & GSTIN</option>}
           {canAccessSubscription && <option value="subscription">Subscription Plan</option>}
+          {canAccessSettings && <option value="settings">Settings Hub</option>}
         </select>
       </div>
 
@@ -2101,21 +2126,36 @@ export default function AdminDashboard({
               <ShiftsView shifts={shifts} onRefresh={fetchAllData} />
             )}
 
-            {/* 5. Devices Tab */}
+            {/* 5. Devices Tab (Routed through Settings Hub) */}
             {activeTab === 'devices' && (
-              <DevicesView
+              <SettingsView
+                initialTab="devices"
+                branches={branchesList}
                 devices={devices}
-                onRefresh={fetchAllData}
+                subscription={subscription}
                 tenantId={activeTenant?.tenantId}
                 branchId={activeBranch?.id}
                 tenantName={activeTenant?.tenantName}
                 branchName={activeBranch?.name}
+                onRefresh={fetchAllData}
+                onEditBranch={handleOpenEditBranch}
               />
             )}
 
-            {/* 6. Subscription Tab */}
+            {/* 6. Subscription Tab (Routed through Settings Hub) */}
             {activeTab === 'subscription' && isOwner() && (
-              <SubscriptionView subscription={subscription} />
+              <SettingsView
+                initialTab="subscription"
+                branches={branchesList}
+                devices={devices}
+                subscription={subscription}
+                tenantId={activeTenant?.tenantId}
+                branchId={activeBranch?.id}
+                tenantName={activeTenant?.tenantName}
+                branchName={activeBranch?.name}
+                onRefresh={fetchAllData}
+                onEditBranch={handleOpenEditBranch}
+              />
             )}
 
             {/* 7. GST Statutory Reports & Filing Preparation */}
@@ -2129,10 +2169,33 @@ export default function AdminDashboard({
               />
             )}
 
-            {/* 8. Branches & GSTIN Configuration Tab */}
+            {/* 8. Branches & GSTIN Configuration Tab (Routed through Settings Hub) */}
             {activeTab === 'branches' && (
-              <BranchesView
+              <SettingsView
+                initialTab="branches"
                 branches={branchesList}
+                devices={devices}
+                subscription={subscription}
+                tenantId={activeTenant?.tenantId}
+                branchId={activeBranch?.id}
+                tenantName={activeTenant?.tenantName}
+                branchName={activeBranch?.name}
+                onRefresh={fetchAllData}
+                onEditBranch={handleOpenEditBranch}
+              />
+            )}
+
+            {/* 9. Universal Settings Hub */}
+            {activeTab === 'settings' && (
+              <SettingsView
+                initialTab="profile"
+                branches={branchesList}
+                devices={devices}
+                subscription={subscription}
+                tenantId={activeTenant?.tenantId}
+                branchId={activeBranch?.id}
+                tenantName={activeTenant?.tenantName}
+                branchName={activeBranch?.name}
                 onRefresh={fetchAllData}
                 onEditBranch={handleOpenEditBranch}
               />

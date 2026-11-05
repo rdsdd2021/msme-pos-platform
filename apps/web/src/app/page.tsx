@@ -13,6 +13,7 @@ import { CommandMenu } from '@/components/layout/command-menu';
 import { RestaurantFloorplanView } from '@/features/restaurant/restaurant-floorplan-view';
 import { KitchenDisplayView } from '@/features/restaurant/kitchen-display-view';
 import { OnboardingWizard } from '@/features/onboarding/onboarding-wizard';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 export default function HomePage() {
   const { user, status, checkAuth, isOwner, isBranchManager, isCashier, isSuperAdmin, activeTenant } = useAuthStore();
@@ -21,6 +22,7 @@ export default function HomePage() {
   const [activeInventorySubTab, setActiveInventorySubTab] = useState<InventorySubTab>('products');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Verify active session on page mount
   useEffect(() => {
@@ -78,8 +80,9 @@ export default function HomePage() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-100" data-testid="pos-app-root">
-      {/* Modern Collapsible Role-Based Sidebar */}
+      {/* Modern Collapsible Role-Based Sidebar (Desktop >= 1024px) */}
       <AppSidebar
+        className="hidden lg:flex"
         viewMode={viewMode === 'superadmin' ? 'admin' : viewMode}
         setViewMode={(m) => setViewMode(m)}
         activeAdminTab={activeAdminTab}
@@ -94,6 +97,38 @@ export default function HomePage() {
         onOpenCommand={() => setCommandOpen(true)}
       />
 
+      {/* Mobile Navigation Drawer Sheet (< 1024px) */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 w-72 max-w-[85vw] border-r border-slate-200">
+          <AppSidebar
+            className="flex w-full h-full border-r-0 shadow-none"
+            viewMode={viewMode === 'superadmin' ? 'admin' : viewMode}
+            setViewMode={(m) => {
+              setViewMode(m);
+              setMobileMenuOpen(false);
+            }}
+            activeAdminTab={activeAdminTab}
+            setActiveAdminTab={(tab) => {
+              setActiveAdminTab(tab);
+              setViewMode('admin');
+              setMobileMenuOpen(false);
+            }}
+            activeInventorySubTab={activeInventorySubTab}
+            setActiveInventorySubTab={(sub) => {
+              setActiveInventorySubTab(sub);
+              setMobileMenuOpen(false);
+            }}
+            collapsed={false}
+            onToggleCollapse={() => {}}
+            onOpenCommand={() => {
+              setMobileMenuOpen(false);
+              setCommandOpen(true);
+            }}
+            onNavigate={() => setMobileMenuOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
       {/* Main App Canvas */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Modern App Header with Breadcrumb, Branch status & Command trigger */}
@@ -102,6 +137,7 @@ export default function HomePage() {
           setViewMode={(m) => setViewMode(m)}
           activeAdminTab={activeAdminTab}
           onOpenCommand={() => setCommandOpen(true)}
+          onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
         />
 
         {/* Dynamic Viewport */}

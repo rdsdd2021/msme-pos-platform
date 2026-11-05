@@ -29,6 +29,7 @@ import {
   Split,
   Sparkles,
   Camera,
+  ArrowRight,
 } from 'lucide-react';
 import { CameraBarcodeModal } from '@/components/camera-barcode-modal';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
@@ -101,6 +102,7 @@ export default function PosCheckoutScreen() {
   const [recentBillsOpen, setRecentBillsOpen] = useState(false);
   const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
   const [receiptDesignerOpen, setReceiptDesignerOpen] = useState(false);
+  const [mobileCartDrawerOpen, setMobileCartDrawerOpen] = useState(false);
 
   const receiptConfig = useMemo(() => {
     return getReceiptConfig(activeTenant?.tenantId, activeBranch?.id);
@@ -776,12 +778,39 @@ export default function PosCheckoutScreen() {
             </div>
           )}
         </div>
+
+        {/* Mobile Sticky Bottom Cart Dock (< lg) */}
+        {items.length > 0 && (
+          <div className="lg:hidden p-3 bg-white/95 backdrop-blur border-t border-slate-200/90 shadow-xl shrink-0 flex items-center justify-between gap-3 z-20">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                <ShoppingCart className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 font-medium">
+                  {items.length} {items.length === 1 ? 'item' : 'items'}
+                </div>
+                <div className="text-base font-black text-slate-900 font-mono">
+                  ₹{getGrandTotal()}
+                </div>
+              </div>
+            </div>
+            <Button
+              onClick={() => setMobileCartDrawerOpen(true)}
+              data-testid="mobile-view-cart-btn"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+            >
+              <span>View Cart &amp; Pay</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* =========================================================================
           RIGHT PANE (5 COLS / 40%): Live Cart, Bill Summary & High-Speed Tender
           ========================================================================= */}
-      <div className="col-span-12 lg:col-span-5 xl:col-span-4 flex flex-col h-full bg-white shadow-lg overflow-hidden border-l border-slate-200/80">
+      <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col h-full bg-white shadow-lg overflow-hidden border-l border-slate-200/80">
         {/* Cart Header */}
         <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-slate-50/50">
           <div className="flex items-center gap-2">
@@ -1022,6 +1051,195 @@ export default function PosCheckoutScreen() {
           </div>
         </div>
       </div>
+
+      {/* =========================================================================
+          MOBILE SLIDE-UP CART SHEET (< lg)
+          ========================================================================= */}
+      <Sheet open={mobileCartDrawerOpen} onOpenChange={setMobileCartDrawerOpen}>
+        <SheetContent
+          side="bottom"
+          className="lg:hidden h-[88vh] rounded-t-2xl p-0 flex flex-col bg-white overflow-hidden"
+          data-testid="mobile-cart-sheet"
+        >
+          {/* Header */}
+          <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-slate-50/50">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4 text-blue-600" />
+              <h2 className="text-sm font-bold text-slate-900">Current Cart</h2>
+              <Badge variant="secondary" className="font-bold text-[11px] px-2 py-0 h-5">
+                {items.length} items
+              </Badge>
+            </div>
+            {items.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearCart}
+                className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 px-2 font-medium cursor-pointer"
+              >
+                Clear Cart
+              </Button>
+            )}
+          </div>
+
+          {/* Customer Link / Walk-in Bar in Cart */}
+          <div className="px-3.5 py-2 bg-slate-50/80 border-b border-slate-200/80 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 overflow-hidden text-xs">
+              <User className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              {selectedCustomerId ? (
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="font-bold text-slate-900 truncate">
+                    {customers.find((c) => c.id === selectedCustomerId)?.name || 'Selected Customer'}
+                  </span>
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[9px] px-1.5 py-0 font-medium">
+                    Khata Active
+                  </Badge>
+                </div>
+              ) : (
+                <span className="text-slate-500 font-medium truncate">Walk-in Customer</span>
+              )}
+            </div>
+            {selectedCustomerId ? (
+              <button
+                type="button"
+                onClick={() => setSelectedCustomerId('')}
+                className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold cursor-pointer shrink-0"
+              >
+                Unlink
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileCartDrawerOpen(false);
+                  setCheckoutModalOpen(true);
+                }}
+                className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold cursor-pointer shrink-0"
+              >
+                + Link Customer
+              </button>
+            )}
+          </div>
+
+          {/* Cart Items List */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
+            {items.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-2 p-4 text-center">
+                <ShoppingCart className="h-8 w-8 text-slate-300" />
+                <p className="text-xs font-semibold text-slate-600">Cart is empty</p>
+              </div>
+            ) : (
+              items.map((item) => (
+                <div
+                  key={item.productId}
+                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex flex-col gap-2 shadow-2xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-900 truncate">{item.name}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">₹{parseFloat(item.price).toFixed(2)} each</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeItem(item.productId)}
+                      className="h-6 w-6 text-slate-400 hover:text-rose-600 rounded-md cursor-pointer shrink-0"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
+                    <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg p-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        className="h-7 w-7 text-slate-600 rounded cursor-pointer"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center text-xs font-black font-mono">{item.quantity}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        className="h-7 w-7 text-slate-600 rounded cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <span className="text-sm font-black text-slate-900 font-mono">
+                      ₹{(parseFloat(item.price) * item.quantity).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Bottom Totals & Tender Buttons in Sheet */}
+          <div className="p-4 border-t border-slate-200 bg-slate-50/50 space-y-3 shrink-0">
+            <div className="flex items-baseline justify-between bg-white p-3 rounded-xl border border-slate-200/90 shadow-2xs">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">Total Due</span>
+                <span className="text-[10px] text-slate-400 font-medium">All taxes included</span>
+              </div>
+              <span className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+                ₹{getGrandTotal()}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={() => {
+                  setMobileCartDrawerOpen(false);
+                  openCheckout(PaymentMethod.CASH);
+                }}
+                disabled={items.length === 0}
+                className="h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Banknote className="h-4.5 w-4.5" />
+                <span>Cash (F1)</span>
+              </Button>
+              <Button
+                onClick={() => {
+                  setMobileCartDrawerOpen(false);
+                  openCheckout(PaymentMethod.UPI);
+                }}
+                disabled={items.length === 0}
+                className="h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <QrCode className="h-4.5 w-4.5" />
+                <span>UPI</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMobileCartDrawerOpen(false);
+                  openCheckout(PaymentMethod.CARD);
+                }}
+                disabled={items.length === 0}
+                className="h-9 border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span>Card (F3)</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMobileCartDrawerOpen(false);
+                  openCheckout(PaymentMethod.CREDIT);
+                }}
+                disabled={items.length === 0}
+                className="h-9 border-amber-300 bg-amber-50/50 text-amber-900 hover:bg-amber-100 font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <BookOpen className="h-3.5 w-3.5 text-amber-700" />
+                <span>Khata (F6)</span>
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* =========================================================================
           SLIDE-OVER PAYMENT DRAWER (SHADCN SHEET)

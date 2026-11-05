@@ -14,6 +14,7 @@ import {
   Receipt,
   UtensilsCrossed,
   ChefHat,
+  Sliders,
   LucideIcon,
 } from 'lucide-react';
 
@@ -22,7 +23,7 @@ export interface NavItem {
   title: string;
   icon: LucideIcon;
   target: 'pos' | 'admin' | 'restaurant' | 'kds';
-  adminTab?: 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices';
+  adminTab?: 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices' | 'settings';
   adminSubTab?: 'products' | 'stock' | 'suppliers' | 'purchases' | 'categories' | 'transfers';
   allowedRoles: Role[];
   requiredModule?: string;
@@ -153,6 +154,15 @@ export const navigationConfig: NavSection[] = [
   {
     title: 'Store Administration',
     items: [
+      {
+        id: 'settings',
+        title: 'Settings Hub',
+        icon: Sliders,
+        target: 'admin',
+        adminTab: 'settings',
+        allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER],
+        testId: 'nav-settings',
+      },
       {
         id: 'branches',
         title: 'Branches & GSTIN',

@@ -31,6 +31,8 @@ interface AppSidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onOpenCommand: () => void;
+  className?: string;
+  onNavigate?: () => void;
 }
 
 export function AppSidebar({
@@ -43,6 +45,8 @@ export function AppSidebar({
   collapsed,
   onToggleCollapse,
   onOpenCommand,
+  className,
+  onNavigate,
 }: AppSidebarProps) {
   const {
     user,
@@ -134,6 +138,7 @@ export function AppSidebar({
         setActiveInventorySubTab(item.adminSubTab);
       }
     }
+    onNavigate?.();
   };
 
   return (
@@ -141,7 +146,8 @@ export function AppSidebar({
       <aside
         className={cn(
           'relative flex flex-col bg-white text-slate-800 border-r border-slate-200/90 transition-all duration-200 ease-in-out shrink-0 select-none z-30 shadow-[1px_0_2px_rgba(0,0,0,0.02)]',
-          collapsed ? 'w-16' : 'w-64'
+          collapsed ? 'w-16' : 'w-64',
+          className
         )}
       >
         {/* Brand & Store Selector Header */}

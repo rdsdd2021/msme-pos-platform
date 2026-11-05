@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Sparkles,
   Command as CommandIcon,
+  Menu,
 } from 'lucide-react';
 
 interface AppHeaderProps {
@@ -26,6 +27,7 @@ interface AppHeaderProps {
   setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds') => void;
   activeAdminTab?: string;
   onOpenCommand: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export function AppHeader({
@@ -33,6 +35,7 @@ export function AppHeader({
   setViewMode,
   activeAdminTab = 'inventory',
   onOpenCommand,
+  onToggleMobileMenu,
 }: AppHeaderProps) {
   const { activeTenant, activeBranch, isOwner, isBranchManager, isCashier } = useAuthStore();
 
@@ -56,15 +59,30 @@ export function AppHeader({
         return 'POS Hardware Devices';
       case 'subscription':
         return 'Subscription & Billing';
+      case 'settings':
+        return 'Store Settings & Administration';
       default:
         return 'Management';
     }
   };
 
   return (
-    <header className="h-14 bg-white border-b border-slate-200/90 px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
-      {/* Left: Dynamic Breadcrumbs */}
-      <div className="flex items-center gap-3">
+    <header className="h-14 bg-white border-b border-slate-200/90 px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
+      {/* Left: Mobile Menu Toggle & Dynamic Breadcrumbs */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {onToggleMobileMenu && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleMobileMenu}
+            data-testid="mobile-menu-toggle-btn"
+            className="lg:hidden h-8 w-8 p-0 text-slate-700 hover:bg-slate-100 rounded-lg shrink-0 cursor-pointer"
+            aria-label="Toggle navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+
         <Breadcrumb className="hidden sm:block">
           <BreadcrumbList>
             <BreadcrumbItem>

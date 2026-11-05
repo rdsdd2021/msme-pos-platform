@@ -83,6 +83,7 @@ describe('Sprint 2: Modern Layout Components & Role-Based Navigation', () => {
       expect(screen.getByText('Catalogue & Stock')).toBeInTheDocument();
       expect(screen.getByText('Customers & Finance')).toBeInTheDocument();
       expect(screen.getByText('Store Administration')).toBeInTheDocument();
+      expect(screen.getByTestId('nav-settings')).toBeInTheDocument();
     });
 
     it('filters navigation items for Cashier role', () => {
@@ -177,6 +178,24 @@ describe('Sprint 2: Modern Layout Components & Role-Based Navigation', () => {
       expect(backofficeBtn).toBeInTheDocument();
       fireEvent.click(backofficeBtn);
       expect(setViewMode).toHaveBeenCalledWith('admin');
+    });
+
+    it('renders mobile menu toggle button and triggers onToggleMobileMenu', () => {
+      const onToggleMobileMenu = jest.fn();
+
+      render(
+        <AppHeader
+          viewMode="admin"
+          setViewMode={jest.fn()}
+          onOpenCommand={jest.fn()}
+          onToggleMobileMenu={onToggleMobileMenu}
+        />
+      );
+
+      const toggleBtn = screen.getByTestId('mobile-menu-toggle-btn');
+      expect(toggleBtn).toBeInTheDocument();
+      fireEvent.click(toggleBtn);
+      expect(onToggleMobileMenu).toHaveBeenCalledTimes(1);
     });
   });
 
