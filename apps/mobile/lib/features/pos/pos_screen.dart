@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +27,7 @@ import '../../core/widgets/shadcn_input.dart';
 import '../../core/widgets/shadcn_sheet.dart';
 import '../../core/widgets/shadcn_quantity_stepper.dart';
 import '../../core/widgets/shadcn_empty_state.dart';
+import '../../core/widgets/camera_barcode_scanner_modal.dart';
 
 class MobilePosScreen extends ConsumerStatefulWidget {
   const MobilePosScreen({super.key});
@@ -699,6 +701,13 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     );
   }
 
+  Future<void> _openBarcodeScanner(BuildContext context) async {
+    final scanned = await CameraBarcodeScannerModal.show(context);
+    if (scanned != null && scanned.isNotEmpty) {
+      _onBarcodeScanned(scanned);
+    }
+  }
+
   void _showManualBarcodeDialog(BuildContext context) {
     final controller = TextEditingController();
     final catalogState = ref.read(catalogProvider);
@@ -956,7 +965,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                     width: 44,
                     child: ElevatedButton(
                       key: const Key('pos_manual_scan_btn'),
-                      onPressed: () => _showManualBarcodeDialog(context),
+                      onPressed: () => _openBarcodeScanner(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ShadcnColors.foreground,
                         foregroundColor: Colors.white,
@@ -1123,20 +1132,39 @@ class _ProductCard extends ConsumerWidget {
             ],
           ),
 
-          // Title & SKU
-          Column(
+          // Title & SKU with optional Photo Thumbnail
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13, height: 1.25),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '${product.sku} • ${product.unit}',
-                style: ShadcnTypography.caption.copyWith(fontSize: 10),
+              if (product.imageUrl != null && product.imageUrl!.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    width: 34,
+                    height: 34,
+                    color: ShadcnColors.secondary,
+                    child: _buildProductThumbnail(product.imageUrl!),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13, height: 1.25),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${product.sku} • ${product.unit}',
+                      style: ShadcnTypography.caption.copyWith(fontSize: 10),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1192,6 +1220,30 @@ class _ProductCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Widget _buildProductThumbnail(String imageUrl) {
+    if (imageUrl.startsWith('data:image/')) {
+      try {
+        final commaIdx = imageUrl.indexOf(',');
+        final base64Str = commaIdx != -1 ? imageUrl.substring(commaIdx + 1) : imageUrl;
+        final bytes = base64Decode(base64Str);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground),
+        );
+      } catch (_) {
+        return const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground);
+      }
+    } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground),
+      );
+    }
+    return const Icon(Icons.shopping_bag_outlined, size: 16, color: ShadcnColors.mutedForeground);
   }
 }
 

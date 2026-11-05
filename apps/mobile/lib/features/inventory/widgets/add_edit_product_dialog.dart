@@ -4,6 +4,8 @@ import '../../../core/models/product.dart';
 import '../../../core/providers/catalog_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/sync_provider.dart';
+import '../../../core/widgets/camera_barcode_scanner_modal.dart';
+import '../../../core/widgets/product_photo_picker.dart';
 
 class AddEditProductDialog extends ConsumerStatefulWidget {
   final Product? product;
@@ -28,6 +30,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
   late String _selectedCategory;
   late String _selectedUnit;
   late double _selectedGstRate;
+  String? _selectedImageUrl;
   bool _isSaving = false;
 
   final List<String> _categories = [
@@ -69,6 +72,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
     }
     _selectedUnit = p?.unit ?? 'PCS';
     _selectedGstRate = p != null ? p.gstRate.toDouble() : 5.0;
+    _selectedImageUrl = p?.imageUrl;
   }
 
   @override
@@ -113,6 +117,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
               hsnCode: _hsnController.text.trim().isEmpty ? null : _hsnController.text.trim(),
               unit: _selectedUnit,
               initialStock: initialStock,
+              imageUrl: _selectedImageUrl,
               tenantId: tenantId,
             );
       } else {
@@ -129,7 +134,7 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
           gstRate: _selectedGstRate.round(),
           currentStock: widget.product!.currentStock,
           hsnCode: _hsnController.text.trim().isEmpty ? null : _hsnController.text.trim(),
-          imageUrl: widget.product!.imageUrl,
+          imageUrl: _selectedImageUrl,
         );
         await ref.read(catalogProvider.notifier).updateProduct(updated);
       }
@@ -216,6 +221,15 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Product Photo Attachment
+                        ProductPhotoPicker(
+                          initialImageUrl: _selectedImageUrl,
+                          onPhotoChanged: (url) {
+                            setState(() => _selectedImageUrl = url);
+                          },
+                        ),
+                        const SizedBox(height: 14),
+
                         // Product Name
                         TextFormField(
                           controller: _nameController,
@@ -246,11 +260,27 @@ class _AddEditProductDialogState extends ConsumerState<AddEditProductDialog> {
                             Expanded(
                               child: TextFormField(
                                 controller: _barcodeController,
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   labelText: 'Barcode',
                                   hintText: '8901...',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.qr_code_scanner),
+                                  border: const OutlineInputBorder(),
+                                  prefixIcon: const Icon(Icons.qr_code_scanner),
+                                  suffixIcon: IconButton(
+                                    key: const Key('scan_item_barcode_btn'),
+                                    icon: const Icon(Icons.camera_alt_outlined, color: Color(0xFF10B981), size: 20),
+                                    tooltip: 'Scan Barcode with Camera',
+                                    onPressed: () async {
+                                      final scanned = await CameraBarcodeScannerModal.show(context);
+                                      if (scanned != null && scanned.isNotEmpty) {
+                                        setState(() {
+                                          _barcodeController.text = scanned;
+                                          if (_skuController.text.trim().isEmpty) {
+                                            _skuController.text = scanned;
+                                          }
+                                        });
+                                      }
+                                    },
+                                  ),
                                 ),
                               ),
                             ),

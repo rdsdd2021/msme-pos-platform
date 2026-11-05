@@ -16,6 +16,7 @@ class LocalProducts extends Table {
   TextColumn get categoryName => text().nullable()();
   TextColumn get unit => text().withDefault(const Constant('PCS'))();
   RealColumn get stockQuantity => real().withDefault(const Constant(0.0))();
+  TextColumn get imageUrl => text().nullable()();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

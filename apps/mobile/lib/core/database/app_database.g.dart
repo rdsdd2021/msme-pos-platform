@@ -93,6 +93,12 @@ class $LocalProductsTable extends LocalProducts
       type: DriftSqlType.double,
       requiredDuringInsert: false,
       defaultValue: const Constant(0.0));
+  static const VerificationMeta _imageUrlMeta =
+      const VerificationMeta('imageUrl');
+  @override
+  late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
+      'image_url', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -116,6 +122,7 @@ class $LocalProductsTable extends LocalProducts
         categoryName,
         unit,
         stockQuantity,
+        imageUrl,
         updatedAt
       ];
   @override
@@ -199,6 +206,10 @@ class $LocalProductsTable extends LocalProducts
           stockQuantity.isAcceptableOrUnknown(
               data['stock_quantity']!, _stockQuantityMeta));
     }
+    if (data.containsKey('image_url')) {
+      context.handle(_imageUrlMeta,
+          imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta));
+    }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
@@ -238,6 +249,8 @@ class $LocalProductsTable extends LocalProducts
           .read(DriftSqlType.string, data['${effectivePrefix}unit'])!,
       stockQuantity: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}stock_quantity'])!,
+      imageUrl: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_url']),
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
     );
@@ -263,6 +276,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
   final String? categoryName;
   final String unit;
   final double stockQuantity;
+  final String? imageUrl;
   final DateTime updatedAt;
   const LocalProduct(
       {required this.id,
@@ -278,6 +292,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       this.categoryName,
       required this.unit,
       required this.stockQuantity,
+      this.imageUrl,
       required this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -301,6 +316,9 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
     }
     map['unit'] = Variable<String>(unit);
     map['stock_quantity'] = Variable<double>(stockQuantity);
+    if (!nullToAbsent || imageUrl != null) {
+      map['image_url'] = Variable<String>(imageUrl);
+    }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
@@ -326,6 +344,9 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           : Value(categoryName),
       unit: Value(unit),
       stockQuantity: Value(stockQuantity),
+      imageUrl: imageUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imageUrl),
       updatedAt: Value(updatedAt),
     );
   }
@@ -347,6 +368,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       categoryName: serializer.fromJson<String?>(json['categoryName']),
       unit: serializer.fromJson<String>(json['unit']),
       stockQuantity: serializer.fromJson<double>(json['stockQuantity']),
+      imageUrl: serializer.fromJson<String?>(json['imageUrl']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -367,6 +389,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       'categoryName': serializer.toJson<String?>(categoryName),
       'unit': serializer.toJson<String>(unit),
       'stockQuantity': serializer.toJson<double>(stockQuantity),
+      'imageUrl': serializer.toJson<String?>(imageUrl),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -385,6 +408,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           Value<String?> categoryName = const Value.absent(),
           String? unit,
           double? stockQuantity,
+          Value<String?> imageUrl = const Value.absent(),
           DateTime? updatedAt}) =>
       LocalProduct(
         id: id ?? this.id,
@@ -401,6 +425,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
             categoryName.present ? categoryName.value : this.categoryName,
         unit: unit ?? this.unit,
         stockQuantity: stockQuantity ?? this.stockQuantity,
+        imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
         updatedAt: updatedAt ?? this.updatedAt,
       );
   LocalProduct copyWithCompanion(LocalProductsCompanion data) {
@@ -428,6 +453,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       stockQuantity: data.stockQuantity.present
           ? data.stockQuantity.value
           : this.stockQuantity,
+      imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -448,6 +474,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           ..write('categoryName: $categoryName, ')
           ..write('unit: $unit, ')
           ..write('stockQuantity: $stockQuantity, ')
+          ..write('imageUrl: $imageUrl, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -468,6 +495,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       categoryName,
       unit,
       stockQuantity,
+      imageUrl,
       updatedAt);
   @override
   bool operator ==(Object other) =>
@@ -486,6 +514,7 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           other.categoryName == this.categoryName &&
           other.unit == this.unit &&
           other.stockQuantity == this.stockQuantity &&
+          other.imageUrl == this.imageUrl &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -503,6 +532,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
   final Value<String?> categoryName;
   final Value<String> unit;
   final Value<double> stockQuantity;
+  final Value<String?> imageUrl;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const LocalProductsCompanion({
@@ -519,6 +549,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     this.categoryName = const Value.absent(),
     this.unit = const Value.absent(),
     this.stockQuantity = const Value.absent(),
+    this.imageUrl = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -536,6 +567,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     this.categoryName = const Value.absent(),
     this.unit = const Value.absent(),
     this.stockQuantity = const Value.absent(),
+    this.imageUrl = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -557,6 +589,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     Expression<String>? categoryName,
     Expression<String>? unit,
     Expression<double>? stockQuantity,
+    Expression<String>? imageUrl,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -574,6 +607,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
       if (categoryName != null) 'category_name': categoryName,
       if (unit != null) 'unit': unit,
       if (stockQuantity != null) 'stock_quantity': stockQuantity,
+      if (imageUrl != null) 'image_url': imageUrl,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -593,6 +627,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
       Value<String?>? categoryName,
       Value<String>? unit,
       Value<double>? stockQuantity,
+      Value<String?>? imageUrl,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
     return LocalProductsCompanion(
@@ -609,6 +644,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
       categoryName: categoryName ?? this.categoryName,
       unit: unit ?? this.unit,
       stockQuantity: stockQuantity ?? this.stockQuantity,
+      imageUrl: imageUrl ?? this.imageUrl,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -656,6 +692,9 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     if (stockQuantity.present) {
       map['stock_quantity'] = Variable<double>(stockQuantity.value);
     }
+    if (imageUrl.present) {
+      map['image_url'] = Variable<String>(imageUrl.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -681,6 +720,7 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
           ..write('categoryName: $categoryName, ')
           ..write('unit: $unit, ')
           ..write('stockQuantity: $stockQuantity, ')
+          ..write('imageUrl: $imageUrl, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3612,6 +3652,7 @@ typedef $$LocalProductsTableCreateCompanionBuilder = LocalProductsCompanion
   Value<String?> categoryName,
   Value<String> unit,
   Value<double> stockQuantity,
+  Value<String?> imageUrl,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -3630,6 +3671,7 @@ typedef $$LocalProductsTableUpdateCompanionBuilder = LocalProductsCompanion
   Value<String?> categoryName,
   Value<String> unit,
   Value<double> stockQuantity,
+  Value<String?> imageUrl,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -3684,6 +3726,9 @@ class $$LocalProductsTableFilterComposer
 
   ColumnFilters<double> get stockQuantity => $composableBuilder(
       column: $table.stockQuantity, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imageUrl => $composableBuilder(
+      column: $table.imageUrl, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
@@ -3742,6 +3787,9 @@ class $$LocalProductsTableOrderingComposer
       column: $table.stockQuantity,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get imageUrl => $composableBuilder(
+      column: $table.imageUrl, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
@@ -3794,6 +3842,9 @@ class $$LocalProductsTableAnnotationComposer
   GeneratedColumn<double> get stockQuantity => $composableBuilder(
       column: $table.stockQuantity, builder: (column) => column);
 
+  GeneratedColumn<String> get imageUrl =>
+      $composableBuilder(column: $table.imageUrl, builder: (column) => column);
+
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
@@ -3837,6 +3888,7 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             Value<String?> categoryName = const Value.absent(),
             Value<String> unit = const Value.absent(),
             Value<double> stockQuantity = const Value.absent(),
+            Value<String?> imageUrl = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -3854,6 +3906,7 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             categoryName: categoryName,
             unit: unit,
             stockQuantity: stockQuantity,
+            imageUrl: imageUrl,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
@@ -3871,6 +3924,7 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             Value<String?> categoryName = const Value.absent(),
             Value<String> unit = const Value.absent(),
             Value<double> stockQuantity = const Value.absent(),
+            Value<String?> imageUrl = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -3888,6 +3942,7 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             categoryName: categoryName,
             unit: unit,
             stockQuantity: stockQuantity,
+            imageUrl: imageUrl,
             updatedAt: updatedAt,
             rowid: rowid,
           ),

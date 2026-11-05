@@ -23,6 +23,7 @@ class LocalCatalogRepository {
       gstRate: row.gstRatePercent.round(),
       currentStock: row.stockQuantity,
       hsnCode: row.hsnCode,
+      imageUrl: row.imageUrl,
     );
   }
 
@@ -95,6 +96,7 @@ class LocalCatalogRepository {
     String? hsnCode,
     String unit = 'PCS',
     double initialStock = 0.0,
+    String? imageUrl,
     String tenantId = 'tenant-1',
     String deviceId = 'pos-mobile-01',
   }) async {
@@ -117,6 +119,7 @@ class LocalCatalogRepository {
           categoryName: Value(category.trim()),
           unit: Value(unit),
           stockQuantity: Value(initialStock),
+          imageUrl: Value(imageUrl),
           updatedAt: Value(now),
         ),
       );
@@ -154,6 +157,7 @@ class LocalCatalogRepository {
             'hsnCode': hsnCode?.trim(),
             'unit': unit,
             'initialStock': initialStock,
+            'imageUrl': imageUrl,
           }),
           status: const Value('pending'),
           retryCount: const Value(0),
@@ -174,6 +178,7 @@ class LocalCatalogRepository {
       gstRate: gstRate.round(),
       currentStock: initialStock,
       hsnCode: hsnCode?.trim(),
+      imageUrl: imageUrl,
     );
   }
 
@@ -191,6 +196,7 @@ class LocalCatalogRepository {
         purchaseCostPaisa: Value(product.purchaseCostPaisa),
         gstRatePercent: Value(product.gstRate.toDouble()),
         hsnCode: Value(product.hsnCode?.trim()),
+        imageUrl: Value(product.imageUrl),
         updatedAt: Value(now),
       ),
     );
@@ -214,6 +220,7 @@ class LocalCatalogRepository {
           'taxRate': product.gstRate.toString(),
           'hsnCode': product.hsnCode?.trim(),
           'unit': product.unit,
+          'imageUrl': product.imageUrl,
         }),
         status: const Value('pending'),
         retryCount: const Value(0),

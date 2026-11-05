@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -223,19 +224,19 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Leading initial avatar
-                                  Container(
-                                    width: 38,
-                                    height: 38,
-                                    decoration: BoxDecoration(
-                                      color: ShadcnColors.secondary,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: ShadcnColors.border),
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      p.name.isNotEmpty ? p.name.substring(0, 1).toUpperCase() : 'P',
-                                      style: ShadcnTypography.bodySemibold.copyWith(color: ShadcnColors.foreground),
+                                  // Leading thumbnail or initial avatar
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: ShadcnColors.secondary,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: ShadcnColors.border),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: _buildItemThumbnail(p),
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -331,6 +332,43 @@ class _MobileInventoryScreenState extends ConsumerState<MobileInventoryScreen> {
         label: const Text('Add Item', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         elevation: 2,
       ),
+    );
+  }
+
+  Widget _buildItemThumbnail(Product p) {
+    if (p.imageUrl != null && p.imageUrl!.isNotEmpty) {
+      if (p.imageUrl!.startsWith('data:image/')) {
+        try {
+          final commaIdx = p.imageUrl!.indexOf(',');
+          final base64Str = commaIdx != -1 ? p.imageUrl!.substring(commaIdx + 1) : p.imageUrl!;
+          final bytes = base64Decode(base64Str);
+          return Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: 42,
+            height: 42,
+            errorBuilder: (_, __, ___) => _buildLetterAvatar(p),
+          );
+        } catch (_) {
+          return _buildLetterAvatar(p);
+        }
+      } else if (p.imageUrl!.startsWith('http://') || p.imageUrl!.startsWith('https://')) {
+        return Image.network(
+          p.imageUrl!,
+          fit: BoxFit.cover,
+          width: 42,
+          height: 42,
+          errorBuilder: (_, __, ___) => _buildLetterAvatar(p),
+        );
+      }
+    }
+    return _buildLetterAvatar(p);
+  }
+
+  Widget _buildLetterAvatar(Product p) {
+    return Text(
+      p.name.isNotEmpty ? p.name.substring(0, 1).toUpperCase() : 'P',
+      style: ShadcnTypography.bodySemibold.copyWith(color: ShadcnColors.foreground),
     );
   }
 }

@@ -127,6 +127,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     String? hsnCode,
     String unit = 'PCS',
     double initialStock = 0.0,
+    String? imageUrl,
     String tenantId = 'tenant-1',
   }) async {
     final newProduct = await _repo.createProduct(
@@ -141,6 +142,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       hsnCode: hsnCode,
       unit: unit,
       initialStock: initialStock,
+      imageUrl: imageUrl,
       tenantId: tenantId,
     );
     state = state.copyWith(allProducts: [newProduct, ...state.allProducts]);
