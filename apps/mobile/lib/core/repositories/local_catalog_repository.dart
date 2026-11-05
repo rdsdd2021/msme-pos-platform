@@ -38,33 +38,51 @@ class LocalCatalogRepository {
         .go();
   }
 
-  /// Reactive stream of all products, ordered by name
-  Stream<List<Product>> watchAllProducts() {
-    return (_db.select(_db.localProducts)
-          ..orderBy([(p) => OrderingTerm(expression: p.name, mode: OrderingMode.asc)]))
+  /// Reactive stream of all products, ordered by name, filtered by tenant
+  Stream<List<Product>> watchAllProducts({String? tenantId}) {
+    final query = _db.select(_db.localProducts);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((p) => p.tenantId.equals(tenantId));
+    }
+    return (query..orderBy([(p) => OrderingTerm(expression: p.name, mode: OrderingMode.asc)]))
         .watch()
         .map((rows) => rows.map(_mapToModel).toList());
   }
 
-  /// Get snapshot list of all products
-  Future<List<Product>> getAllProducts() async {
-    final rows = await (_db.select(_db.localProducts)
+  /// Get snapshot list of all products, filtered by tenant
+  Future<List<Product>> getAllProducts({String? tenantId}) async {
+    final query = _db.select(_db.localProducts);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((p) => p.tenantId.equals(tenantId));
+    }
+    final rows = await (query
           ..orderBy([(p) => OrderingTerm(expression: p.name, mode: OrderingMode.asc)]))
         .get();
     return rows.map(_mapToModel).toList();
   }
 
-  /// Find single product by barcode or SKU
-  Future<Product?> findByBarcodeOrSku(String code) async {
+  /// Find single product by barcode or SKU, optionally filtered by tenant
+  Future<Product?> findByBarcodeOrSku(String code, {String? tenantId}) async {
     final trimmed = code.trim();
     final clean = trimmed.toLowerCase();
-    final row = await (_db.select(_db.localProducts)
-          ..where((p) =>
-              p.barcode.equals(trimmed) |
-              p.sku.equals(trimmed) |
-              p.sku.lower().equals(clean)))
-        .getSingleOrNull();
+    final query = _db.select(_db.localProducts)
+      ..where((p) =>
+          p.barcode.equals(trimmed) |
+          p.sku.equals(trimmed) |
+          p.sku.lower().equals(clean));
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((p) => p.tenantId.equals(tenantId));
+    }
+    final row = await query.getSingleOrNull();
     return row != null ? _mapToModel(row) : null;
+  }
+
+  /// Purges local SQLite records for a tenant on logout or account switch
+  Future<void> clearAllTenantData(String tenantId) async {
+    if (tenantId.isEmpty) return;
+    await (_db.delete(_db.localProducts)..where((t) => t.tenantId.equals(tenantId))).go();
+    await (_db.delete(_db.localCustomers)..where((t) => t.tenantId.equals(tenantId))).go();
+    await (_db.delete(_db.localInvoices)..where((t) => t.tenantId.equals(tenantId))).go();
   }
 
   /// Deduct stock projection in local SQLite

@@ -86,6 +86,9 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
     if (!_isTestingEnvironment) {
       _laserAnimController.repeat(reverse: true);
       _initScanner();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndStartCamera();
+      });
     }
   }
 
@@ -95,7 +98,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
       torchEnabled: false,
-      autoStart: true,
+      autoStart: false,
     );
   }
 
@@ -325,105 +328,108 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
           ),
         ),
 
-        // Dark Vignette Backdrop Cutout
-        ColorFiltered(
-          colorFilter: ColorFilter.mode(
-            Colors.black.withOpacity(0.55),
-            BlendMode.srcOut,
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.black,
-                  backgroundBlendMode: BlendMode.dstOut,
-                ),
-              ),
-              Center(
-                child: Container(
-                  width: 250,
-                  height: 250,
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(20),
+        // Reticle and overlay only shown when there is no error
+        if (_scannerError == null) ...[
+          // Dark Vignette Backdrop Cutout
+          ColorFiltered(
+            colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.55),
+              BlendMode.srcOut,
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    backgroundBlendMode: BlendMode.dstOut,
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-
-        // Scanning Reticle & Corner Brackets
-        Center(
-          child: SizedBox(
-            width: 250,
-            height: 250,
-            child: Stack(
-              children: [
-                // Corner Reticle Decorator
-                CustomPaint(
-                  size: const Size(250, 250),
-                  painter: _ScannerReticlePainter(),
-                ),
-
-                // Animated Laser Scanline
-                AnimatedBuilder(
-                  animation: _laserAnimation,
-                  builder: (ctx, child) {
-                    return Positioned(
-                      top: 250 * _laserAnimation.value,
-                      left: 12,
-                      right: 12,
-                      child: Container(
-                        height: 2.5,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [
-                              Colors.transparent,
-                              ShadcnColors.primary,
-                              Colors.white,
-                              ShadcnColors.primary,
-                              Colors.transparent,
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: ShadcnColors.primary.withOpacity(0.7),
-                              blurRadius: 8,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                Center(
+                  child: Container(
+                    width: 250,
+                    height: 250,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-        ),
 
-        // Helper instruction text
-        Positioned(
-          bottom: 30,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black87,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Text(
-              widget.promptText,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+          // Scanning Reticle & Corner Brackets
+          Center(
+            child: SizedBox(
+              width: 250,
+              height: 250,
+              child: Stack(
+                children: [
+                  // Corner Reticle Decorator
+                  CustomPaint(
+                    size: const Size(250, 250),
+                    painter: _ScannerReticlePainter(),
+                  ),
+
+                  // Animated Laser Scanline
+                  AnimatedBuilder(
+                    animation: _laserAnimation,
+                    builder: (ctx, child) {
+                      return Positioned(
+                        top: 250 * _laserAnimation.value,
+                        left: 12,
+                        right: 12,
+                        child: Container(
+                          height: 2.5,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                ShadcnColors.primary,
+                                Colors.white,
+                                ShadcnColors.primary,
+                                Colors.transparent,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: ShadcnColors.primary.withOpacity(0.7),
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
-        ),
+
+          // Helper instruction text
+          Positioned(
+            bottom: 30,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Text(
+                widget.promptText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -27,17 +27,24 @@ class LocalCustomerRepository {
         .go();
   }
 
-  /// Reactive stream of all customers ordered by name
-  Stream<List<Customer>> watchAllCustomers() {
-    return (_db.select(_db.localCustomers)
-          ..orderBy([(c) => OrderingTerm(expression: c.name, mode: OrderingMode.asc)]))
+  /// Reactive stream of all customers ordered by name, optionally filtered by tenant
+  Stream<List<Customer>> watchAllCustomers({String? tenantId}) {
+    final query = _db.select(_db.localCustomers);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((c) => c.tenantId.equals(tenantId));
+    }
+    return (query..orderBy([(c) => OrderingTerm(expression: c.name, mode: OrderingMode.asc)]))
         .watch()
         .map((rows) => rows.map(_mapToModel).toList());
   }
 
-  /// Snapshot of all customers
-  Future<List<Customer>> getAllCustomers() async {
-    final rows = await (_db.select(_db.localCustomers)
+  /// Snapshot of all customers, optionally filtered by tenant
+  Future<List<Customer>> getAllCustomers({String? tenantId}) async {
+    final query = _db.select(_db.localCustomers);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((c) => c.tenantId.equals(tenantId));
+    }
+    final rows = await (query
           ..orderBy([(c) => OrderingTerm(expression: c.name, mode: OrderingMode.asc)]))
         .get();
     return rows.map(_mapToModel).toList();

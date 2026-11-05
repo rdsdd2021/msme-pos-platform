@@ -529,9 +529,12 @@ export default function AdminDashboard({
   });
 
   // Fetch all domain data from real backend endpoints
-  const fetchAllData = useCallback(async () => {
+  const fetchAllData = useCallback(async (isBackground: unknown = false) => {
     if (!activeTenant) return;
-    setLoading(true);
+    const isBg = isBackground === true;
+    if (!isBg) {
+      setLoading(true);
+    }
     setError(null);
 
     const tenantId = activeTenant.tenantId;
@@ -607,9 +610,13 @@ export default function AdminDashboard({
         setSubscription(subData);
       }
     } catch (err: any) {
-      setError(err.message || 'Error fetching store administrative data');
+      if (isBackground !== true) {
+        setError(err.message || 'Error fetching store administrative data');
+      }
     } finally {
-      setLoading(false);
+      if (isBackground !== true) {
+        setLoading(false);
+      }
     }
   }, [
     activeTenant,
@@ -624,27 +631,27 @@ export default function AdminDashboard({
   ]);
 
   useEffect(() => {
-    fetchAllData();
+    fetchAllData(false);
   }, [fetchAllData]);
 
   // Realtime Live Event Stream Subscription
   useRealtimeEvents({
     tenantId: activeTenant?.tenantId,
     onOrderCreated: (data) => {
-      fetchAllData();
+      fetchAllData(true);
       toast.success(`Live Update: New sale ${data?.invoiceNumber || ''} synced`, { duration: 3000 });
     },
     onStockChanged: () => {
-      fetchAllData();
+      fetchAllData(true);
     },
     onCatalogChanged: () => {
-      fetchAllData();
+      fetchAllData(true);
     },
     onCustomerUpdated: () => {
-      fetchAllData();
+      fetchAllData(true);
     },
     onPoll: () => {
-      fetchAllData();
+      fetchAllData(true);
     },
     pollIntervalMs: 25000,
   });

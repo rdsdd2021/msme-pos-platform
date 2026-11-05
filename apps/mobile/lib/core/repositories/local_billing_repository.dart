@@ -315,11 +315,22 @@ class LocalBillingRepository {
     );
   }
 
-  /// Retrieve all invoices stored locally
-  Future<List<LocalInvoice>> getAllInvoices() {
-    return (_db.select(_db.localInvoices)
-          ..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
-        .get();
+  /// Retrieve all invoices stored locally, optionally filtered by tenant
+  Future<List<LocalInvoice>> getAllInvoices({String? tenantId}) {
+    final query = _db.select(_db.localInvoices);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((i) => i.tenantId.equals(tenantId));
+    }
+    return (query..orderBy([(i) => OrderingTerm.desc(i.createdAt)])).get();
+  }
+
+  /// Reactive stream of local invoices, optionally filtered by tenant
+  Stream<List<LocalInvoice>> watchAllInvoices({String? tenantId}) {
+    final query = _db.select(_db.localInvoices);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((i) => i.tenantId.equals(tenantId));
+    }
+    return (query..orderBy([(i) => OrderingTerm.desc(i.createdAt)])).watch();
   }
 
   /// Retrieve all lines for an invoice

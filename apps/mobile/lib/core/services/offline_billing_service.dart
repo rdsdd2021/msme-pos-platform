@@ -68,9 +68,9 @@ class OfflineBillingService {
     );
   }
 
-  /// Retrieve all locally saved invoices from SQLite
-  static Future<List<LocalInvoice>> getAllInvoices() async {
-    return repository.getAllInvoices();
+  /// Retrieve all locally saved invoices from SQLite, optionally filtered by tenant
+  static Future<List<LocalInvoice>> getAllInvoices([String? tenantId]) async {
+    return repository.getAllInvoices(tenantId: tenantId);
   }
 
   /// Retrieve all lines for an invoice

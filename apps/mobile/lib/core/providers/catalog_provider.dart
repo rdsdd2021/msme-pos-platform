@@ -4,6 +4,8 @@ import '../models/product.dart';
 import '../repositories/local_catalog_repository.dart';
 import 'sync_provider.dart';
 
+import 'auth_provider.dart';
+
 final localCatalogRepoProvider = Provider<LocalCatalogRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   return LocalCatalogRepository(db);
@@ -63,23 +65,27 @@ class CatalogState {
 
 class CatalogNotifier extends StateNotifier<CatalogState> {
   final LocalCatalogRepository _repo;
+  final String? activeTenantId;
 
-  CatalogNotifier(this._repo)
+  CatalogNotifier(this._repo, [this.activeTenantId])
       : super(const CatalogState(allProducts: initialProducts, isLoading: false)) {
     _init();
   }
 
   Future<void> _init() async {
     try {
-      await _repo.purgeMockDataIfPresent('');
-      final items = await _repo.getAllProducts();
+      await _repo.purgeMockDataIfPresent(activeTenantId ?? '');
+      final items = await _repo.getAllProducts(tenantId: activeTenantId);
+      if (!mounted) return;
       if (items.isNotEmpty) {
         state = state.copyWith(allProducts: items, isLoading: false);
       } else {
         state = state.copyWith(isLoading: false);
       }
     } catch (_) {
-      state = state.copyWith(isLoading: false);
+      if (mounted) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 
@@ -183,13 +189,16 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     state = state.copyWith(allProducts: updated);
   }
 
-  Future<void> reload() async {
-    final items = await _repo.getAllProducts();
+  Future<void> reload([String? tenantId]) async {
+    final tid = tenantId ?? activeTenantId;
+    final items = await _repo.getAllProducts(tenantId: tid);
     state = state.copyWith(allProducts: items);
   }
 }
 
 final catalogProvider = StateNotifierProvider<CatalogNotifier, CatalogState>((ref) {
   final repo = ref.watch(localCatalogRepoProvider);
-  return CatalogNotifier(repo);
+  final authState = ref.watch(authProvider);
+  final tenantId = authState.activeMembership?.tenantId;
+  return CatalogNotifier(repo, tenantId);
 });

@@ -21,15 +21,22 @@ class SyncWorker {
         _prefs = prefs;
 
   /// Retrieve the local sync cursor for incremental delta pulls
-  Future<String?> getSyncCursor() async {
+  Future<String?> getSyncCursor([String? tenantId]) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
+    if (tenantId != null && tenantId.isNotEmpty) {
+      final tenantCursor = prefs.getString('${_keyCursor}_$tenantId');
+      if (tenantCursor != null) return tenantCursor;
+    }
     return prefs.getString(_keyCursor);
   }
 
   /// Store updated sync cursor after local transaction commit
-  Future<void> setSyncCursor(String cursor) async {
+  Future<void> setSyncCursor(String cursor, [String? tenantId]) async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     await prefs.setString(_keyCursor, cursor);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      await prefs.setString('${_keyCursor}_$tenantId', cursor);
+    }
   }
 
   /// Timestamp of the last successful sync cycle
@@ -47,7 +54,7 @@ class SyncWorker {
   }
 
   /// Count of unsynced operations pending in local SQLite outbox
-  Future<int> getPendingCount() async {
+  Future<int> getPendingCount([String? tenantId]) async {
     final query = _db.select(_db.syncOutbox)
       ..where((t) => t.status.isIn(const ['pending', 'failed', 'sending']));
     final rows = await query.get();
@@ -68,6 +75,8 @@ class SyncWorker {
         .get();
 
     int pushedCount = 0;
+    String? pushError;
+
     if (pendingOps.isNotEmpty) {
       final opIds = pendingOps.map((op) => op.operationId).toList();
       await (_db.update(_db.syncOutbox)..where((t) => t.operationId.isIn(opIds))).write(
@@ -96,6 +105,7 @@ class SyncWorker {
           }
         }
       } catch (e) {
+        pushError = e.toString();
         // Revert to failed state and increment retryCount
         for (final op in pendingOps) {
           await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(op.operationId))).write(
@@ -106,14 +116,7 @@ class SyncWorker {
             ),
           );
         }
-        return SyncCycleResult(
-          pushedCount: 0,
-          pulledProductsCount: 0,
-          pulledCategoriesCount: 0,
-          newCursor: '',
-          isSuccess: false,
-          error: 'Outbox push error: ${e.toString()}',
-        );
+        // Graceful continuation: Do NOT abort immediately so delta pulling can still execute
       }
     }
 
@@ -124,7 +127,7 @@ class SyncWorker {
     String newCursor = '';
 
     try {
-      final currentCursor = await getSyncCursor();
+      final currentCursor = await getSyncCursor(tenantId);
       final pullResult = await _syncRepo.pullDeltas(tenantId, cursor: currentCursor);
       newCursor = pullResult.cursor;
 
@@ -138,6 +141,7 @@ class SyncWorker {
           final purchaseCost = p['purchaseCost'] ?? p['costPrice'];
           final gstRate = p['gstRatePercent'] ?? p['gstRate'];
           final stockQty = p['currentStock'] ?? p['stockQuantity'] ?? 50.0;
+          final img = (p['imageUrl'] ?? p['image']) as String?;
 
           await _db.into(_db.localProducts).insertOnConflictUpdate(
             LocalProductsCompanion(
@@ -159,6 +163,7 @@ class SyncWorker {
               hsnCode: Value(p['hsnCode'] as String?),
               unit: Value(p['unit'] as String? ?? 'PCS'),
               stockQuantity: Value(double.tryParse(stockQty.toString()) ?? 50.0),
+              imageUrl: Value(img),
               updatedAt: Value(DateTime.tryParse(p['updatedAt']?.toString() ?? '') ?? DateTime.now()),
             ),
           );
@@ -190,7 +195,7 @@ class SyncWorker {
 
       // Save cursor and timestamp only after transaction succeeded
       if (newCursor.isNotEmpty) {
-        await setSyncCursor(newCursor);
+        await setSyncCursor(newCursor, tenantId);
       }
       await setLastSyncTime(DateTime.now());
       pulledCategories = pullResult.categories.length;
@@ -202,7 +207,9 @@ class SyncWorker {
         pulledCustomersCount: 0,
         newCursor: '',
         isSuccess: false,
-        error: 'Delta pull error: ${e.toString()}',
+        error: pushError != null
+            ? 'Outbox push: $pushError | Delta pull error: ${e.toString()}'
+            : 'Delta pull error: ${e.toString()}',
       );
     }
 
@@ -212,7 +219,8 @@ class SyncWorker {
       pulledCategoriesCount: pulledCategories,
       pulledCustomersCount: pulledCustomers,
       newCursor: newCursor,
-      isSuccess: true,
+      isSuccess: pushError == null,
+      error: pushError != null ? 'Outbox push error: $pushError' : null,
     );
   }
 }

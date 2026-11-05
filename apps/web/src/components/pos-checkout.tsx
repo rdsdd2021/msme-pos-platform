@@ -148,9 +148,12 @@ export default function PosCheckoutScreen() {
   const [confirmedInvoice, setConfirmedInvoice] = useState<Invoice | null>(null);
 
   // Fetch products, stocks, and customers from live backend
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isBackground: unknown = false) => {
     if (!activeTenant) return;
-    setLoading(true);
+    const isBg = isBackground === true;
+    if (!isBg) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [productList, balanceList, customerList, categoryList] = await Promise.all([
@@ -169,27 +172,31 @@ export default function PosCheckoutScreen() {
       setCustomers(customerList);
       setCategories(categoryList || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load catalog from server');
+      if (isBackground !== true) {
+        setError(err.message || 'Failed to load catalog from server');
+      }
     } finally {
-      setLoading(false);
+      if (isBackground !== true) {
+        setLoading(false);
+      }
     }
   }, [activeTenant, activeBranch]);
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, [loadData]);
 
   // Realtime Live Event Stream Subscription
   useRealtimeEvents({
     tenantId: activeTenant?.tenantId,
     onStockChanged: () => {
-      loadData();
+      loadData(true);
     },
     onCatalogChanged: () => {
-      loadData();
+      loadData(true);
     },
     onPoll: () => {
-      loadData();
+      loadData(true);
     },
     pollIntervalMs: 30000,
   });

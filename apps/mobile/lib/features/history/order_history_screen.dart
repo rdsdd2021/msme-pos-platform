@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../core/database/app_database.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/printer_provider.dart';
 import '../../core/services/offline_billing_service.dart';
 import '../../core/theme/shadcn_colors.dart';
@@ -41,7 +42,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
 
   Future<void> _loadInvoices() async {
     setState(() => _isLoading = true);
-    final invs = await OfflineBillingService.getAllInvoices();
+    final authState = ref.read(authProvider);
+    final tenantId = authState.activeMembership?.tenantId;
+    final invs = await OfflineBillingService.getAllInvoices(tenantId);
     if (mounted) {
       setState(() {
         _invoices = invs;
