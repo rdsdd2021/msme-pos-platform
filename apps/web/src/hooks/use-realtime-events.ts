@@ -73,7 +73,7 @@ export function useRealtimeEvents({
   const connect = useCallback(() => {
     if (!enabled || !tenantId || typeof window === 'undefined') return;
 
-    const token = apiClient.getAccessToken();
+    const token = typeof apiClient?.getAccessToken === 'function' ? apiClient.getAccessToken() : null;
     if (!token) return;
 
     // Clean up any existing connection
@@ -82,7 +82,7 @@ export function useRealtimeEvents({
       eventSourceRef.current = null;
     }
 
-    const baseUrl = apiClient.getBaseUrl();
+    const baseUrl = typeof apiClient?.getBaseUrl === 'function' ? apiClient.getBaseUrl() : '';
     const url = `${baseUrl}/tenants/${tenantId}/events?token=${encodeURIComponent(token)}`;
 
     try {

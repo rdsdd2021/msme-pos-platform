@@ -35,6 +35,8 @@ jest.mock('@/lib/api-client', () => {
   return {
     ...actual,
     apiClient: {
+      getAccessToken: jest.fn(() => 'mock-token'),
+      getBaseUrl: jest.fn(() => 'http://localhost:3000'),
       getRestaurantTables: jest.fn(),
       createRestaurantTable: jest.fn(),
       seedDefaultRestaurantTables: jest.fn(),

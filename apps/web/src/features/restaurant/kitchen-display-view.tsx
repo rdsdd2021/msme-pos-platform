@@ -12,6 +12,7 @@ import {
   apiClient,
 } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   ChefHat,
   Clock,
@@ -62,6 +63,22 @@ export function KitchenDisplayView() {
     const interval = setInterval(fetchKdsQueue, 12000);
     return () => clearInterval(interval);
   }, [fetchKdsQueue, autoRefresh]);
+
+  // Real-time live KDS updates on order placement / table changes
+  useRealtimeEvents({
+    tenantId: activeTenant?.tenantId,
+    enabled: autoRefresh,
+    onRestaurantTableChanged: () => {
+      fetchKdsQueue();
+    },
+    onOrderCreated: () => {
+      fetchKdsQueue();
+    },
+    onPoll: () => {
+      fetchKdsQueue();
+    },
+    pollIntervalMs: 15000,
+  });
 
   // Handle Status Update (Start Cooking, Ready, Served)
   const handleUpdateStatus = async (kotId: string, newStatus: KotStatus) => {

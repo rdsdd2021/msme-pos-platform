@@ -11,6 +11,8 @@ jest.mock('@/lib/api-client', () => {
   return {
     ...actual,
     apiClient: {
+      getAccessToken: jest.fn(() => 'mock-token'),
+      getBaseUrl: jest.fn(() => 'http://localhost:3000'),
       login: jest.fn(),
       getProfile: jest.fn(),
       logout: jest.fn(),
