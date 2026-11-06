@@ -75,7 +75,7 @@ export default function LoginScreen({
         </div>
       </div>
 
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className={`sm:mx-auto sm:w-full transition-all duration-300 ${authMode === 'register' ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}>
         {/* Toggle between Sign In and Create Store */}
         <div className="flex p-1 bg-slate-200/70 rounded-2xl mb-4 border border-slate-300/60 shadow-inner">
           <button
@@ -251,22 +251,28 @@ export default function LoginScreen({
             </div>
 
             {/* Android APK Direct Sideload Download */}
-            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <div className="text-left">
-                <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                  <Smartphone className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Android POS App</span>
-                  <span className="text-[10px] px-1.5 py-0.2 bg-emerald-100 text-emerald-800 rounded font-bold font-mono">v1.0.7</span>
+            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center shrink-0">
+                  <Smartphone className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-[10px] text-slate-400">Offline SQLite &amp; Thermal Billing</div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-slate-800 whitespace-nowrap">Android POS App</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold font-mono whitespace-nowrap">
+                      v1.0.7
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 truncate">Offline SQLite &amp; Thermal Billing</div>
+                </div>
               </div>
               <a
                 href="/downloads/kirana-pos.apk?v=1.0.7"
                 download="kirana-pos.apk"
-                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
+                className="shrink-0 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5" />
-                Download APK
+                <span>Download APK</span>
               </a>
             </div>
           </div>

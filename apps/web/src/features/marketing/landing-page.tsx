@@ -1353,7 +1353,7 @@ export function LandingPage() {
         </div>
 
         {/* Embedded Full LoginScreen for seamless authentication */}
-        <div className="max-w-md mx-auto px-4">
+        <div className={`mx-auto px-4 transition-all duration-300 ${authMode === 'register' ? 'max-w-2xl' : 'max-w-md'}`}>
           <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xl bg-white text-slate-900">
             <LoginScreen
               key={`${authMode}-${selectedIndustry}`}
