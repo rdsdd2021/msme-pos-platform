@@ -1569,10 +1569,7 @@ export default function AdminDashboard({
             {activeTab === 'gst' && '📑'}
             {activeTab === 'khata' && '👥'}
             {activeTab === 'shifts' && '⏱️'}
-            {activeTab === 'devices' && '📱'}
-            {activeTab === 'branches' && '🏢'}
-            {activeTab === 'subscription' && '💳'}
-            {activeTab === 'settings' && '⚙️'}
+            {(activeTab === 'settings' || activeTab === 'branches' || activeTab === 'devices' || activeTab === 'subscription') && '⚙️'}
           </div>
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -1582,10 +1579,7 @@ export default function AdminDashboard({
               {activeTab === 'gst' && 'GST Returns & Statutory Reports'}
               {activeTab === 'khata' && 'Customer Khata & Udhar Accounts'}
               {activeTab === 'shifts' && 'Cashier Shifts & Float Logs'}
-              {activeTab === 'devices' && 'Hardware & POS Terminals'}
-              {activeTab === 'branches' && 'Store Branches & GSTIN Config'}
-              {activeTab === 'subscription' && 'Subscription & Account Plan'}
-              {activeTab === 'settings' && 'Store Settings & Administration'}
+              {(activeTab === 'settings' || activeTab === 'branches' || activeTab === 'devices' || activeTab === 'subscription') && 'Store Settings & Administration'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 font-medium">
               <span>{activeTenant?.tenantName || 'Kirana Supermart'}</span>
@@ -1609,175 +1603,8 @@ export default function AdminDashboard({
         </div>
       </div>
 
-      {/* Modern Horizontal Top Menu Bar for Admin Workspaces */}
-      <div className="bg-white border-b border-slate-200/90 px-6 py-2 flex items-center justify-between gap-3 overflow-x-auto shrink-0 shadow-2xs">
-        <nav className="flex items-center gap-1.5 min-w-max" aria-label="Admin Navigation Tabs">
-          {canAccessInventory && (
-            <button
-              onClick={() => setActiveTab('inventory')}
-              data-testid="admin-tab-inventory"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'inventory'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>📦</span>
-              <span>Products &amp; Inventory</span>
-            </button>
-          )}
-
-          {canAccessInvoices && (
-            <button
-              onClick={() => setActiveTab('invoices')}
-              data-testid="tab-invoices"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'invoices'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>🧾</span>
-              <span>Bills &amp; Invoices</span>
-            </button>
-          )}
-
-          {canAccessAnalytics && (
-            <button
-              onClick={() => setActiveTab('analytics')}
-              data-testid="tab-analytics"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'analytics'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>📊</span>
-              <span>Executive Analytics</span>
-            </button>
-          )}
-
-          {canAccessGst && (
-            <button
-              onClick={() => setActiveTab('gst')}
-              data-testid="admin-tab-gst"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'gst'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>📑</span>
-              <span>GST Reports</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold ml-1">
-                GSTR-1/3B
-              </span>
-            </button>
-          )}
-
-          {canAccessKhata && (
-            <button
-              onClick={() => setActiveTab('khata')}
-              data-testid="admin-tab-customers"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'khata'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>👥</span>
-              <span>Customer Khata</span>
-            </button>
-          )}
-
-          {canAccessShifts && (
-            <button
-              onClick={() => setActiveTab('shifts')}
-              data-testid="tab-shifts"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'shifts'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>⏱️</span>
-              <span>Cashier Shifts</span>
-            </button>
-          )}
-
-          {canAccessDevices && (
-            <button
-              onClick={() => setActiveTab('devices')}
-              data-testid="tab-devices"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'devices'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>📱</span>
-              <span>POS Devices</span>
-            </button>
-          )}
-
-          {canAccessBranches && (
-            <button
-              onClick={() => setActiveTab('branches')}
-              data-testid="tab-branches"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'branches'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>🏢</span>
-              <span>Branches &amp; GSTIN</span>
-            </button>
-          )}
-
-          {canAccessSubscription && (
-            <button
-              onClick={() => setActiveTab('subscription')}
-              data-testid="tab-subscription"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'subscription'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>💳</span>
-              <span>Subscription</span>
-            </button>
-          )}
-
-          {canAccessSettings && (
-            <button
-              onClick={() => setActiveTab('settings')}
-              data-testid="tab-settings"
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap',
-                activeTab === 'settings'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200/80 shadow-2xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              <span>⚙️</span>
-              <span>Settings Hub</span>
-            </button>
-          )}
-        </nav>
-
-        {/* Hidden select for automated test backward compatibility */}
-        <select
+      {/* Hidden select for automated test backward compatibility */}
+      <select
           value={activeTab}
           onChange={(e) => setActiveTab(e.target.value as AdminTab)}
           data-testid="admin-workspace-select"
@@ -1796,7 +1623,6 @@ export default function AdminDashboard({
           {canAccessSubscription && <option value="subscription">Subscription Plan</option>}
           {canAccessSettings && <option value="settings">Settings Hub</option>}
         </select>
-      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-6">
@@ -2133,39 +1959,7 @@ export default function AdminDashboard({
               <ShiftsView shifts={shifts} onRefresh={fetchAllData} />
             )}
 
-            {/* 5. Devices Tab (Routed through Settings Hub) */}
-            {activeTab === 'devices' && (
-              <SettingsView
-                initialTab="devices"
-                branches={branchesList}
-                devices={devices}
-                subscription={subscription}
-                tenantId={activeTenant?.tenantId}
-                branchId={activeBranch?.id}
-                tenantName={activeTenant?.tenantName}
-                branchName={activeBranch?.name}
-                onRefresh={fetchAllData}
-                onEditBranch={handleOpenEditBranch}
-              />
-            )}
-
-            {/* 6. Subscription Tab (Routed through Settings Hub) */}
-            {activeTab === 'subscription' && isOwner() && (
-              <SettingsView
-                initialTab="subscription"
-                branches={branchesList}
-                devices={devices}
-                subscription={subscription}
-                tenantId={activeTenant?.tenantId}
-                branchId={activeBranch?.id}
-                tenantName={activeTenant?.tenantName}
-                branchName={activeBranch?.name}
-                onRefresh={fetchAllData}
-                onEditBranch={handleOpenEditBranch}
-              />
-            )}
-
-            {/* 7. GST Statutory Reports & Filing Preparation */}
+            {/* 5. GST Statutory Reports & Filing Preparation */}
             {activeTab === 'gst' && activeTenant && (
               <GstReportsView
                 tenantId={activeTenant.tenantId}
@@ -2176,26 +1970,18 @@ export default function AdminDashboard({
               />
             )}
 
-            {/* 8. Branches & GSTIN Configuration Tab (Routed through Settings Hub) */}
-            {activeTab === 'branches' && (
+            {/* 6. Universal Settings Hub (handles profile, receipt, billing, branches, devices, subscription) */}
+            {(activeTab === 'settings' || activeTab === 'branches' || activeTab === 'devices' || activeTab === 'subscription') && (
               <SettingsView
-                initialTab="branches"
-                branches={branchesList}
-                devices={devices}
-                subscription={subscription}
-                tenantId={activeTenant?.tenantId}
-                branchId={activeBranch?.id}
-                tenantName={activeTenant?.tenantName}
-                branchName={activeBranch?.name}
-                onRefresh={fetchAllData}
-                onEditBranch={handleOpenEditBranch}
-              />
-            )}
-
-            {/* 9. Universal Settings Hub */}
-            {activeTab === 'settings' && (
-              <SettingsView
-                initialTab="profile"
+                initialTab={
+                  activeTab === 'branches'
+                    ? 'branches'
+                    : activeTab === 'devices'
+                      ? 'devices'
+                      : activeTab === 'subscription'
+                        ? 'subscription'
+                        : 'profile'
+                }
                 branches={branchesList}
                 devices={devices}
                 subscription={subscription}

@@ -78,45 +78,89 @@ class SyncWorker {
     String? pushError;
 
     if (pendingOps.isNotEmpty) {
-      final opIds = pendingOps.map((op) => op.operationId).toList();
-      await (_db.update(_db.syncOutbox)..where((t) => t.operationId.isIn(opIds))).write(
-        const SyncOutboxCompanion(status: Value('sending')),
-      );
+      // Chunk pending mutations into manageable batches of at most 5
+      // to avoid payload spikes and isolate any problematic records.
+      const int batchSize = 5;
+      for (int i = 0; i < pendingOps.length; i += batchSize) {
+        final chunk = pendingOps.sublist(
+          i,
+          (i + batchSize > pendingOps.length) ? pendingOps.length : i + batchSize,
+        );
+        final opIds = chunk.map((op) => op.operationId).toList();
+        await (_db.update(_db.syncOutbox)..where((t) => t.operationId.isIn(opIds))).write(
+          const SyncOutboxCompanion(status: Value('sending')),
+        );
 
-      try {
-        final pushResult = await _syncRepo.pushBatch(tenantId, deviceId, pendingOps);
-        for (final ack in pushResult.results) {
-          if (ack.status == 'accepted' || ack.status == 'already_processed') {
-            await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
-              SyncOutboxCompanion(
-                status: const Value('accepted'),
-                serverEntityId: Value(ack.serverEntityId),
-                lastError: const Value(null),
-              ),
-            );
-            pushedCount++;
+        try {
+          final pushResult = await _syncRepo.pushBatch(tenantId, deviceId, chunk);
+          for (final ack in pushResult.results) {
+            if (ack.status == 'accepted' || ack.status == 'already_processed') {
+              await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
+                SyncOutboxCompanion(
+                  status: const Value('accepted'),
+                  serverEntityId: Value(ack.serverEntityId),
+                  lastError: const Value(null),
+                ),
+              );
+              pushedCount++;
+            } else {
+              await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
+                SyncOutboxCompanion(
+                  status: const Value('rejected'),
+                  lastError: Value(ack.errorMessage ?? 'Rejected by server'),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          pushError = e.toString();
+          // Fallback: If a multi-op batch fails (e.g. 413 or timeout), retry items individually
+          // so that valid operations succeed and only the oversized operation is isolated.
+          if (chunk.length > 1) {
+            for (final singleOp in chunk) {
+              try {
+                final singleResult = await _syncRepo.pushBatch(tenantId, deviceId, [singleOp]);
+                final ack = singleResult.results.firstOrNull;
+                if (ack != null && (ack.status == 'accepted' || ack.status == 'already_processed')) {
+                  await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(singleOp.operationId))).write(
+                    SyncOutboxCompanion(
+                      status: const Value('accepted'),
+                      serverEntityId: Value(ack.serverEntityId),
+                      lastError: const Value(null),
+                    ),
+                  );
+                  pushedCount++;
+                } else {
+                  await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(singleOp.operationId))).write(
+                    SyncOutboxCompanion(
+                      status: const Value('rejected'),
+                      lastError: Value(ack?.errorMessage ?? 'Rejected by server'),
+                    ),
+                  );
+                }
+              } catch (singleErr) {
+                await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(singleOp.operationId))).write(
+                  SyncOutboxCompanion(
+                    status: const Value('failed'),
+                    retryCount: Value(singleOp.retryCount + 1),
+                    lastError: Value(singleErr.toString()),
+                  ),
+                );
+              }
+            }
           } else {
-            await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
-              SyncOutboxCompanion(
-                status: const Value('rejected'),
-                lastError: Value(ack.errorMessage ?? 'Rejected by server'),
-              ),
-            );
+            // Single operation failed
+            for (final op in chunk) {
+              await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(op.operationId))).write(
+                SyncOutboxCompanion(
+                  status: const Value('failed'),
+                  retryCount: Value(op.retryCount + 1),
+                  lastError: Value(e.toString()),
+                ),
+              );
+            }
           }
         }
-      } catch (e) {
-        pushError = e.toString();
-        // Revert to failed state and increment retryCount
-        for (final op in pendingOps) {
-          await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(op.operationId))).write(
-            SyncOutboxCompanion(
-              status: const Value('failed'),
-              retryCount: Value(op.retryCount + 1),
-              lastError: Value(e.toString()),
-            ),
-          );
-        }
-        // Graceful continuation: Do NOT abort immediately so delta pulling can still execute
       }
     }
 

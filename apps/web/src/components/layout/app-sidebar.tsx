@@ -366,7 +366,21 @@ export function AppSidebar({
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item)}
-                      data-testid={item.testId}
+                      data-testid={
+                        item.adminTab === 'inventory'
+                          ? 'admin-tab-inventory'
+                          : item.adminTab === 'khata'
+                            ? 'admin-tab-customers'
+                            : item.adminTab === 'invoices'
+                              ? 'tab-invoices'
+                              : item.adminTab === 'analytics'
+                                ? 'tab-analytics'
+                                : item.adminTab === 'gst'
+                                  ? 'admin-tab-gst'
+                                  : item.adminTab === 'shifts'
+                                    ? 'tab-shifts'
+                                    : item.testId
+                      }
                       className={cn(
                         'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer group',
                         isActive

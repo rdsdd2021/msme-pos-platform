@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import {
   Store,
   Printer,
-  Sliders,
   Building2,
   Smartphone,
   CreditCard,
@@ -22,7 +21,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { BranchesView } from './branches-view';
 import { DevicesView } from './devices-view';
 import { SubscriptionView } from './subscription-view';
@@ -190,54 +188,22 @@ export function SettingsView({
 
   return (
     <div className="space-y-6" data-testid="settings-view">
-      {/* Top Header Card */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-blue-600 shadow-2xs shrink-0">
-              <Sliders className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-slate-900 tracking-tight">
-                  Store Settings &amp; Administration
-                </h2>
-                <Badge variant="secondary" className="font-bold text-[10px] px-2 py-0 h-5">
-                  Universal Hub
-                </Badge>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Configure your store profile, thermal printer layouts, billing rounding rules, branches, and hardware.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              className="text-xs font-semibold h-8 border-slate-200 text-slate-700 hover:bg-slate-50 cursor-pointer"
-            >
-              🔄 Refresh
-            </Button>
-          </div>
-        </div>
-
-        {/* Tab Navigation Pill Bar */}
-        <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setActiveTab('profile')}
-            data-testid="settings-tab-profile"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'profile'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <Store className="h-3.5 w-3.5" />
-            <span>Store Profile</span>
-          </button>
+      <h2 className="sr-only">Store Settings &amp; Administration</h2>
+      {/* Settings Sub-Tab Navigation Pill Bar */}
+      <div className="bg-white border border-slate-200/90 rounded-xl p-2 flex items-center gap-1.5 overflow-x-auto shadow-2xs">
+        <button
+          onClick={() => setActiveTab('profile')}
+          data-testid="settings-tab-profile"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'profile'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <Store className="h-3.5 w-3.5" />
+          <span>Store Profile</span>
+        </button>
 
           <button
             onClick={() => setActiveTab('receipt')}
@@ -308,7 +274,6 @@ export function SettingsView({
             <CreditCard className="h-3.5 w-3.5" />
             <span>Plan &amp; Subscription</span>
           </button>
-        </div>
       </div>
 
       {/* --- SUB-TAB 1: STORE PROFILE --- */}
