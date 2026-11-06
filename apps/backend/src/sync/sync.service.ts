@@ -137,7 +137,9 @@ export class SyncService {
 
         if (op.operationType === 'CREATE_PRODUCT') {
           const raw = op.payload as any;
-          const sku = String(raw.sku || '').trim().toUpperCase();
+          const sku = String(raw.sku || '')
+            .trim()
+            .toUpperCase();
           const name = String(raw.name || '').trim();
           if (sku && name) {
             const categoryName = String(raw.category || 'General').trim();
@@ -162,7 +164,6 @@ export class SyncService {
                 : '0.00';
             const barcode = raw.barcode ? String(raw.barcode).trim() : null;
             const hsnCode = raw.hsnCode ? String(raw.hsnCode).trim() : null;
-            const unit = raw.unit ? String(raw.unit).trim() : 'PCS';
             const imageUrl = raw.imageUrl ? String(raw.imageUrl) : null;
 
             if (existingProd) {

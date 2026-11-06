@@ -23,6 +23,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm --filter "./packages/*" build
       - name: Lint backend
         run: pnpm --filter backend lint
       - name: Lint web
@@ -48,6 +50,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm --filter "./packages/*" build
       - name: Run backend unit tests
         run: pnpm --filter backend test -- --passWithNoTests
 
@@ -63,6 +67,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm --filter "./packages/*" build
       - name: Run web unit tests
         run: pnpm --filter web test -- --passWithNoTests
 
