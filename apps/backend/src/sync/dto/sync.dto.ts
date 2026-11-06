@@ -17,12 +17,13 @@ export class SyncOperationItemDto {
   operationId!: string;
 
   @ApiProperty({ example: 'uuid-device-id' })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   deviceId!: string;
 
   @ApiProperty({ example: 1 })
   @IsInt()
-  @Min(1)
+  @Min(0)
   sequence!: number;
 
   @ApiProperty({ example: 'CREATE_SALE' })
@@ -45,7 +46,8 @@ export class SyncOperationItemDto {
 
 export class PushSyncBatchDto {
   @ApiProperty({ example: 'uuid-device-id' })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   deviceId!: string;
 
   @ApiProperty({ type: [SyncOperationItemDto] })

@@ -77,8 +77,19 @@ class LocalBillingRepository {
     // Create PushSync payload matching server CreateSaleDto
     final syncPayload = {
       'invoiceNumber': invoiceNumber,
+      'idempotencyKey': invoiceNumber,
       'customerId': customerId,
       'branchId': branchId,
+      'items': items
+          .map(
+            (i) => {
+              'productId': i.product.id,
+              'quantity': i.quantity.toString(),
+              'discountAmount': '0.00',
+              'gstRatePercent': i.product.gstRate.toString(),
+            },
+          )
+          .toList(),
       'lines': items
           .map(
             (i) => {
@@ -92,6 +103,7 @@ class LocalBillingRepository {
           .toList(),
       'payments': [
         {
+          'paymentMethod': paymentMethod,
           'method': paymentMethod,
           'amount': (grandTotalPaisa / 100.0).toStringAsFixed(2),
         }

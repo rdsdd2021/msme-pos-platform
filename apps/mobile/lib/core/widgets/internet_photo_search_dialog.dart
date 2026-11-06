@@ -466,7 +466,7 @@ class _InternetPhotoSearchSheetState extends State<InternetPhotoSearchSheet> {
                                   boxShadow: [
                                     if (isSelected)
                                       BoxShadow(
-                                        color: ShadcnColors.primary.withOpacity(0.2),
+                                        color: ShadcnColors.primary.withValues(alpha: 0.2),
                                         blurRadius: 8,
                                         spreadRadius: 1,
                                       ),

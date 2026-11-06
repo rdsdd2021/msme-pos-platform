@@ -86,9 +86,6 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
     if (!_isTestingEnvironment) {
       _laserAnimController.repeat(reverse: true);
       _initScanner();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkAndStartCamera();
-      });
     }
   }
 
@@ -98,7 +95,8 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
       torchEnabled: false,
-      autoStart: false,
+      autoStart: true,
+      returnImage: false,
     );
   }
 
@@ -118,10 +116,11 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       }
 
       if (hasPermission && mounted) {
-        try {
-          await _scannerController?.stop();
-        } catch (_) {}
-        await _scannerController?.start();
+        if (_scannerController == null) {
+          _initScanner();
+        } else {
+          await _scannerController?.start();
+        }
       }
     } catch (e) {
       debugPrint('Camera startup exception: $e');
@@ -333,7 +332,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
           // Dark Vignette Backdrop Cutout
           ColorFiltered(
             colorFilter: ColorFilter.mode(
-              Colors.black.withOpacity(0.55),
+              Colors.black.withValues(alpha: 0.55),
               BlendMode.srcOut,
             ),
             child: Stack(
@@ -394,7 +393,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: ShadcnColors.primary.withOpacity(0.7),
+                                color: ShadcnColors.primary.withValues(alpha: 0.7),
                                 blurRadius: 8,
                                 spreadRadius: 2,
                               ),
@@ -452,8 +451,8 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                 height: 68,
                 decoration: BoxDecoration(
                   color: isPermissionError
-                      ? Colors.amber.withOpacity(0.15)
-                      : Colors.redAccent.withOpacity(0.15),
+                      ? Colors.amber.withValues(alpha: 0.15)
+                      : Colors.redAccent.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -498,10 +497,11 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () async {
-                    setState(() => _scannerError = null);
-                    _initScanner();
-                    await _checkAndStartCamera();
+                  onPressed: () {
+                    setState(() {
+                      _scannerError = null;
+                      _initScanner();
+                    });
                   },
                 ),
               ),
@@ -642,7 +642,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.12),
+                color: Colors.red.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.camera_alt_outlined, color: Colors.redAccent, size: 40),

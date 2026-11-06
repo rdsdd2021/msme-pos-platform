@@ -803,7 +803,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                   color: syncState.hasPending ? ShadcnColors.warningLight : ShadcnColors.secondary,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: syncState.hasPending ? ShadcnColors.warning.withOpacity(0.4) : ShadcnColors.border,
+                    color: syncState.hasPending ? ShadcnColors.warning.withValues(alpha: 0.4) : ShadcnColors.border,
                   ),
                 ),
                 child: Row(
@@ -935,7 +935,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.76,
+                        childAspectRatio: 0.92,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),
@@ -998,7 +998,7 @@ class _ProductCard extends ConsumerWidget {
 
     return ShadcnCard(
       padding: EdgeInsets.zero,
-      backgroundColor: isSelected ? ShadcnColors.successLight.withOpacity(0.25) : ShadcnColors.card,
+      backgroundColor: isSelected ? ShadcnColors.successLight.withValues(alpha: 0.25) : ShadcnColors.card,
       borderColor: isSelected ? ShadcnColors.primary : ShadcnColors.border,
       onTap: onTap,
       child: Column(
@@ -1023,7 +1023,7 @@ class _ProductCard extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.65),
+                    color: Colors.black.withValues(alpha: 0.65),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -1052,89 +1052,84 @@ class _ProductCard extends ConsumerWidget {
           ),
 
           // 2. Product Name, SKU, Price & Add Action
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Title & SKU
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        product.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: ShadcnTypography.bodySemibold.copyWith(
-                          fontSize: 13,
-                          height: 1.22,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${product.sku} • ${product.unit}',
-                        style: ShadcnTypography.caption.copyWith(
-                          fontSize: 10.5,
-                          color: ShadcnColors.mutedForeground,
-                        ),
-                      ),
-                    ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title & SKU
+                Text(
+                  product.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ShadcnTypography.bodySemibold.copyWith(
+                    fontSize: 13,
+                    height: 1.2,
                   ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${product.sku} • ${product.unit}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ShadcnTypography.caption.copyWith(
+                    fontSize: 10.5,
+                    color: ShadcnColors.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 8),
 
-                  // Price & Quick Stepper / Add Action
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
-                        style: ShadcnTypography.currency.copyWith(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: ShadcnColors.foreground,
+                // Price & Quick Stepper / Add Action
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
+                      style: ShadcnTypography.currency.copyWith(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: ShadcnColors.foreground,
+                      ),
+                    ),
+                    if (inCart.quantity > 0)
+                      ShadcnQuantityStepper(
+                        quantity: inCart.quantity,
+                        height: 28,
+                        isDestructiveOnZero: true,
+                        onIncrement: onTap,
+                        onDecrement: () {
+                          HapticFeedback.selectionClick();
+                          ref.read(cartProvider.notifier).decrementProduct(product.id);
+                        },
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: ShadcnColors.primaryLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.add, size: 12, color: ShadcnColors.primary),
+                            const SizedBox(width: 2),
+                            Text(
+                              'ADD',
+                              style: ShadcnTypography.caption.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: ShadcnColors.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      if (inCart.quantity > 0)
-                        ShadcnQuantityStepper(
-                          quantity: inCart.quantity,
-                          height: 28,
-                          isDestructiveOnZero: true,
-                          onIncrement: onTap,
-                          onDecrement: () {
-                            HapticFeedback.selectionClick();
-                            ref.read(cartProvider.notifier).decrementProduct(product.id);
-                          },
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: ShadcnColors.primaryLight,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.add, size: 12, color: ShadcnColors.primary),
-                              const SizedBox(width: 2),
-                              Text(
-                                'ADD',
-                                style: ShadcnTypography.caption.copyWith(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: ShadcnColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -1193,12 +1188,12 @@ class _ProductCard extends ConsumerWidget {
     }
 
     return Container(
-      color: ShadcnColors.secondary.withOpacity(0.65),
+      color: ShadcnColors.secondary.withValues(alpha: 0.65),
       child: Center(
         child: Icon(
           icon,
           size: 38,
-          color: ShadcnColors.mutedForeground.withOpacity(0.65),
+          color: ShadcnColors.mutedForeground.withValues(alpha: 0.65),
         ),
       ),
     );
@@ -1363,7 +1358,7 @@ class _CheckoutSheetContentState extends State<_CheckoutSheetContent> {
           decoration: BoxDecoration(
             color: ShadcnColors.primaryLight,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: ShadcnColors.primary.withOpacity(0.3)),
+            border: Border.all(color: ShadcnColors.primary.withValues(alpha: 0.3)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

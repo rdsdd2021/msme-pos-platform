@@ -44,8 +44,18 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
     mockBranchRepo = {
       findOne: jest.fn().mockResolvedValue({ id: 'branch-uuid-001', name: 'Main Store' }),
     };
-    mockProductRepo = { find: jest.fn().mockResolvedValue([]) };
-    mockCategoryRepo = { find: jest.fn().mockResolvedValue([]) };
+    mockProductRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((d) => ({ ...d, id: 'product-uuid-1' })),
+      save: jest.fn(async (d) => ({ ...d, id: d.id || 'product-uuid-1' })),
+    };
+    mockCategoryRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((d) => ({ ...d, id: 'category-uuid-1' })),
+      save: jest.fn(async (d) => ({ ...d, id: d.id || 'category-uuid-1' })),
+    };
     mockCustomerRepo = { find: jest.fn().mockResolvedValue([]) };
     mockBillingService = {
       createSale: jest.fn().mockResolvedValue({ id: 'server-invoice-uuid-101' }),
@@ -156,6 +166,88 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
 
       expect(response.results[0].status).toBe('accepted');
       expect(mockDeviceRepo.create).toHaveBeenCalled();
+    });
+
+    it('ingests CREATE_PRODUCT mutation and creates product in catalog', async () => {
+      const response = await service.ingestBatch('tenant-1', 'owner-1', {
+        deviceId: 'device-pos-001',
+        operations: [
+          {
+            operationId: 'op-prod-create-1',
+            deviceId: 'device-pos-001',
+            sequence: 1,
+            operationType: 'CREATE_PRODUCT',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:00:00.000Z',
+            payload: {
+              name: 'Aashirvaad Atta 5kg',
+              sku: 'ITEM-ATTA-5KG',
+              barcode: '8901030000001',
+              category: 'Groceries',
+              sellingPrice: '250.00',
+              costPrice: '210.00',
+              taxRate: '0.00',
+              unit: 'PKT',
+            },
+          },
+        ],
+      });
+
+      expect(response.processedCount).toBe(1);
+      expect(response.results[0].status).toBe('accepted');
+      expect(mockProductRepo.save).toHaveBeenCalled();
+    });
+
+    it('ingests CREATE_SALE with mobile lines and branch-1 fallback gracefully', async () => {
+      const response = await service.ingestBatch('tenant-1', 'cashier-1', {
+        deviceId: 'device-pos-001',
+        operations: [
+          {
+            operationId: 'op-sale-mobile-1',
+            deviceId: 'device-pos-001',
+            sequence: 2,
+            operationType: 'CREATE_SALE',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:05:00.000Z',
+            payload: {
+              invoiceNumber: 'INV-2026-001',
+              branchId: 'branch-1',
+              lines: [
+                {
+                  productId: 'prod-uuid-1',
+                  quantity: '2',
+                  unitPrice: '100.00',
+                  gstRate: '5.00',
+                },
+              ],
+              payments: [
+                {
+                  method: 'cash',
+                  amount: '200.00',
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      expect(response.processedCount).toBe(1);
+      expect(response.results[0].status).toBe('accepted');
+      expect(mockBillingService.createSale).toHaveBeenCalledWith(
+        'tenant-1',
+        'cashier-1',
+        expect.objectContaining({
+          branchId: 'branch-uuid-001',
+          idempotencyKey: 'INV-2026-001',
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              productId: 'prod-uuid-1',
+              quantity: '2',
+              gstRatePercent: '5.00',
+            }),
+          ]),
+        }),
+      );
     });
 
     it('rejects batch operations from a revoked device', async () => {

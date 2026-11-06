@@ -104,8 +104,9 @@ class AuthRepository {
         );
 
         final user = AuthUser.fromJson(profileRes.data as Map<String, dynamic>);
-        await _saveSession(token, refreshToken, user);
-        return user;
+        final userWithBranch = await _resolvePrimaryBranch(user, token);
+        await _saveSession(token, refreshToken, userWithBranch);
+        return userWithBranch;
       }
     } catch (_) {
       throw Exception('Invalid email or password');
@@ -157,8 +158,9 @@ class AuthRepository {
         );
 
         final user = AuthUser.fromJson(profileRes.data as Map<String, dynamic>);
-        await _saveSession(token, refreshToken, user);
-        return user;
+        final userWithBranch = await _resolvePrimaryBranch(user, token);
+        await _saveSession(token, refreshToken, userWithBranch);
+        return userWithBranch;
       }
     } catch (e) {
       throw Exception('Registration failed: ${e.toString()}');
@@ -202,6 +204,59 @@ class AuthRepository {
     await prefs.remove(_keyActiveTenant);
     await prefs.remove(_keyActiveBranch);
     await prefs.setBool(_keyLoggedOut, true);
+  }
+
+  /// Resolves the primary branch UUID from the backend for store owners who have tenant-wide scope.
+  Future<AuthUser> _resolvePrimaryBranch(AuthUser user, String token) async {
+    final primary = user.primaryMembership;
+    if (primary == null) return user;
+
+    final branchId = primary.branchId;
+    final isUuid = branchId != null &&
+        RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+                caseSensitive: false)
+            .hasMatch(branchId);
+
+    if (isUuid) return user;
+
+    try {
+      final res = await _dio.get(
+        '$_baseUrl/api/v1/tenants/${primary.tenantId}/branches',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (res.data is List && (res.data as List).isNotEmpty) {
+        final first = (res.data as List).first as Map<String, dynamic>;
+        final resolvedBranchId = first['id'] as String?;
+        if (resolvedBranchId != null && resolvedBranchId.isNotEmpty) {
+          final updatedMemberships = user.memberships.map((m) {
+            if (m.tenantId == primary.tenantId) {
+              return MembershipSummary(
+                tenantId: m.tenantId,
+                tenantName: m.tenantName,
+                branchId: resolvedBranchId,
+                role: m.role,
+                roles: m.roles,
+                permissions: m.permissions,
+                isOwner: m.isOwner,
+              );
+            }
+            return m;
+          }).toList();
+
+          return AuthUser(
+            id: user.id,
+            email: user.email,
+            fullName: user.fullName,
+            phone: user.phone,
+            memberships: updatedMemberships,
+          );
+        }
+      }
+    } catch (_) {
+      // Non-blocking fallback
+    }
+
+    return user;
   }
 
   Future<void> _saveSession(String token, String? refreshToken, AuthUser user) async {
