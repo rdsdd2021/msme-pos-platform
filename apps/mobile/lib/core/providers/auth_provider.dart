@@ -102,8 +102,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(isInitialized: true, user: null);
   }
 
-  void signInAsDemo({bool isOwner = true}) {
-    final demoUser = isOwner ? AuthRepository.demoOwner : AuthRepository.demoCashier;
+  void signInAsDemo({bool isOwner = true, bool isRestaurant = false}) {
+    final demoUser = isRestaurant
+        ? AuthRepository.demoRestaurant
+        : (isOwner ? AuthRepository.demoOwner : AuthRepository.demoCashier);
     state = AuthState(
       user: demoUser,
       activeMembership: demoUser.primaryMembership,
@@ -134,8 +136,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> loginDemo({required bool isOwner}) async {
-    final email = isOwner ? 'admin@kirana.dev' : 'cashier@kirana.dev';
+  Future<void> loginDemo({required bool isOwner, bool isRestaurant = false}) async {
+    final email = isRestaurant
+        ? 'cafe@kirana.dev'
+        : (isOwner ? 'admin@kirana.dev' : 'cashier@kirana.dev');
     await login(email, 'Password@123');
   }
 

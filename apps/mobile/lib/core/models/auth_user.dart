@@ -48,6 +48,30 @@ class MembershipSummary {
     'enabledModules': enabledModules,
   };
 
+  MembershipSummary copyWith({
+    String? tenantId,
+    String? tenantName,
+    String? branchId,
+    String? role,
+    List<String>? roles,
+    List<String>? permissions,
+    bool? isOwner,
+    String? businessType,
+    List<String>? enabledModules,
+  }) {
+    return MembershipSummary(
+      tenantId: tenantId ?? this.tenantId,
+      tenantName: tenantName ?? this.tenantName,
+      branchId: branchId ?? this.branchId,
+      role: role ?? this.role,
+      roles: roles ?? this.roles,
+      permissions: permissions ?? this.permissions,
+      isOwner: isOwner ?? this.isOwner,
+      businessType: businessType ?? this.businessType,
+      enabledModules: enabledModules ?? this.enabledModules,
+    );
+  }
+
   bool get canAccessAdmin => isOwner || role == 'owner' || role == 'branch_manager' || role == 'accountant';
   bool get canAccessPos => isOwner || role == 'owner' || role == 'cashier' || role == 'branch_manager';
   bool get isCashierOnly => role == 'cashier' && !isOwner;
@@ -94,6 +118,22 @@ class AuthUser {
     'phone': phone,
     'memberships': memberships.map((m) => m.toJson()).toList(),
   };
+
+  AuthUser copyWith({
+    String? id,
+    String? email,
+    String? fullName,
+    String? phone,
+    List<MembershipSummary>? memberships,
+  }) {
+    return AuthUser(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      memberships: memberships ?? this.memberships,
+    );
+  }
 
   MembershipSummary? get primaryMembership => memberships.isNotEmpty ? memberships.first : null;
 }

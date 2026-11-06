@@ -151,10 +151,14 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     }
   }
 
-  void _fillDemoCredentials({required bool isOwner}) {
+  void _fillDemoCredentials({required bool isOwner, bool isRestaurant = false}) {
     HapticFeedback.selectionClick();
     setState(() {
-      _emailController.text = isOwner ? 'admin@kirana.dev' : 'cashier@kirana.dev';
+      if (isRestaurant) {
+        _emailController.text = 'cafe@kirana.dev';
+      } else {
+        _emailController.text = isOwner ? 'admin@kirana.dev' : 'cashier@kirana.dev';
+      }
       _passwordController.text = 'Password@123';
       _localError = null;
     });
@@ -536,6 +540,36 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          key: const Key('demo_restaurant_btn'),
+                          onTap: () => _fillDemoCredentials(isOwner: true, isRestaurant: true),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: ShadcnColors.secondary,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: ShadcnColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.restaurant, size: 16, color: ShadcnColors.warning),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Restaurant & Cafe (Tables & KDS)', style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold, color: ShadcnColors.warning)),
+                                      const SizedBox(height: 2),
+                                      const Text('cafe@kirana.dev (Password@123)', style: TextStyle(fontSize: 10, color: ShadcnColors.mutedForeground)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

@@ -54,6 +54,34 @@ class AuthRepository {
     ],
   );
 
+  static const demoRestaurant = AuthUser(
+    id: 'user-restaurant-3',
+    email: 'cafe@kirana.dev',
+    fullName: 'Anil Cafe Owner',
+    phone: '+919876543203',
+    memberships: [
+      MembershipSummary(
+        tenantId: 'tenant-restaurant-1',
+        tenantName: 'Chai & Snacks Cafe',
+        branchId: 'branch-1',
+        role: 'owner',
+        roles: ['owner'],
+        permissions: [
+          'billing:pos:create',
+          'catalog:read',
+          'catalog:manage',
+          'tenant:read',
+          'shifts:manage',
+          'restaurant:tables:manage',
+          'restaurant:kds:view',
+        ],
+        isOwner: true,
+        businessType: 'restaurant',
+        enabledModules: ['restaurant', 'pos', 'inventory', 'shifts', 'invoices'],
+      ),
+    ],
+  );
+
   AuthRepository({
     Dio? dio,
     SharedPreferences? prefs,
@@ -117,6 +145,10 @@ class AuthRepository {
         if (cleanEmail == 'cashier@kirana.dev' && password == 'Password@123') {
           await _saveSession('demo-jwt-token-cashier', null, demoCashier);
           return demoCashier;
+        }
+        if (cleanEmail == 'cafe@kirana.dev' && password == 'Password@123') {
+          await _saveSession('demo-jwt-token-restaurant', null, demoRestaurant);
+          return demoRestaurant;
         }
       }
 
@@ -286,26 +318,12 @@ class AuthRepository {
         if (resolvedBranchId != null && resolvedBranchId.isNotEmpty) {
           final updatedMemberships = user.memberships.map((m) {
             if (m.tenantId == primary.tenantId) {
-              return MembershipSummary(
-                tenantId: m.tenantId,
-                tenantName: m.tenantName,
-                branchId: resolvedBranchId,
-                role: m.role,
-                roles: m.roles,
-                permissions: m.permissions,
-                isOwner: m.isOwner,
-              );
+              return m.copyWith(branchId: resolvedBranchId);
             }
             return m;
           }).toList();
 
-          final updatedUser = AuthUser(
-            id: user.id,
-            email: user.email,
-            fullName: user.fullName,
-            phone: user.phone,
-            memberships: updatedMemberships,
-          );
+          final updatedUser = user.copyWith(memberships: updatedMemberships);
 
           final currentRefreshToken = await getRefreshToken();
           await _saveSession(token, currentRefreshToken, updatedUser);

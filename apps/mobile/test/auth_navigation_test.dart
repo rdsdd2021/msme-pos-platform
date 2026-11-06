@@ -187,5 +187,40 @@ void main() {
       // Error banner is displayed
       expect(find.byKey(const Key('login_error_banner')), findsOneWidget);
     });
+
+    testWidgets('logs in as Restaurant Owner and navigates to RestaurantTablesScreen with Tables and Orders tabs', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => AuthNotifier(
+                ref.watch(authRepositoryProvider),
+                initialState: const AuthState(isInitialized: true),
+              ),
+            ),
+          ],
+          child: const KiranaPosApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap 'Restaurant / Cafe' quick demo button
+      await tester.tap(find.byKey(const Key('demo_restaurant_btn')));
+      await tester.pumpAndSettle();
+
+      // Tap 'Sign In to Register'
+      await tester.tap(find.byKey(const Key('login_submit_btn')));
+      await tester.pumpAndSettle();
+
+      // Verify Restaurant Tables screen is displayed
+      expect(find.text('Tables'), findsOneWidget);
+      expect(find.text('Occupied Tables'), findsOneWidget);
+      expect(find.text('AC Dining'), findsOneWidget);
+    });
   });
 }
