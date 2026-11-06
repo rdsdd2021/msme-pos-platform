@@ -67,12 +67,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final cachedUser = await _repo.getCachedSession();
       if (cachedUser != null) {
         final membership = cachedUser.primaryMembership;
+        final rawBranch = membership?.branchId;
+        final isUuid = rawBranch != null &&
+            RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+                    caseSensitive: false)
+                .hasMatch(rawBranch);
+
         state = AuthState(
           user: cachedUser,
           activeMembership: membership,
-          activeBranchId: membership?.branchId ?? 'branch-1',
+          activeBranchId: isUuid ? rawBranch : null,
           isInitialized: true,
         );
+
+        if (!isUuid) {
+          _repo.resolvePrimaryBranch(cachedUser).then((resolvedUser) {
+            final resolvedMembership = resolvedUser.primaryMembership;
+            if (resolvedMembership?.branchId != null) {
+              state = state.copyWith(
+                user: resolvedUser,
+                activeMembership: resolvedMembership,
+                activeBranchId: resolvedMembership!.branchId,
+              );
+            }
+          }).catchError((_) {});
+        }
         return;
       }
     } catch (_) {
@@ -103,7 +122,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(
         user: user,
         activeMembership: membership,
-        activeBranchId: membership?.branchId ?? 'branch-1',
+        activeBranchId: membership?.branchId,
         isInitialized: true,
       );
     } catch (e) {
@@ -150,7 +169,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(
         user: user,
         activeMembership: membership,
-        activeBranchId: membership?.branchId ?? 'branch-1',
+        activeBranchId: membership?.branchId,
         isInitialized: true,
       );
     } catch (e) {

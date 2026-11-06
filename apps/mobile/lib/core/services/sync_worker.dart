@@ -113,7 +113,7 @@ class SyncWorker {
             }
           }
         } catch (e) {
-          pushError = e.toString();
+          pushError = 'Outbox push error: ${_formatError(e)}';
           // Fallback: If a multi-op batch fails (e.g. 413 or timeout), retry items individually
           // so that valid operations succeed and only the oversized operation is isolated.
           if (chunk.length > 1) {
@@ -143,7 +143,7 @@ class SyncWorker {
                   SyncOutboxCompanion(
                     status: const Value('failed'),
                     retryCount: Value(singleOp.retryCount + 1),
-                    lastError: Value(singleErr.toString()),
+                    lastError: Value(_formatError(singleErr)),
                   ),
                 );
               }
@@ -155,7 +155,7 @@ class SyncWorker {
                 SyncOutboxCompanion(
                   status: const Value('failed'),
                   retryCount: Value(op.retryCount + 1),
-                  lastError: Value(e.toString()),
+                  lastError: Value(_formatError(e)),
                 ),
               );
             }
@@ -244,6 +244,7 @@ class SyncWorker {
       await setLastSyncTime(DateTime.now());
       pulledCategories = pullResult.categories.length;
     } catch (e) {
+      final cleanPullError = _formatError(e);
       return SyncCycleResult(
         pushedCount: pushedCount,
         pulledProductsCount: 0,
@@ -252,8 +253,8 @@ class SyncWorker {
         newCursor: '',
         isSuccess: false,
         error: pushError != null
-            ? 'Outbox push: $pushError | Delta pull error: ${e.toString()}'
-            : 'Delta pull error: ${e.toString()}',
+            ? '$pushError | Pull: $cleanPullError'
+            : cleanPullError,
       );
     }
 
@@ -264,8 +265,40 @@ class SyncWorker {
       pulledCustomersCount: pulledCustomers,
       newCursor: newCursor,
       isSuccess: pushError == null,
-      error: pushError != null ? 'Outbox push error: $pushError' : null,
+      error: pushError,
     );
+  }
+
+  String _formatError(dynamic e) {
+    final str = e.toString().replaceFirst('Exception: ', '').trim();
+    final lower = str.toLowerCase();
+    if (str.contains('401') || lower.contains('session expired') || lower.contains('unauthorized')) {
+      return 'Session expired — please log in again';
+    }
+    if (str.contains('400')) {
+      return 'Sync rejected by server (400)';
+    }
+    if (str.contains('403')) {
+      return 'Sync permission denied (403)';
+    }
+    if (str.contains('500') || str.contains('502') || str.contains('503')) {
+      return 'Server temporarily busy (500)';
+    }
+    if (lower.contains('unreachable') ||
+        lower.contains('socket') ||
+        lower.contains('timeout') ||
+        lower.contains('connection refused') ||
+        lower.contains('connection reset') ||
+        lower.contains('network is unreachable')) {
+      return 'Server unreachable (offline)';
+    }
+    if (str.contains('DioException')) {
+      return 'Sync communication error';
+    }
+    if (str.length > 70) {
+      return str.substring(0, 70);
+    }
+    return str;
   }
 }
 

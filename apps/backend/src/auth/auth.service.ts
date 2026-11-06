@@ -657,7 +657,7 @@ export class AuthService {
       'JWT_REFRESH_SECRET',
       'changeme_refresh_secret_dev_only_min_32_chars_x',
     );
-    const accessExpiresIn = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m');
+    const accessExpiresIn = this.configService.get<string>('JWT_ACCESS_EXPIRES_IN', '24h');
     const refreshExpiresIn = this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '7d');
 
     const [accessToken, refreshToken] = await Promise.all([

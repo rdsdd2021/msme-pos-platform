@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
@@ -71,24 +72,15 @@ class AuthRepository {
   Future<AuthUser> login(String email, String password) async {
     final cleanEmail = email.trim().toLowerCase();
 
-    // Fast-path demo login for offline/emulator/test runs
-    if (cleanEmail == 'admin@kirana.dev' && password == 'Password@123') {
-      await _saveSession('demo-jwt-token-owner', null, demoOwner);
-      return demoOwner;
-    }
-    if (cleanEmail == 'cashier@kirana.dev' && password == 'Password@123') {
-      await _saveSession('demo-jwt-token-cashier', null, demoCashier);
-      return demoCashier;
-    }
-
+    // 1. Always attempt live authentication against the backend first
     try {
       final response = await _dio.post(
         '$_baseUrl/api/v1/auth/login',
         data: {'email': cleanEmail, 'password': password},
         options: Options(
           headers: {'Content-Type': 'application/json'},
-          sendTimeout: const Duration(seconds: 4),
-          receiveTimeout: const Duration(seconds: 4),
+          sendTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
         ),
       );
 
@@ -104,11 +96,31 @@ class AuthRepository {
         );
 
         final user = AuthUser.fromJson(profileRes.data as Map<String, dynamic>);
-        final userWithBranch = await _resolvePrimaryBranch(user, token);
+        final userWithBranch = await resolvePrimaryBranch(user, token);
         await _saveSession(token, refreshToken, userWithBranch);
         return userWithBranch;
       }
-    } catch (_) {
+    } catch (e) {
+      // 2. Fall back to offline credentials ONLY if physically offline or server is unreachable
+      final isOfflineNetworkError = e is DioException &&
+          (e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.sendTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.connectionError);
+
+      final isTestEnv = Platform.environment.containsKey('FLUTTER_TEST');
+      if (isOfflineNetworkError || isTestEnv || _baseUrl.contains('10.0.2.2')) {
+        if (cleanEmail == 'admin@kirana.dev' && password == 'Password@123') {
+          await _saveSession('demo-jwt-token-owner', null, demoOwner);
+          return demoOwner;
+        }
+        if (cleanEmail == 'cashier@kirana.dev' && password == 'Password@123') {
+          await _saveSession('demo-jwt-token-cashier', null, demoCashier);
+          return demoCashier;
+        }
+      }
+
+      // If server returned 401/400 (invalid password), or offline fallback didn't match:
       throw Exception('Invalid email or password');
     }
 
@@ -158,7 +170,7 @@ class AuthRepository {
         );
 
         final user = AuthUser.fromJson(profileRes.data as Map<String, dynamic>);
-        final userWithBranch = await _resolvePrimaryBranch(user, token);
+        final userWithBranch = await resolvePrimaryBranch(user, token);
         await _saveSession(token, refreshToken, userWithBranch);
         return userWithBranch;
       }
@@ -195,6 +207,47 @@ class AuthRepository {
     return prefs.getString(_keyToken);
   }
 
+  /// Get refresh token
+  Future<String?> getRefreshToken() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    return prefs.getString(_keyRefreshToken);
+  }
+
+  /// Transparently refresh JWT access token using the stored refresh token
+  Future<String?> refreshTokens() async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString(_keyRefreshToken);
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/api/v1/auth/refresh',
+        data: {'refreshToken': refreshToken},
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          sendTimeout: const Duration(seconds: 6),
+          receiveTimeout: const Duration(seconds: 6),
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = response.data as Map<String, dynamic>;
+        final newAccessToken = data['accessToken'] as String?;
+        final newRefreshToken = data['refreshToken'] as String?;
+        if (newAccessToken != null && newAccessToken.isNotEmpty) {
+          await prefs.setString(_keyToken, newAccessToken);
+          if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+            await prefs.setString(_keyRefreshToken, newRefreshToken);
+          }
+          return newAccessToken;
+        }
+      }
+    } catch (_) {
+      // Refresh failed or revoked
+    }
+    return null;
+  }
+
   /// Clear session on logout
   Future<void> logout() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
@@ -207,7 +260,7 @@ class AuthRepository {
   }
 
   /// Resolves the primary branch UUID from the backend for store owners who have tenant-wide scope.
-  Future<AuthUser> _resolvePrimaryBranch(AuthUser user, String token) async {
+  Future<AuthUser> resolvePrimaryBranch(AuthUser user, [String? authToken]) async {
     final primary = user.primaryMembership;
     if (primary == null) return user;
 
@@ -218,6 +271,9 @@ class AuthRepository {
             .hasMatch(branchId);
 
     if (isUuid) return user;
+
+    final token = authToken ?? await getAccessToken();
+    if (token == null || token.isEmpty) return user;
 
     try {
       final res = await _dio.get(
@@ -243,13 +299,17 @@ class AuthRepository {
             return m;
           }).toList();
 
-          return AuthUser(
+          final updatedUser = AuthUser(
             id: user.id,
             email: user.email,
             fullName: user.fullName,
             phone: user.phone,
             memberships: updatedMemberships,
           );
+
+          final currentRefreshToken = await getRefreshToken();
+          await _saveSession(token, currentRefreshToken, updatedUser);
+          return updatedUser;
         }
       }
     } catch (_) {

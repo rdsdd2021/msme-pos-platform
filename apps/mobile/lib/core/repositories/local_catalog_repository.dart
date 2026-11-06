@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import '../config/app_config.dart';
 import '../database/app_database.dart';
 import '../models/product.dart';
 
@@ -116,8 +117,11 @@ class LocalCatalogRepository {
     double initialStock = 0.0,
     String? imageUrl,
     String tenantId = 'tenant-1',
-    String deviceId = 'pos-mobile-01',
+    String? deviceId,
   }) async {
+    final resolvedDeviceId = (deviceId != null && deviceId.isNotEmpty && deviceId != 'pos-mobile-01')
+        ? deviceId
+        : await AppConfig.getDeviceId();
     final id = const Uuid().v4();
     final now = DateTime.now();
 
@@ -160,7 +164,7 @@ class LocalCatalogRepository {
       await _db.into(_db.syncOutbox).insert(
         SyncOutboxCompanion.insert(
           operationId: const Uuid().v4(),
-          deviceId: deviceId,
+          deviceId: resolvedDeviceId,
           sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
           operationType: 'CREATE_PRODUCT',
           schemaVersion: const Value(1),
@@ -201,7 +205,10 @@ class LocalCatalogRepository {
   }
 
   /// Update an existing product's details and price
-  Future<void> updateProduct(Product product, {String deviceId = 'pos-mobile-01'}) async {
+  Future<void> updateProduct(Product product, {String? deviceId}) async {
+    final resolvedDeviceId = (deviceId != null && deviceId.isNotEmpty && deviceId != 'pos-mobile-01')
+        ? deviceId
+        : await AppConfig.getDeviceId();
     final now = DateTime.now();
     await (_db.update(_db.localProducts)..where((p) => p.id.equals(product.id))).write(
       LocalProductsCompanion(
@@ -223,7 +230,7 @@ class LocalCatalogRepository {
     await _db.into(_db.syncOutbox).insert(
       SyncOutboxCompanion.insert(
         operationId: const Uuid().v4(),
-        deviceId: deviceId,
+        deviceId: resolvedDeviceId,
         sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
         operationType: 'UPDATE_PRODUCT',
         schemaVersion: const Value(1),
@@ -252,8 +259,11 @@ class LocalCatalogRepository {
     required String productId,
     required double delta,
     required String reason,
-    String deviceId = 'pos-mobile-01',
+    String? deviceId,
   }) async {
+    final resolvedDeviceId = (deviceId != null && deviceId.isNotEmpty && deviceId != 'pos-mobile-01')
+        ? deviceId
+        : await AppConfig.getDeviceId();
     final now = DateTime.now();
     final existing = await (_db.select(_db.localProducts)..where((p) => p.id.equals(productId))).getSingleOrNull();
     if (existing == null) return;
@@ -283,7 +293,7 @@ class LocalCatalogRepository {
       await _db.into(_db.syncOutbox).insert(
         SyncOutboxCompanion.insert(
           operationId: const Uuid().v4(),
-          deviceId: deviceId,
+          deviceId: resolvedDeviceId,
           sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
           operationType: 'STOCK_ADJUSTMENT',
           schemaVersion: const Value(1),

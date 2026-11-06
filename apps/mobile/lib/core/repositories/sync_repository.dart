@@ -89,7 +89,8 @@ class SyncRepository {
     String deviceId,
     List<SyncOutboxData> operations,
     String? token, {
-    int timeoutSeconds = 8,
+    int timeoutSeconds = 12,
+    bool isRetry = false,
   }) async {
     final opsPayload = operations.map((op) {
       dynamic parsedPayload;
@@ -110,23 +111,52 @@ class SyncRepository {
       };
     }).toList();
 
-    final response = await _dio.post(
-      '$_baseUrl/api/v1/tenants/$tenantId/sync/push',
-      data: {
-        'deviceId': deviceId,
-        'operations': opsPayload,
-      },
-      options: Options(
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/api/v1/tenants/$tenantId/sync/push',
+        data: {
+          'deviceId': deviceId,
+          'operations': opsPayload,
         },
-        sendTimeout: Duration(seconds: timeoutSeconds),
-        receiveTimeout: Duration(seconds: timeoutSeconds),
-      ),
-    );
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+          sendTimeout: Duration(seconds: timeoutSeconds),
+          receiveTimeout: Duration(seconds: timeoutSeconds),
+        ),
+      );
 
-    return SyncPushResult.fromJson(response.data as Map<String, dynamic>);
+      return SyncPushResult.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (dioErr) {
+      // Automatic 401 token refresh & transparent retry
+      if (dioErr.response?.statusCode == 401 && !isRetry) {
+        final refreshedToken = await _authRepo.refreshTokens();
+        if (refreshedToken != null && refreshedToken.isNotEmpty) {
+          return _executePushHttp(
+            tenantId,
+            deviceId,
+            operations,
+            refreshedToken,
+            timeoutSeconds: timeoutSeconds,
+            isRetry: true,
+          );
+        }
+        throw Exception('Session expired — please sign in again');
+      }
+
+      final status = dioErr.response?.statusCode;
+      if (status == 401) {
+        throw Exception('Session expired — please sign in again');
+      } else if (status == 413) {
+        throw Exception('Upload batch too large for server');
+      } else if (dioErr.type == DioExceptionType.connectionTimeout ||
+          dioErr.type == DioExceptionType.connectionError) {
+        throw Exception('Server unreachable (offline)');
+      }
+      throw Exception('Sync failed: HTTP ${status ?? dioErr.type.name}');
+    }
   }
 
   /// Pull delta updates for catalog & reference data via GET /api/v1/tenants/:tenantId/sync/pull
@@ -159,26 +189,53 @@ class SyncRepository {
     String tenantId,
     String? cursor,
     String? token, {
-    int timeoutSeconds = 8,
+    int timeoutSeconds = 12,
+    bool isRetry = false,
   }) async {
     final queryParams = <String, dynamic>{};
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
     }
 
-    final response = await _dio.get(
-      '$_baseUrl/api/v1/tenants/$tenantId/sync/pull',
-      queryParameters: queryParams,
-      options: Options(
-        headers: {
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        sendTimeout: Duration(seconds: timeoutSeconds),
-        receiveTimeout: Duration(seconds: timeoutSeconds),
-      ),
-    );
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/api/v1/tenants/$tenantId/sync/pull',
+        queryParameters: queryParams,
+        options: Options(
+          headers: {
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+          sendTimeout: Duration(seconds: timeoutSeconds),
+          receiveTimeout: Duration(seconds: timeoutSeconds),
+        ),
+      );
 
-    return SyncPullDeltaResult.fromJson(response.data as Map<String, dynamic>);
+      return SyncPullDeltaResult.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (dioErr) {
+      // Automatic 401 token refresh & transparent retry
+      if (dioErr.response?.statusCode == 401 && !isRetry) {
+        final refreshedToken = await _authRepo.refreshTokens();
+        if (refreshedToken != null && refreshedToken.isNotEmpty) {
+          return _executePullHttp(
+            tenantId,
+            cursor,
+            refreshedToken,
+            timeoutSeconds: timeoutSeconds,
+            isRetry: true,
+          );
+        }
+        throw Exception('Session expired — please sign in again');
+      }
+
+      final status = dioErr.response?.statusCode;
+      if (status == 401) {
+        throw Exception('Session expired — please sign in again');
+      } else if (dioErr.type == DioExceptionType.connectionTimeout ||
+          dioErr.type == DioExceptionType.connectionError) {
+        throw Exception('Server unreachable (offline)');
+      }
+      throw Exception('Pull failed: HTTP ${status ?? dioErr.type.name}');
+    }
   }
 }
 

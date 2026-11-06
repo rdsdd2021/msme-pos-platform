@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import '../config/app_config.dart';
 import '../database/app_database.dart';
 import '../models/cart_item.dart';
 import '../models/receipt_document.dart';
@@ -22,12 +23,15 @@ class LocalBillingRepository {
     String? customerName,
     String tenantId = 'tenant-1',
     String branchId = 'branch-1',
-    String deviceId = 'device-pos-01',
+    String? deviceId,
   }) async {
     if (items.isEmpty) {
       throw ArgumentError('Cannot process sale with empty cart');
     }
 
+    final resolvedDeviceId = (deviceId != null && deviceId.isNotEmpty && deviceId != 'device-pos-01')
+        ? deviceId
+        : await AppConfig.getDeviceId();
     final invoiceId = const Uuid().v4();
     final now = DateTime.now();
     final invoiceNumber = 'INV-${now.year}-$_invoiceSequence';
@@ -119,7 +123,7 @@ class LocalBillingRepository {
           id: invoiceId,
           tenantId: tenantId,
           branchId: branchId,
-          deviceId: deviceId,
+          deviceId: resolvedDeviceId,
           invoiceNumber: invoiceNumber,
           customerId: Value(customerId),
           customerName: Value(customerName),
@@ -215,7 +219,7 @@ class LocalBillingRepository {
       await _db.into(_db.syncOutbox).insert(
         SyncOutboxCompanion.insert(
           operationId: outboxOpId,
-          deviceId: deviceId,
+          deviceId: resolvedDeviceId,
           sequence: _outboxSequence++,
           operationType: 'CREATE_SALE',
           schemaVersion: const Value(1),

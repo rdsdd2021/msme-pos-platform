@@ -55,11 +55,19 @@ export class SyncService {
 
     for (const op of dto.operations) {
       // 0. Validate Device Status and Tenancy (lookup by primary UUID or hardware device identifier)
+      const isDeviceUuid =
+        typeof op.deviceId === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          op.deviceId,
+        );
+
       let device = await this.deviceRepo.findOne({
-        where: [
-          { id: op.deviceId, tenantId },
-          { deviceIdentifier: op.deviceId, tenantId },
-        ],
+        where: isDeviceUuid
+          ? [
+              { id: op.deviceId, tenantId },
+              { deviceIdentifier: op.deviceId, tenantId },
+            ]
+          : [{ deviceIdentifier: op.deviceId, tenantId }],
       });
 
       if (!device) {
@@ -119,7 +127,7 @@ export class SyncService {
 
       // 1. Check if already ingested (Idempotency)
       const existing = await this.ingestedRepo.findOne({
-        where: { tenantId, deviceId: op.deviceId, operationId: op.operationId },
+        where: { tenantId, deviceId: device.id, operationId: op.operationId },
       });
 
       if (existing) {
@@ -274,7 +282,7 @@ export class SyncService {
         // 3. Record ingestion status
         const ingested = this.ingestedRepo.create({
           tenantId,
-          deviceId: op.deviceId,
+          deviceId: device.id,
           operationId: op.operationId,
           operationType: op.operationType,
           sequence: op.sequence,
@@ -293,7 +301,7 @@ export class SyncService {
         this.logger.error(`Error ingesting sync operation ${op.operationId}: ${err.message}`);
         const failedRecord = this.ingestedRepo.create({
           tenantId,
-          deviceId: op.deviceId,
+          deviceId: device.id,
           operationId: op.operationId,
           operationType: op.operationType,
           sequence: op.sequence,

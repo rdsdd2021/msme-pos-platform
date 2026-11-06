@@ -13,6 +13,7 @@ import '../../core/providers/catalog_provider.dart';
 import '../../core/providers/customer_provider.dart';
 import '../../core/providers/printer_provider.dart';
 import '../../core/services/printer_service.dart';
+import '../../core/services/permission_service.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/services/barcode_scanner_listener.dart';
 import '../../core/services/escpos_builder.dart';
@@ -38,6 +39,22 @@ class MobilePosScreen extends ConsumerStatefulWidget {
 
 class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
   final TextEditingController _searchController = TextEditingController();
+  bool _isListView = false;
+
+  void _addProductToCart(Product p) {
+    HapticFeedback.selectionClick();
+    final success = ref.read(cartProvider.notifier).addProduct(p);
+    if (!success) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot add more: Only ${p.currentStock.toInt()} units in stock for ${p.name}'),
+          backgroundColor: ShadcnColors.warning,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -784,15 +801,19 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 final success = await ref.read(syncStateProvider.notifier).syncNow();
                 if (!context.mounted) return;
+                final lastErr = ref.read(syncStateProvider).lastError;
+                final syncMsg = success
+                    ? 'Synchronization complete!'
+                    : (lastErr != null && lastErr.isNotEmpty
+                        ? lastErr
+                        : 'Working offline — saved locally');
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      success
-                          ? 'Synchronization complete!'
-                          : 'Sync status: ${ref.read(syncStateProvider).lastError ?? "Offline (saved locally)"}',
-                    ),
-                    backgroundColor: success ? ShadcnColors.success : ShadcnColors.warning,
-                    duration: const Duration(seconds: 2),
+                    content: Text(syncMsg),
+                    backgroundColor: success
+                        ? ShadcnColors.success
+                        : (syncMsg.contains('expired') ? ShadcnColors.destructive : ShadcnColors.warning),
+                    duration: const Duration(seconds: 3),
                   ),
                 );
               },
@@ -877,48 +898,78 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
               ),
             ),
 
-            // Category Filter Pills
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            // Category Filter Pills & View Mode Toggle
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
-                children: categories.map((cat) {
-                  final isSelected = catalogState.selectedCategory == cat;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: InkWell(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        ref.read(catalogProvider.notifier).selectCategory(cat);
-                      },
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? ShadcnColors.primary : ShadcnColors.surface,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: isSelected ? ShadcnColors.primary : ShadcnColors.border,
-                            width: 1.0,
-                          ),
-                        ),
-                        child: Text(
-                          cat,
-                          style: ShadcnTypography.caption.copyWith(
-                            color: isSelected ? Colors.white : ShadcnColors.foreground,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          ),
-                        ),
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: categories.map((cat) {
+                          final isSelected = catalogState.selectedCategory == cat;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                ref.read(catalogProvider.notifier).selectCategory(cat);
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? ShadcnColors.primary : ShadcnColors.surface,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isSelected ? ShadcnColors.primary : ShadcnColors.border,
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: Text(
+                                  cat,
+                                  style: ShadcnTypography.caption.copyWith(
+                                    color: isSelected ? Colors.white : ShadcnColors.foreground,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    key: const Key('pos_view_mode_toggle'),
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _isListView = !_isListView);
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: ShadcnColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: ShadcnColors.border),
+                      ),
+                      child: Icon(
+                        _isListView ? Icons.grid_view_rounded : Icons.view_list_rounded,
+                        size: 18,
+                        color: ShadcnColors.foreground,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: 6),
 
-            // Product Grid
+            // Product Grid or Dense List
             Expanded(
               child: catalogState.filteredProducts.isEmpty
                   ? ShadcnEmptyState(
@@ -931,36 +982,36 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
                         ref.read(catalogProvider.notifier).updateSearch('');
                       },
                     )
-                  : GridView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.92,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemCount: catalogState.filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        final p = catalogState.filteredProducts[index];
-                        return _ProductCard(
-                          product: p,
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            final success = ref.read(cartProvider.notifier).addProduct(p);
-                            if (!success) {
-                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Cannot add more: Only ${p.currentStock.toInt()} units in stock for ${p.name}'),
-                                  backgroundColor: ShadcnColors.warning,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
+                  : (_isListView
+                      ? ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          itemCount: catalogState.filteredProducts.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: ShadcnColors.border),
+                          itemBuilder: (context, index) {
+                            final p = catalogState.filteredProducts[index];
+                            return _ProductListItem(
+                              product: p,
+                              onTap: () => _addProductToCart(p),
+                            );
                           },
-                        );
-                      },
-                    ),
+                        )
+                      : GridView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 1.08,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: catalogState.filteredProducts.length,
+                          itemBuilder: (context, index) {
+                            final p = catalogState.filteredProducts[index];
+                            return _ProductCard(
+                              product: p,
+                              onTap: () => _addProductToCart(p),
+                            );
+                          },
+                        )),
             ),
 
             // Sticky Bottom Checkout Dock
@@ -1008,29 +1059,29 @@ class _ProductCard extends ConsumerWidget {
           Stack(
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 104,
-                  child: _buildHeroImage(product),
+                  height: 78,
+                  child: buildHeroImage(product),
                 ),
               ),
 
               // Overlaid Badges
               Positioned(
-                top: 6,
-                left: 6,
+                top: 5,
+                left: 5,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.65),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
                     product.category,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 9.5,
+                      fontSize: 9,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.2,
                     ),
@@ -1039,8 +1090,8 @@ class _ProductCard extends ConsumerWidget {
               ),
 
               Positioned(
-                top: 6,
-                right: 6,
+                top: 5,
+                right: 5,
                 child: ShadcnBadge(
                   text: product.isLowStock
                       ? '${product.currentStock.toInt()} left'
@@ -1051,85 +1102,91 @@ class _ProductCard extends ConsumerWidget {
             ],
           ),
 
-          // 2. Product Name, SKU, Price & Add Action
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Title & SKU
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ShadcnTypography.bodySemibold.copyWith(
-                    fontSize: 13,
-                    height: 1.2,
+          // 2. Snug Product Name, SKU, Price & Add Action
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ShadcnTypography.bodySemibold.copyWith(
+                          fontSize: 12.5,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${product.sku} • ${product.unit}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ShadcnTypography.caption.copyWith(
+                          fontSize: 10,
+                          color: ShadcnColors.mutedForeground,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${product.sku} • ${product.unit}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ShadcnTypography.caption.copyWith(
-                    fontSize: 10.5,
-                    color: ShadcnColors.mutedForeground,
-                  ),
-                ),
-                const SizedBox(height: 8),
 
-                // Price & Quick Stepper / Add Action
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
-                      style: ShadcnTypography.currency.copyWith(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: ShadcnColors.foreground,
-                      ),
-                    ),
-                    if (inCart.quantity > 0)
-                      ShadcnQuantityStepper(
-                        quantity: inCart.quantity,
-                        height: 28,
-                        isDestructiveOnZero: true,
-                        onIncrement: onTap,
-                        onDecrement: () {
-                          HapticFeedback.selectionClick();
-                          ref.read(cartProvider.notifier).decrementProduct(product.id);
-                        },
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ShadcnColors.primaryLight,
-                          borderRadius: BorderRadius.circular(6),
+                  // Price & Quick Stepper / Add Action
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
+                        style: ShadcnTypography.currency.copyWith(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: ShadcnColors.foreground,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.add, size: 12, color: ShadcnColors.primary),
-                            const SizedBox(width: 2),
-                            Text(
-                              'ADD',
-                              style: ShadcnTypography.caption.copyWith(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: ShadcnColors.primary,
+                      ),
+                      if (inCart.quantity > 0)
+                        ShadcnQuantityStepper(
+                          quantity: inCart.quantity,
+                          height: 24,
+                          isDestructiveOnZero: true,
+                          onIncrement: onTap,
+                          onDecrement: () {
+                            HapticFeedback.selectionClick();
+                            ref.read(cartProvider.notifier).decrementProduct(product.id);
+                          },
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: ShadcnColors.primaryLight,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add, size: 11, color: ShadcnColors.primary),
+                              SizedBox(width: 2),
+                              Text(
+                                'ADD',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: ShadcnColors.primary,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1137,7 +1194,7 @@ class _ProductCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeroImage(Product p) {
+  static Widget buildHeroImage(Product p) {
     final img = p.imageUrl;
     if (img != null && img.isNotEmpty) {
       if (img.startsWith('data:image/')) {
@@ -1150,10 +1207,10 @@ class _ProductCard extends ConsumerWidget {
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity,
-            errorBuilder: (_, __, ___) => _buildFallbackCategoryGraphic(p),
+            errorBuilder: (_, __, ___) => buildFallbackCategoryGraphic(p),
           );
         } catch (_) {
-          return _buildFallbackCategoryGraphic(p);
+          return buildFallbackCategoryGraphic(p);
         }
       } else if (img.startsWith('http://') || img.startsWith('https://')) {
         return Image.network(
@@ -1161,14 +1218,14 @@ class _ProductCard extends ConsumerWidget {
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
-          errorBuilder: (_, __, ___) => _buildFallbackCategoryGraphic(p),
+          errorBuilder: (_, __, ___) => buildFallbackCategoryGraphic(p),
         );
       }
     }
-    return _buildFallbackCategoryGraphic(p);
+    return buildFallbackCategoryGraphic(p);
   }
 
-  Widget _buildFallbackCategoryGraphic(Product p) {
+  static Widget buildFallbackCategoryGraphic(Product p) {
     IconData icon;
     final cat = p.category.toLowerCase();
     if (cat.contains('egg') || cat.contains('dairy') || cat.contains('milk')) {
@@ -1194,6 +1251,145 @@ class _ProductCard extends ConsumerWidget {
           icon,
           size: 38,
           color: ShadcnColors.mutedForeground.withValues(alpha: 0.65),
+        ),
+      ),
+    );
+  }
+}
+
+/// Ultra-dense retail list row for fast counter cashier checkout
+class _ProductListItem extends ConsumerWidget {
+  final Product product;
+  final VoidCallback onTap;
+
+  const _ProductListItem({required this.product, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    final inCart = cart.items.firstWhere(
+      (i) => i.product.id == product.id,
+      orElse: () => CartItem(product: product, quantity: 0),
+    );
+
+    final isSelected = inCart.quantity > 0;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? ShadcnColors.successLight.withValues(alpha: 0.18) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: _ProductCard.buildHeroImage(product),
+              ),
+            ),
+            const SizedBox(width: 10),
+
+            // Title & SKU
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          product.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${product.currentStock.toInt()} left',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: product.isLowStock ? ShadcnColors.destructive : ShadcnColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${product.sku} • ${product.category} • ${product.unit}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ShadcnTypography.caption.copyWith(fontSize: 10.5, color: ShadcnColors.mutedForeground),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Price & Stepper / ADD
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '₹${product.sellingPriceRupees.toStringAsFixed(1)}',
+                  style: ShadcnTypography.currency.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: ShadcnColors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                if (inCart.quantity > 0)
+                  ShadcnQuantityStepper(
+                    quantity: inCart.quantity,
+                    height: 24,
+                    isDestructiveOnZero: true,
+                    onIncrement: onTap,
+                    onDecrement: () {
+                      HapticFeedback.selectionClick();
+                      ref.read(cartProvider.notifier).decrementProduct(product.id);
+                    },
+                  )
+                else
+                  InkWell(
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: ShadcnColors.primaryLight,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 12, color: ShadcnColors.primary),
+                          SizedBox(width: 2),
+                          Text(
+                            'ADD',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: ShadcnColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

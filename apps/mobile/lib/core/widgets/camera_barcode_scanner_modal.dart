@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/permission_service.dart';
 import '../theme/shadcn_colors.dart';
@@ -86,6 +87,9 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
     if (!_isTestingEnvironment) {
       _laserAnimController.repeat(reverse: true);
       _initScanner();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndStartCamera();
+      });
     }
   }
 
@@ -95,7 +99,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
       torchEnabled: false,
-      autoStart: true,
+      autoStart: false,
       returnImage: false,
     );
   }
@@ -118,8 +122,31 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       if (hasPermission && mounted) {
         if (_scannerController == null) {
           _initScanner();
-        } else {
+        }
+        try {
+          // Await modal sheet animation to stabilize surface texture
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (!mounted) return;
           await _scannerController?.start();
+          if (mounted) {
+            setState(() => _scannerError = null);
+          }
+        } catch (camErr) {
+          debugPrint('First camera start error: $camErr. Retrying once after delay...');
+          await Future.delayed(const Duration(milliseconds: 400));
+          if (!mounted) return;
+          try {
+            _initScanner();
+            await _scannerController?.start();
+            if (mounted) {
+              setState(() => _scannerError = null);
+            }
+          } catch (retryErr) {
+            debugPrint('Camera start retry error: $retryErr');
+            if (mounted && retryErr is MobileScannerException) {
+              setState(() => _scannerError = retryErr);
+            }
+          }
         }
       }
     } catch (e) {
@@ -128,6 +155,45 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       if (mounted) {
         setState(() => _isStartingCamera = false);
       }
+    }
+  }
+
+  /// Bulletproof photo-capture fallback using Android native camera activity and ML Kit decoding
+  Future<void> _scanFromCameraPhoto() async {
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 92,
+      );
+
+      if (image == null || !mounted) return;
+
+      _initScanner();
+      final barcodes = await _scannerController?.analyzeImage(image.path);
+      if (barcodes != null && barcodes.barcodes.isNotEmpty) {
+        final first = barcodes.barcodes.first.rawValue?.trim();
+        if (first != null && first.isNotEmpty) {
+          _hasScanned = true;
+          ref.read(permissionServiceProvider.notifier).triggerHaptic(type: 'success');
+          widget.onBarcodeScanned(first);
+          return;
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No barcode detected in the photo. Please frame the barcode clearly or enter it manually.'),
+            backgroundColor: ShadcnColors.warning,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Photo scan error: $e');
     }
   }
 
@@ -228,6 +294,12 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                     ),
                   ),
                   if (!_isTestingEnvironment && isCameraGranted && !_showManualInput) ...[
+                    // Snap Photo Fallback
+                    IconButton(
+                      icon: const Icon(Icons.photo_camera_outlined, color: Colors.white70, size: 20),
+                      tooltip: 'Snap Barcode Photo',
+                      onPressed: _scanFromCameraPhoto,
+                    ),
                     // Torch Toggle
                     IconButton(
                       icon: Icon(
@@ -487,13 +559,30 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-                  label: Text(
-                    isPermissionError ? 'Grant Permission & Retry' : 'Restart Camera',
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
+                  icon: const Icon(Icons.photo_camera, size: 18, color: Colors.white),
+                  label: const Text(
+                    'Snap Barcode Photo with Camera',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ShadcnColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: _scanFromCameraPhoto,
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.refresh, size: 18, color: Colors.white70),
+                  label: Text(
+                    isPermissionError ? 'Grant Permission & Retry' : 'Restart Live Camera',
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: Colors.white),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white24),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -502,6 +591,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                       _scannerError = null;
                       _initScanner();
                     });
+                    _checkAndStartCamera();
                   },
                 ),
               ),
