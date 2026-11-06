@@ -26,13 +26,13 @@ jobs:
       - name: Build packages
         run: pnpm --filter "./packages/*" build
       - name: Lint backend
-        run: pnpm --filter backend lint
+        run: pnpm --filter @pos/backend lint
       - name: Lint web
-        run: pnpm --filter web lint
+        run: pnpm --filter @pos/web lint
       - name: Typecheck backend
-        run: pnpm --filter backend typecheck
+        run: pnpm --filter @pos/backend typecheck
       - name: Typecheck web
-        run: pnpm --filter web typecheck
+        run: pnpm --filter @pos/web typecheck
       - name: Typecheck shared-types
         run: pnpm --filter @pos/shared-types typecheck
       - name: Typecheck validation
@@ -53,7 +53,7 @@ jobs:
       - name: Build packages
         run: pnpm --filter "./packages/*" build
       - name: Run backend unit tests
-        run: pnpm --filter backend test -- --passWithNoTests
+        run: pnpm --filter @pos/backend test
 
   test-web:
     name: Web Unit Tests
@@ -70,7 +70,7 @@ jobs:
       - name: Build packages
         run: pnpm --filter "./packages/*" build
       - name: Run web unit tests
-        run: pnpm --filter web test -- --passWithNoTests
+        run: pnpm --filter @pos/web test
 
   test-validation:
     name: Validation Package Tests
