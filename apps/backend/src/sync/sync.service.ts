@@ -155,15 +155,34 @@ export class SyncService {
               where: { tenantId, name: categoryName },
             });
             if (!category) {
+              const baseCode =
+                (raw.categoryCode
+                  ? String(raw.categoryCode).trim().toUpperCase()
+                  : categoryName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 10)) ||
+                'CAT';
+              const uniqueCode = `${baseCode}-${Date.now().toString(36).toUpperCase()}`;
               category = await this.categoryRepo.save(
                 this.categoryRepo.create({
                   tenantId,
                   name: categoryName,
+                  code: uniqueCode,
+                  isActive: true,
                 }),
               );
             }
 
-            const existingProd = await this.productRepo.findOne({ where: { tenantId, sku } });
+            const rawId = raw.id ? String(raw.id).trim() : undefined;
+            const isClientUuid =
+              rawId &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                rawId,
+              );
+            const existingProd = rawId
+              ? await this.productRepo.findOne({
+                  where: [{ tenantId, id: rawId }, { tenantId, sku }],
+                })
+              : await this.productRepo.findOne({ where: { tenantId, sku } });
+
             const sellingPrice = raw.sellingPrice ? String(raw.sellingPrice) : '0.00';
             const costPrice = raw.costPrice ? String(raw.costPrice) : '0.00';
             const taxRate =
@@ -187,6 +206,7 @@ export class SyncService {
               serverEntityId = saved.id;
             } else {
               const newProd = this.productRepo.create({
+                ...(isClientUuid ? { id: rawId } : {}),
                 tenantId,
                 categoryId: category.id,
                 name,
@@ -241,14 +261,44 @@ export class SyncService {
             saleBranchId = defaultBranch?.id;
           }
 
-          // Map lines to items if necessary
+          // Map lines to items with resilient product ID resolution
           const rawItems = raw.items || raw.lines || [];
-          const items = rawItems.map((item: any) => ({
-            productId: item.productId,
-            quantity: String(item.quantity || '1'),
-            discountAmount: item.discountAmount ? String(item.discountAmount) : '0.00',
-            gstRatePercent: String(item.gstRatePercent || item.gstRate || '0.00'),
-          }));
+          const items = await Promise.all(
+            rawItems.map(async (item: any) => {
+              let resolvedProductId = item.productId;
+              const isItemUuid =
+                typeof resolvedProductId === 'string' &&
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                  resolvedProductId,
+                );
+
+              // If product ID is not found or invalid UUID, lookup by SKU or barcode fallback
+              if (
+                !isItemUuid ||
+                !(await this.productRepo.findOne({ where: { id: resolvedProductId, tenantId } }))
+              ) {
+                const skuOrBarcode = item.sku || item.barcode;
+                if (skuOrBarcode) {
+                  const fallbackProduct = await this.productRepo.findOne({
+                    where: [
+                      { tenantId, sku: String(skuOrBarcode).trim().toUpperCase() },
+                      { tenantId, barcodePrimary: String(skuOrBarcode).trim() },
+                    ],
+                  });
+                  if (fallbackProduct) {
+                    resolvedProductId = fallbackProduct.id;
+                  }
+                }
+              }
+
+              return {
+                productId: resolvedProductId,
+                quantity: String(item.quantity || '1'),
+                discountAmount: item.discountAmount ? String(item.discountAmount) : '0.00',
+                gstRatePercent: String(item.gstRatePercent || item.gstRate || '0.00'),
+              };
+            }),
+          );
 
           // Map payments if necessary
           const rawPayments = raw.payments || [];

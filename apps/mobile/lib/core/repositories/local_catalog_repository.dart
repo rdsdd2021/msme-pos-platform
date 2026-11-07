@@ -169,6 +169,8 @@ class LocalCatalogRepository {
           operationType: 'CREATE_PRODUCT',
           schemaVersion: const Value(1),
           payload: jsonEncode({
+            'id': id,
+            'productId': id,
             'name': name.trim(),
             'sku': sku.trim().toUpperCase(),
             'barcode': barcode?.trim(),

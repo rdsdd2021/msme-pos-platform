@@ -88,6 +88,8 @@ class LocalBillingRepository {
           .map(
             (i) => {
               'productId': i.product.id,
+              'sku': i.product.sku,
+              'barcode': i.product.barcode,
               'quantity': i.quantity.toString(),
               'discountAmount': '0.00',
               'gstRatePercent': i.product.gstRate.toString(),
