@@ -99,7 +99,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
       torchEnabled: false,
-      autoStart: false,
+      autoStart: true,
       returnImage: false,
     );
   }
@@ -124,20 +124,22 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
           _initScanner();
         }
         try {
-          // Await modal sheet animation to stabilize surface texture
-          await Future.delayed(const Duration(milliseconds: 300));
           if (!mounted) return;
-          await _scannerController?.start();
+          if (_scannerController?.value.isRunning != true) {
+            await _scannerController?.start();
+          }
           if (mounted) {
             setState(() => _scannerError = null);
           }
         } catch (camErr) {
           debugPrint('First camera start error: $camErr. Retrying once after delay...');
-          await Future.delayed(const Duration(milliseconds: 400));
+          await Future.delayed(const Duration(milliseconds: 350));
           if (!mounted) return;
           try {
             _initScanner();
-            await _scannerController?.start();
+            if (_scannerController?.value.isRunning != true) {
+              await _scannerController?.start();
+            }
             if (mounted) {
               setState(() => _scannerError = null);
             }

@@ -371,7 +371,6 @@ export class RestaurantService {
     const result = await this.dataSource.transaction(async (manager) => {
       const order = await manager.findOne(RestaurantOrderEntity, {
         where: { id: dto.orderId, tenantId, branchId },
-        relations: ['kots', 'lines'],
       });
       if (!order) {
         throw new NotFoundException('Restaurant order not found');
@@ -457,7 +456,16 @@ export class RestaurantService {
       order.grandTotal = grandTotal.toFixed(2);
       order.status = RestaurantOrderStatus.OPEN;
 
-      const updatedOrder = await manager.save(order);
+      await manager.update(
+        RestaurantOrderEntity,
+        { id: order.id, tenantId, branchId },
+        {
+          subtotal: order.subtotal,
+          taxTotal: order.taxTotal,
+          grandTotal: order.grandTotal,
+          status: order.status,
+        },
+      );
 
       // Update table status to ORDERED
       if (order.tableId) {
@@ -470,7 +478,7 @@ export class RestaurantService {
         );
       }
 
-      return { kot: savedKot, order: updatedOrder };
+      return { kot: savedKot, order };
     });
 
     if (this.realtimeService) {
@@ -670,7 +678,14 @@ export class RestaurantService {
     order.status = RestaurantOrderStatus.COMPLETED;
     order.invoiceId = invoice.id;
     order.closedAt = new Date();
-    await this.orderRepo.save(order);
+    await this.orderRepo.update(
+      { id: order.id, tenantId, branchId },
+      {
+        status: RestaurantOrderStatus.COMPLETED,
+        invoiceId: invoice.id,
+        closedAt: order.closedAt,
+      },
+    );
 
     // Free up table / mark as dirty
     if (order.tableId) {

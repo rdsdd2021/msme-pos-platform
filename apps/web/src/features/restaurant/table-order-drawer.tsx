@@ -190,7 +190,7 @@ export function TableOrderDrawer({
         {
           productId: product.id,
           productName: product.name,
-          unitPrice: parseFloat(product.retailPrice || '0'),
+          unitPrice: parseFloat(product.sellingPrice || product.retailPrice || '0'),
           quantity: 1,
           specialInstructions: '',
           kitchenStation: KitchenStation.MAIN_KITCHEN,
@@ -345,19 +345,19 @@ export function TableOrderDrawer({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-4xl p-0 flex flex-col h-full bg-slate-50">
           {/* Header */}
-          <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-lg">
+          <div className="bg-white border-b px-6 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shrink-0">
                 {table.tableNumber}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-black text-slate-900">{table.tableName || `Table ${table.tableNumber}`}</h2>
-                  <Badge variant="outline" className="text-xs font-semibold">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-lg font-black text-slate-900 truncate">{table.tableName || `Table ${table.tableNumber}`}</h2>
+                  <Badge variant="outline" className="text-xs font-semibold shrink-0">
                     {table.section}
                   </Badge>
                   <Badge
-                    className={`text-xs uppercase font-bold ${
+                    className={`text-xs uppercase font-bold shrink-0 ${
                       table.status === TableStatus.VACANT
                         ? 'bg-emerald-100 text-emerald-800'
                         : table.status === TableStatus.SEATED
@@ -370,16 +370,16 @@ export function TableOrderDrawer({
                     {table.status}
                   </Badge>
                 </div>
-                <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                  <span className="flex items-center gap-1">
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5 truncate">
+                  <span className="flex items-center gap-1 shrink-0">
                     <Users className="w-3.5 h-3.5" /> Cap: {table.seatingCapacity}
                   </span>
                   {activeOrder && (
                     <>
                       <span>•</span>
-                      <span>Order #{activeOrder.orderNumber}</span>
+                      <span className="truncate">Order #{activeOrder.orderNumber}</span>
                       <span>•</span>
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 shrink-0">
                         <Clock className="w-3.5 h-3.5" />{' '}
                         {new Date(activeOrder.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
@@ -391,7 +391,7 @@ export function TableOrderDrawer({
 
             {/* Actions for occupied table */}
             {activeOrder && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <Button
                   size="sm"
                   variant="outline"
@@ -403,7 +403,7 @@ export function TableOrderDrawer({
                 <Button
                   size="sm"
                   onClick={() => setSettleModalOpen(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs whitespace-nowrap"
                 >
                   <Receipt className="w-3.5 h-3.5" /> Settle & Bill (₹{parseFloat(activeOrder.grandTotal).toFixed(2)})
                 </Button>
@@ -541,7 +541,7 @@ export function TableOrderDrawer({
                           </div>
                           <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
                             <span className="font-black text-xs text-slate-900">
-                              ₹{parseFloat(p.retailPrice || '0').toFixed(2)}
+                              ₹{parseFloat(p.sellingPrice || p.retailPrice || '0').toFixed(2)}
                             </span>
                             <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
                               <Plus className="w-3 h-3" /> Add
@@ -613,7 +613,7 @@ export function TableOrderDrawer({
                                   value={item.kitchenStation}
                                   onValueChange={(val) => handleUpdateDraftStation(item.productId, val as KitchenStation)}
                                 >
-                                  <SelectTrigger className="h-7 text-[11px] w-32 bg-slate-50">
+                                  <SelectTrigger className="h-7 text-[11px] min-w-[130px] w-auto px-2 bg-slate-50">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>

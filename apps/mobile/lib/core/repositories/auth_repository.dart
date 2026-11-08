@@ -19,15 +19,15 @@ class AuthRepository {
 
   // Pre-seeded demo credentials for immediate offline testing
   static const demoOwner = AuthUser(
-    id: 'user-owner-1',
+    id: '7cce49b2-0358-4caa-b945-586f767d28d0',
     email: 'admin@kirana.dev',
     fullName: 'Rajesh Store Owner',
     phone: '+919876543201',
     memberships: [
       MembershipSummary(
-        tenantId: 'tenant-1',
+        tenantId: 'e89260b8-1a2a-4fbf-a020-68741322292d',
         tenantName: 'Kirana Supermart',
-        branchId: 'branch-1',
+        branchId: 'd4c3055f-05f3-462f-b9d1-c800a31f32b2',
         role: 'owner',
         roles: ['owner'],
         permissions: ['billing:pos:create', 'catalog:read', 'catalog:manage', 'tenant:read', 'shifts:manage'],
@@ -37,15 +37,15 @@ class AuthRepository {
   );
 
   static const demoCashier = AuthUser(
-    id: 'user-cashier-2',
+    id: 'b508384f-29ec-4d58-9761-d796947111fd',
     email: 'cashier@kirana.dev',
     fullName: 'Suresh Cashier',
     phone: '+919876543202',
     memberships: [
       MembershipSummary(
-        tenantId: 'tenant-1',
+        tenantId: 'e89260b8-1a2a-4fbf-a020-68741322292d',
         tenantName: 'Kirana Supermart',
-        branchId: 'branch-1',
+        branchId: 'd4c3055f-05f3-462f-b9d1-c800a31f32b2',
         role: 'cashier',
         roles: ['cashier'],
         permissions: ['billing:pos:create', 'catalog:read', 'shifts:open', 'shifts:close'],
@@ -55,15 +55,15 @@ class AuthRepository {
   );
 
   static const demoRestaurant = AuthUser(
-    id: 'user-restaurant-3',
+    id: 'e3c15849-53e3-4d43-9844-cb7223da1e69',
     email: 'cafe@kirana.dev',
     fullName: 'Anil Cafe Owner',
     phone: '+919876543203',
     memberships: [
       MembershipSummary(
-        tenantId: 'tenant-restaurant-1',
-        tenantName: 'Chai & Snacks Cafe',
-        branchId: 'branch-1',
+        tenantId: '7b6bcc59-2a3f-4673-a07e-e1b21fcaec2c',
+        tenantName: 'Cafe',
+        branchId: 'd503871e-2b52-46d6-b499-36d64e046779',
         role: 'owner',
         roles: ['owner'],
         permissions: [

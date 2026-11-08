@@ -260,14 +260,14 @@ export default function LoginScreen({
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="text-xs font-bold text-slate-800 whitespace-nowrap">Android POS App</span>
                     <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold font-mono whitespace-nowrap">
-                      v1.0.8
+                      v1.0.9
                     </span>
                   </div>
                   <div className="text-[10px] text-slate-400 truncate">Offline SQLite &amp; Thermal Billing</div>
                 </div>
               </div>
               <a
-                href="/downloads/kirana-pos.apk?v=1.0.8"
+                href="/downloads/kirana-pos.apk?v=1.0.9"
                 download="kirana-pos.apk"
                 className="shrink-0 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
               >

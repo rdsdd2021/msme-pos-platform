@@ -34,7 +34,8 @@ class LocalBillingRepository {
         : await AppConfig.getDeviceId();
     final invoiceId = const Uuid().v4();
     final now = DateTime.now();
-    final invoiceNumber = 'INV-${now.year}-$_invoiceSequence';
+    final invoiceNumber =
+        'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch % 100000}';
     _invoiceSequence++;
 
     // Safe integer calculation in Paisa (Rule 8: Never use floating-point for money)
@@ -80,8 +81,9 @@ class LocalBillingRepository {
 
     // Create PushSync payload matching server CreateSaleDto
     final syncPayload = {
+      'invoiceId': invoiceId,
       'invoiceNumber': invoiceNumber,
-      'idempotencyKey': invoiceNumber,
+      'idempotencyKey': invoiceId,
       'customerId': customerId,
       'branchId': branchId,
       'items': items

@@ -266,14 +266,10 @@ export function AppSidebar({
           <div
             className={cn(
               'grid gap-1 mt-1 bg-slate-100/90 p-1 rounded-lg border border-slate-200/60',
-              collapsed
-                ? 'grid-cols-1'
-                : isRestaurantEnabled
-                  ? 'grid-cols-3'
-                  : 'grid-cols-2'
+              collapsed ? 'grid-cols-1' : 'grid-cols-2'
             )}
           >
-            {canAccessPos && (
+            {canAccessPos && !isRestaurantEnabled && (
               <button
                 onClick={() => setViewMode('pos')}
                 data-testid="mode-pos-btn"

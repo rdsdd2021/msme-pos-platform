@@ -310,7 +310,7 @@ export class SyncService {
 
           const saleDto: CreateSaleDto = {
             branchId: saleBranchId,
-            idempotencyKey: raw.idempotencyKey || raw.invoiceNumber || op.operationId,
+            idempotencyKey: op.operationId || raw.idempotencyKey || raw.invoiceNumber,
             isInterstate: Boolean(raw.isInterstate),
             customerId:
               raw.customerId &&

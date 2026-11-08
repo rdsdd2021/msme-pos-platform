@@ -180,11 +180,20 @@ export function filterNavForUser(
       ? (DEFAULT_MODULES_BY_BUSINESS as any)[businessType]
       : (DEFAULT_MODULES_BY_BUSINESS as any)[BusinessType.GROCERY];
 
+  const isRestaurantVertical =
+    businessType === BusinessType.RESTAURANT ||
+    businessType === 'restaurant' ||
+    activeModules.includes(AppModule.RESTAURANT);
+
   return navigationConfig
     .filter((section) => !section.requiredModule || activeModules.includes(section.requiredModule))
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
+        // For restaurant vertical, Dine-In table management is the primary POS; hide retail grocery POS
+        if (isRestaurantVertical && item.id === 'pos-terminal') {
+          return false;
+        }
         const hasRole = isOwner || item.allowedRoles.some((r) => roles.includes(r));
         const hasModule = !item.requiredModule || activeModules.includes(item.requiredModule);
         return hasRole && hasModule;

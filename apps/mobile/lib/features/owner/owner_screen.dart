@@ -64,21 +64,27 @@ class MobileOwnerScreen extends ConsumerWidget {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            membership?.tenantName ?? 'Kirana Supermart',
-                            style: ShadcnTypography.h3,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Branch: ${authState.activeBranchId ?? "BR-001"} • Role: ${membership?.role.toUpperCase() ?? "OWNER"}',
-                            style: ShadcnTypography.caption,
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              membership?.tenantName ?? 'Kirana Supermart',
+                              style: ShadcnTypography.h3,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Branch: ${authState.activeBranchId != null && authState.activeBranchId!.length > 8 ? authState.activeBranchId!.substring(0, 8) : (authState.activeBranchId ?? "BR-001")} • Role: ${membership?.role.toUpperCase() ?? "OWNER"}',
+                              style: ShadcnTypography.caption,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       ShadcnBadge(
                         text: (membership?.businessType ?? 'KIRANA').toUpperCase(),
                         variant: ShadcnBadgeVariant.success,
