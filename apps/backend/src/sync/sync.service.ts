@@ -343,13 +343,43 @@ export class SyncService {
             }),
           );
 
-          // Map payments if necessary
+          // Calculate expected grand total with GST & server nearest-rupee rounding
+          let estimatedGrossCents = 0;
+          for (const item of items) {
+            if (item.productId) {
+              const prod = await this.productRepo.findOne({ where: { id: item.productId, tenantId } });
+              if (prod) {
+                const qty = parseFloat(item.quantity);
+                const price = parseFloat(prod.sellingPrice);
+                const gst = parseFloat(item.gstRatePercent || prod.gstRatePercent || '0');
+                const lineNet = price * qty;
+                const lineTax = (lineNet * gst) / 100;
+                estimatedGrossCents += Math.round((lineNet + lineTax) * 100);
+              }
+            }
+          }
+          const expectedRoundedCents = Math.round(estimatedGrossCents / 100) * 100;
+
+          // Map payments and absorb rounding differences for fully-tendered offline sales
           const rawPayments = raw.payments || [];
-          const payments = rawPayments.map((p: any) => ({
+          let payments = rawPayments.map((p: any) => ({
             paymentMethod: p.paymentMethod || p.method || 'cash',
             amount: String(p.amount || '0.00'),
             externalReference: p.externalReference,
           }));
+
+          if (payments.length === 1 && expectedRoundedCents > 0) {
+            const clientPaidCents = Math.round(parseFloat(payments[0].amount) * 100);
+            if (Math.abs(expectedRoundedCents - clientPaidCents) <= 100) {
+              // Adjust payment to match server rounded grand total
+              payments[0].amount = (expectedRoundedCents / 100).toFixed(2);
+            }
+          } else if (payments.length === 0 && expectedRoundedCents > 0) {
+            payments = [{
+              paymentMethod: 'cash',
+              amount: (expectedRoundedCents / 100).toFixed(2),
+            }];
+          }
 
           const saleDto: CreateSaleDto = {
             branchId: saleBranchId,
