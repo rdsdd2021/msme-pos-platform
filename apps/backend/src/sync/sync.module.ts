@@ -9,6 +9,8 @@ import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
+import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
+import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingModule } from '../billing/billing.module';
 import { TenantsModule } from '../tenants/tenants.module';
 
@@ -22,6 +24,8 @@ import { TenantsModule } from '../tenants/tenants.module';
       DeviceEntity,
       CustomerEntity,
       BranchEntity,
+      StockBalanceEntity,
+      StockLedgerEntity,
     ]),
     BillingModule,
     TenantsModule,
