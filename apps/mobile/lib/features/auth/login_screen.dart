@@ -229,6 +229,7 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: selectedVertical,
+                  isExpanded: true,
                   decoration: InputDecoration(
                     labelText: 'Retail Vertical',
                     isDense: true,

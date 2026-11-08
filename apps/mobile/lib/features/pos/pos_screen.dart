@@ -1426,21 +1426,23 @@ class _BottomCartBar extends StatelessWidget {
         top: false,
         child: Row(
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${cart.totalItemsCount} items | Tax: ₹${cart.taxRupees.toStringAsFixed(2)}',
-                  style: ShadcnTypography.caption,
-                ),
-                Text(
-                  '₹${cart.grandTotalRupees.toStringAsFixed(2)}',
-                  style: ShadcnTypography.currencyLarge.copyWith(color: ShadcnColors.primary),
-                ),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${cart.totalItemsCount} items | Tax: ₹${cart.taxRupees.toStringAsFixed(2)}',
+                    style: ShadcnTypography.caption,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '₹${cart.grandTotalRupees.toStringAsFixed(2)}',
+                    style: ShadcnTypography.currencyLarge.copyWith(color: ShadcnColors.primary),
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
             IconButton(
               onPressed: onClear,
               icon: const Icon(Icons.delete_outline, size: 20, color: ShadcnColors.destructive),
