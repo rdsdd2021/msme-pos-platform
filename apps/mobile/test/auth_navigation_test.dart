@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_mobile/core/models/auth_user.dart';
 import 'package:pos_mobile/core/providers/auth_provider.dart';
+import 'package:pos_mobile/core/repositories/auth_repository.dart';
 import 'package:pos_mobile/features/auth/login_screen.dart';
 import 'package:pos_mobile/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -222,5 +224,90 @@ void main() {
       expect(find.text('Occupied Tables'), findsOneWidget);
       expect(find.text('AC Dining'), findsOneWidget);
     });
+
+    testWidgets('displays friendly conflict banner and allows 1-tap sign-in when merchant email already exists', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(800, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_ConflictMockAuthRepository()),
+          ],
+          child: const KiranaPosApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open Register New Store bottom sheet
+      await tester.tap(find.byKey(const Key('mobile_register_store_btn')));
+      await tester.pumpAndSettle();
+
+      // Enter store name and existing email
+      final storeNameField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Store name');
+      final fullNameField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Full name');
+      final emailField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'owner@store.in');
+      final passwordField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'min 8 characters');
+
+      expect(storeNameField, findsOneWidget);
+      expect(fullNameField, findsOneWidget);
+      expect(emailField, findsOneWidget);
+      expect(passwordField, findsOneWidget);
+
+      await tester.enterText(storeNameField, 'Cafe Mocha');
+      await tester.enterText(fullNameField, 'Amit Saha');
+      await tester.enterText(emailField, 'rajraj1945raj@gmail.com');
+      await tester.enterText(passwordField, 'Password@123');
+      await tester.pumpAndSettle();
+
+      // Tap COMPLETE REGISTRATION
+      await tester.tap(find.text('COMPLETE REGISTRATION'));
+      await tester.pumpAndSettle();
+
+      // Verify clean conflict banner is displayed without raw DioException
+      expect(find.text('An account with this email already exists.'), findsOneWidget);
+      expect(find.textContaining('DioException'), findsNothing);
+      expect(find.textContaining('validateStatus'), findsNothing);
+
+      // Verify 'Sign In as rajraj1945raj@gmail.com' action button exists
+      final signInAction = find.byKey(const Key('sign_in_with_conflict_email_btn'));
+      expect(signInAction, findsOneWidget);
+
+      // Tap 'Sign In as rajraj1945raj@gmail.com'
+      await tester.tap(signInAction);
+      await tester.pumpAndSettle();
+
+      // Bottom sheet is dismissed and login email input is auto-filled
+      expect(find.text('Register New Store'), findsNothing);
+      final emailInput = tester.widget<TextField>(find.byKey(const Key('login_email_input')));
+      expect(emailInput.controller?.text, 'rajraj1945raj@gmail.com');
+    });
   });
 }
+
+class _ConflictMockAuthRepository extends AuthRepository {
+  _ConflictMockAuthRepository() : super();
+
+  @override
+  Future<AuthUser> registerMerchant({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+    required String storeName,
+    required String businessType,
+    required String stateCode,
+    String? gstin,
+    String? city,
+  }) async {
+    throw const AuthException(
+      'An account with this email already exists.',
+      statusCode: 409,
+      isConflict: true,
+      email: 'rajraj1945raj@gmail.com',
+    );
+  }
+}
+

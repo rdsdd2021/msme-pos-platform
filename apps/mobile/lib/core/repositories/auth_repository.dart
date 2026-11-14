@@ -5,6 +5,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../models/auth_user.dart';
 
+class AuthException implements Exception {
+  final String message;
+  final int? statusCode;
+  final bool isConflict;
+  final String? email;
+
+  const AuthException(
+    this.message, {
+    this.statusCode,
+    this.isConflict = false,
+    this.email,
+  });
+
+  @override
+  String toString() => message;
+}
+
 class AuthRepository {
   final Dio _dio;
   final SharedPreferences? _prefs;
@@ -152,11 +169,56 @@ class AuthRepository {
         }
       }
 
-      // If server returned 401/400 (invalid password), or offline fallback didn't match:
-      throw Exception('Invalid email or password');
+      // 3. Clean error parsing if network or credentials failed
+      if (e is DioException) {
+        final parsedMessage = _parseDioError(e, fallback: 'Invalid email or password');
+        throw AuthException(parsedMessage, statusCode: e.response?.statusCode);
+      }
+      throw AuthException(e.toString().replaceFirst('Exception: ', ''));
     }
 
-    throw Exception('Invalid email or password');
+    throw const AuthException('Invalid email or password');
+  }
+
+  /// Extracts clean user-facing error message from DioException response
+  String _parseDioError(DioException e, {String fallback = 'An error occurred'}) {
+    if (e.response?.data != null) {
+      final data = e.response!.data;
+      if (data is Map) {
+        final msg = data['message'];
+        if (msg is String && msg.trim().isNotEmpty) {
+          return msg.trim();
+        } else if (msg is List && msg.isNotEmpty) {
+          return msg.map((m) => m.toString()).join('\n');
+        }
+        final err = data['error'];
+        if (err is String && err.trim().isNotEmpty) {
+          return err.trim();
+        }
+      } else if (data is String && data.trim().isNotEmpty) {
+        return data.trim();
+      }
+    }
+
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.connectionError) {
+      return 'Network connection error. Please verify your internet connection.';
+    }
+
+    final code = e.response?.statusCode;
+    if (code == 409) {
+      return 'An account with this email already exists.';
+    } else if (code == 401) {
+      return 'Invalid email or password.';
+    } else if (code == 403) {
+      return 'Access denied.';
+    } else if (code != null && code >= 500) {
+      return 'Server error. Please try again shortly.';
+    }
+
+    return fallback;
   }
 
   /// Register a new merchant with store and starter catalog
@@ -171,11 +233,12 @@ class AuthRepository {
     String? gstin,
     String? city,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
     try {
       final response = await _dio.post(
         '$_baseUrl/api/v1/auth/register-merchant',
         data: {
-          'email': email.trim().toLowerCase(),
+          'email': cleanEmail,
           'password': password,
           'fullName': fullName.trim(),
           if (phone != null && phone.isNotEmpty) 'phone': phone.trim(),
@@ -206,11 +269,25 @@ class AuthRepository {
         await _saveSession(token, refreshToken, userWithBranch);
         return userWithBranch;
       }
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final serverMessage = _parseDioError(e, fallback: 'Registration could not be completed.');
+      final isConflict = statusCode == 409 ||
+          serverMessage.toLowerCase().contains('already exists') ||
+          serverMessage.toLowerCase().contains('conflict');
+
+      throw AuthException(
+        isConflict ? 'An account with this email already exists.' : serverMessage,
+        statusCode: statusCode,
+        isConflict: isConflict,
+        email: cleanEmail,
+      );
     } catch (e) {
-      throw Exception('Registration failed: ${e.toString()}');
+      if (e is AuthException) rethrow;
+      throw AuthException(e.toString().replaceFirst('Exception: ', ''));
     }
 
-    throw Exception('Registration failed');
+    throw const AuthException('Registration could not be completed.');
   }
 
   /// Check whether the user explicitly signed out

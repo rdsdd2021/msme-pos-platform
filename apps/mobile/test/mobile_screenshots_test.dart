@@ -80,13 +80,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fill in merchant registration fields
-      final textFields = find.byType(TextField);
-      if (textFields.evaluate().length >= 4) {
-        await tester.enterText(textFields.at(textFields.evaluate().length - 4), 'Live Kirana Store');
-        await tester.enterText(textFields.at(textFields.evaluate().length - 3), 'Ramanuj Mobile Tester');
-        await tester.enterText(textFields.at(textFields.evaluate().length - 2), 'live_kirana_1794137043122@kirana.dev');
-        await tester.enterText(textFields.at(textFields.evaluate().length - 1), 'Password@123');
-      }
+      final storeNameField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Store name');
+      final fullNameField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Full name');
+      final emailField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'owner@store.in');
+      final passwordField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'min 8 characters');
+
+      await tester.enterText(storeNameField, 'Live Kirana Store');
+      await tester.enterText(fullNameField, 'Ramanuj Mobile Tester');
+      await tester.enterText(emailField, 'live_kirana_1794137043122@kirana.dev');
+      await tester.enterText(passwordField, 'Password@123');
       await tester.pumpAndSettle();
 
       await expectLater(
@@ -384,5 +386,70 @@ Change Returned:           ₹3.00
         matchesGoldenFile('goldens/mobile_04_receipt_dialog.png'),
       );
     });
+
+    testWidgets('Step 5: Capture Account Conflict Resolution Card', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(_ConflictMockAuthRepository()),
+          ],
+          child: const KiranaPosApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open Register Store bottom sheet
+      await tester.tap(find.byKey(const Key('mobile_register_store_btn')));
+      await tester.pumpAndSettle();
+
+      final storeNameField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Store name');
+      final fullNameField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Full name');
+      final emailField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'owner@store.in');
+      final passwordField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'min 8 characters');
+
+      await tester.enterText(storeNameField, 'cafe');
+      await tester.enterText(fullNameField, 'Amit Saha');
+      await tester.enterText(emailField, 'rajraj1945raj@gmail.com');
+      await tester.enterText(passwordField, 'Password@123');
+      await tester.pumpAndSettle();
+
+      // Submit registration
+      await tester.tap(find.text('COMPLETE REGISTRATION'));
+      await tester.pumpAndSettle();
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/mobile_05_conflict_resolution.png'),
+      );
+    });
   });
+}
+
+class _ConflictMockAuthRepository extends AuthRepository {
+  _ConflictMockAuthRepository() : super();
+
+  @override
+  Future<AuthUser> registerMerchant({
+    required String email,
+    required String password,
+    required String fullName,
+    String? phone,
+    required String storeName,
+    required String businessType,
+    required String stateCode,
+    String? gstin,
+    String? city,
+  }) async {
+    throw const AuthException(
+      'An account with this email already exists.',
+      statusCode: 409,
+      isConflict: true,
+      email: 'rajraj1945raj@gmail.com',
+    );
+  }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/config/app_config.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/sync_provider.dart';
+import '../../core/repositories/auth_repository.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
 import '../../core/widgets/shadcn_card.dart';
@@ -146,7 +147,11 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
       await ref.read(authProvider.notifier).login(email, password);
     } catch (e) {
       if (mounted) {
-        setState(() => _localError = e.toString().replaceFirst('Exception: ', ''));
+        if (e is AuthException) {
+          setState(() => _localError = e.message);
+        } else {
+          setState(() => _localError = e.toString().replaceFirst('Exception: ', ''));
+        }
       }
     }
   }
@@ -171,6 +176,8 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
     final regPasswordController = TextEditingController();
     String selectedVertical = 'grocery';
     String? regError;
+    bool isConflict = false;
+    String? conflictEmail;
     bool isSubmitting = false;
 
     await showModalBottomSheet(
@@ -211,13 +218,79 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                 if (regError != null) ...[
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: ShadcnColors.destructiveLight,
+                      color: isConflict ? const Color(0xFFFEF3C7) : ShadcnColors.destructiveLight,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: ShadcnColors.destructive.withOpacity(0.3)),
+                      border: Border.all(
+                        color: isConflict ? const Color(0xFFF59E0B) : ShadcnColors.destructive.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
-                    child: Text(regError!, style: const TextStyle(color: ShadcnColors.destructive, fontSize: 12)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              isConflict ? Icons.account_circle_outlined : Icons.error_outline,
+                              size: 18,
+                              color: isConflict ? const Color(0xFFB45309) : ShadcnColors.destructive,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                regError!,
+                                style: TextStyle(
+                                  color: isConflict ? const Color(0xFF92400E) : ShadcnColors.destructive,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isConflict && conflictEmail != null) ...[
+                          const SizedBox(height: 10),
+                          ElevatedButton.icon(
+                            key: const Key('sign_in_with_conflict_email_btn'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                            ),
+                            icon: const Icon(Icons.login, size: 16),
+                            label: Text(
+                              'Sign In as $conflictEmail',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onPressed: () {
+                              final emailToFill = conflictEmail!;
+                              Navigator.pop(ctx);
+                              _emailController.text = emailToFill;
+                              _passwordController.clear();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Please enter your password for $emailToFill to sign in'),
+                                  backgroundColor: ShadcnColors.primary,
+                                  duration: const Duration(seconds: 4),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Or enter a different email address below to create a new store.',
+                            style: TextStyle(color: Color(0xFF92400E), fontSize: 11),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -256,6 +329,15 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                   label: 'Email Address (Login)',
                   placeholder: 'owner@store.in',
                   keyboardType: TextInputType.emailAddress,
+                  onChanged: (_) {
+                    if (regError != null) {
+                      setModalState(() {
+                        regError = null;
+                        isConflict = false;
+                        conflictEmail = null;
+                      });
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
                 ShadcnInput(
@@ -279,17 +361,27 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                           final password = regPasswordController.text;
 
                           if (storeName.isEmpty || fullName.isEmpty || email.isEmpty || password.isEmpty) {
-                            setModalState(() => regError = 'Please fill in all required fields');
+                            setModalState(() {
+                              regError = 'Please fill in all required fields';
+                              isConflict = false;
+                              conflictEmail = null;
+                            });
                             return;
                           }
                           if (password.length < 8) {
-                            setModalState(() => regError = 'Password must be at least 8 characters');
+                            setModalState(() {
+                              regError = 'Password must be at least 8 characters';
+                              isConflict = false;
+                              conflictEmail = null;
+                            });
                             return;
                           }
 
                           setModalState(() {
                             isSubmitting = true;
                             regError = null;
+                            isConflict = false;
+                            conflictEmail = null;
                           });
 
                           try {
@@ -306,7 +398,15 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                           } catch (e) {
                             setModalState(() {
                               isSubmitting = false;
-                              regError = e.toString().replaceFirst('Exception: ', '');
+                              if (e is AuthException) {
+                                regError = e.message;
+                                isConflict = e.isConflict;
+                                conflictEmail = e.email ?? email;
+                              } else {
+                                regError = e.toString().replaceFirst('Exception: ', '');
+                                isConflict = false;
+                                conflictEmail = null;
+                              }
                             });
                           }
                         },
