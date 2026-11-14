@@ -88,7 +88,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       _laserAnimController.repeat(reverse: true);
       _initScanner();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _checkAndStartCamera();
+        _ensureCameraPermission();
       });
     }
   }
@@ -101,58 +101,42 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       torchEnabled: false,
       autoStart: true,
       returnImage: false,
+      formats: const [BarcodeFormat.all],
     );
   }
 
-  Future<void> _checkAndStartCamera() async {
-    if (_isTestingEnvironment || !mounted || _isStartingCamera) return;
-
-    setState(() => _isStartingCamera = true);
-
+  Future<void> _ensureCameraPermission() async {
+    if (_isTestingEnvironment || !mounted) return;
     try {
       final permissions = ref.read(permissionServiceProvider);
-      bool hasPermission = permissions.camera;
-
-      if (!hasPermission) {
-        hasPermission = await ref
+      if (!permissions.camera) {
+        await ref
             .read(permissionServiceProvider.notifier)
             .requestPermission(HardwarePermission.camera);
       }
+    } catch (e) {
+      debugPrint('Camera permission check error: $e');
+    }
+  }
 
-      if (hasPermission && mounted) {
-        if (_scannerController == null) {
-          _initScanner();
-        }
-        try {
-          if (!mounted) return;
-          if (_scannerController?.value.isRunning != true) {
-            await _scannerController?.start();
-          }
-          if (mounted) {
-            setState(() => _scannerError = null);
-          }
-        } catch (camErr) {
-          debugPrint('First camera start error: $camErr. Retrying once after delay...');
-          await Future.delayed(const Duration(milliseconds: 350));
-          if (!mounted) return;
-          try {
-            _initScanner();
-            if (_scannerController?.value.isRunning != true) {
-              await _scannerController?.start();
-            }
-            if (mounted) {
-              setState(() => _scannerError = null);
-            }
-          } catch (retryErr) {
-            debugPrint('Camera start retry error: $retryErr');
-            if (mounted && retryErr is MobileScannerException) {
-              setState(() => _scannerError = retryErr);
-            }
-          }
-        }
+  Future<void> _restartCamera() async {
+    if (_isStartingCamera || !mounted) return;
+    setState(() {
+      _isStartingCamera = true;
+      _scannerError = null;
+    });
+
+    try {
+      await _scannerController?.stop();
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (mounted) {
+        await _scannerController?.start();
       }
     } catch (e) {
-      debugPrint('Camera startup exception: $e');
+      debugPrint('Restart camera error: $e');
+      if (mounted && e is MobileScannerException) {
+        setState(() => _scannerError = e);
+      }
     } finally {
       if (mounted) {
         setState(() => _isStartingCamera = false);
@@ -173,7 +157,9 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
 
       if (image == null || !mounted) return;
 
-      _initScanner();
+      if (_scannerController == null) {
+        _initScanner();
+      }
       final barcodes = await _scannerController?.analyzeImage(image.path);
       if (barcodes != null && barcodes.barcodes.isNotEmpty) {
         final first = barcodes.barcodes.first.rawValue?.trim();
@@ -206,13 +192,14 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
 
     if (state == AppLifecycleState.resumed) {
       final isGranted = ref.read(permissionServiceProvider).camera;
-      if (isGranted) {
+      if (isGranted && _scannerController?.value.isRunning == false && _scannerError == null) {
         _scannerController?.start();
       }
     } else if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      _scannerController?.stop();
+        state == AppLifecycleState.paused) {
+      if (_scannerController?.value.isRunning == true) {
+        _scannerController?.stop();
+      }
     }
   }
 
@@ -391,11 +378,6 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
             controller: _scannerController,
             onDetect: _onDetect,
             errorBuilder: (ctx, err, child) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (_scannerError == null && mounted) {
-                  setState(() => _scannerError = err);
-                }
-              });
               return _buildErrorView(err);
             },
           ),
@@ -509,6 +491,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
 
   Widget _buildErrorView(MobileScannerException? err) {
     final isPermissionError = err?.errorCode == MobileScannerErrorCode.permissionDenied;
+    final errorDetailMsg = err?.errorDetails?.message ?? err?.errorCode.name ?? 'genericError';
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A),
@@ -549,7 +532,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
               Text(
                 isPermissionError
                     ? 'Allow camera access to scan barcodes and QR codes instantly at the checkout counter.'
-                    : 'The camera could not be accessed (${err?.errorCode.name ?? 'genericError'}). Check that no other app is using the camera, then restart.',
+                    : 'The camera could not be accessed ($errorDetailMsg). Check that no other app is using the camera, then restart.',
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 12.5,
@@ -589,11 +572,16 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () {
-                    setState(() {
-                      _scannerError = null;
-                      _initScanner();
-                    });
-                    _checkAndStartCamera();
+                    if (isPermissionError) {
+                      ref
+                          .read(permissionServiceProvider.notifier)
+                          .requestPermission(HardwarePermission.camera)
+                          .then((granted) {
+                        if (granted) _restartCamera();
+                      });
+                    } else {
+                      _restartCamera();
+                    }
                   },
                 ),
               ),
@@ -759,9 +747,11 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
                 final granted = await ref
                     .read(permissionServiceProvider.notifier)
                     .requestPermission(HardwarePermission.camera);
-                if (granted) {
-                  _initScanner();
-                  await _checkAndStartCamera();
+                if (granted && mounted) {
+                  setState(() {
+                    _scannerError = null;
+                    _initScanner();
+                  });
                 }
               },
             ),
