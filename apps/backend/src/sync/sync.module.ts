@@ -8,6 +8,7 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
+import { CustomerLedgerEntity } from '../operations/entities/customer-ledger.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
 import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
@@ -23,6 +24,7 @@ import { TenantsModule } from '../tenants/tenants.module';
       CategoryEntity,
       DeviceEntity,
       CustomerEntity,
+      CustomerLedgerEntity,
       BranchEntity,
       StockBalanceEntity,
       StockLedgerEntity,

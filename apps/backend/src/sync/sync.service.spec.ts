@@ -8,7 +8,10 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
+import { CustomerLedgerEntity } from '../operations/entities/customer-ledger.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
+import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
+import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingService } from '../billing/billing.service';
 import { DeviceStatus } from '@pos/shared-types';
 
@@ -19,8 +22,11 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
   let mockProductRepo: any;
   let mockCategoryRepo: any;
   let mockCustomerRepo: any;
+  let mockCustomerLedgerRepo: any;
   let mockDeviceRepo: any;
   let mockBranchRepo: any;
+  let mockStockBalanceRepo: any;
+  let mockStockLedgerRepo: any;
   let mockBillingService: any;
   let mockDataSource: any;
 
@@ -56,9 +62,13 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
       create: jest.fn((d) => ({ ...d, id: 'category-uuid-1' })),
       save: jest.fn(async (d) => ({ ...d, id: d.id || 'category-uuid-1' })),
     };
-    mockCustomerRepo = { find: jest.fn().mockResolvedValue([]) };
+    mockCustomerRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null), save: jest.fn(async (d) => d), create: jest.fn((d) => d) };
+    mockCustomerLedgerRepo = { find: jest.fn().mockResolvedValue([]), save: jest.fn(async (d) => d), create: jest.fn((d) => d) };
+    mockStockBalanceRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null), save: jest.fn(async (d) => d), create: jest.fn((d) => d) };
+    mockStockLedgerRepo = { find: jest.fn().mockResolvedValue([]), save: jest.fn(async (d) => d), create: jest.fn((d) => d) };
     mockBillingService = {
       createSale: jest.fn().mockResolvedValue({ id: 'server-invoice-uuid-101' }),
+      getInvoices: jest.fn().mockResolvedValue([]),
     };
     mockDataSource = { transaction: jest.fn() };
 
@@ -70,8 +80,11 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
         { provide: getRepositoryToken(ProductEntity), useValue: mockProductRepo },
         { provide: getRepositoryToken(CategoryEntity), useValue: mockCategoryRepo },
         { provide: getRepositoryToken(CustomerEntity), useValue: mockCustomerRepo },
+        { provide: getRepositoryToken(CustomerLedgerEntity), useValue: mockCustomerLedgerRepo },
         { provide: getRepositoryToken(DeviceEntity), useValue: mockDeviceRepo },
         { provide: getRepositoryToken(BranchEntity), useValue: mockBranchRepo },
+        { provide: getRepositoryToken(StockBalanceEntity), useValue: mockStockBalanceRepo },
+        { provide: getRepositoryToken(StockLedgerEntity), useValue: mockStockLedgerRepo },
         { provide: BillingService, useValue: mockBillingService },
         { provide: DataSource, useValue: mockDataSource },
       ],

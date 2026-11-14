@@ -7,6 +7,7 @@ import { ProductEntity } from '../catalog/entities/product.entity';
 import { CategoryEntity } from '../catalog/entities/category.entity';
 import { DeviceEntity } from '../commercial/entities/device.entity';
 import { CustomerEntity } from '../operations/entities/customer.entity';
+import { CustomerLedgerEntity } from '../operations/entities/customer-ledger.entity';
 import { BranchEntity } from '../tenants/entities/branch.entity';
 import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
@@ -20,6 +21,7 @@ import {
   DeviceStatus,
   Platform,
   StockMovementType,
+  CustomerLedgerEntryType,
 } from '@pos/shared-types';
 
 @Injectable()
@@ -39,6 +41,8 @@ export class SyncService {
     private readonly deviceRepo: Repository<DeviceEntity>,
     @InjectRepository(CustomerEntity)
     private readonly customerRepo: Repository<CustomerEntity>,
+    @InjectRepository(CustomerLedgerEntity)
+    private readonly customerLedgerRepo: Repository<CustomerLedgerEntity>,
     @InjectRepository(BranchEntity)
     private readonly branchRepo: Repository<BranchEntity>,
     @InjectRepository(StockBalanceEntity)
@@ -383,7 +387,7 @@ export class SyncService {
 
           const saleDto: CreateSaleDto = {
             branchId: saleBranchId,
-            idempotencyKey: op.operationId || raw.idempotencyKey || raw.invoiceNumber,
+            idempotencyKey: raw.idempotencyKey || raw.invoiceNumber || op.operationId,
             isInterstate: Boolean(raw.isInterstate),
             customerId:
               raw.customerId &&
@@ -440,6 +444,122 @@ export class SyncService {
 
           const invoice = await this.billingService.createSale(tenantId, userId, saleDto);
           serverEntityId = invoice.id;
+        } else if (op.operationType === 'STOCK_ADJUSTMENT') {
+          const raw = op.payload as any;
+          const prodId = raw.productId || raw.id;
+          const deltaNum = parseFloat(raw.delta || '0');
+          const reason = raw.reason || 'Mobile stock adjustment';
+          if (prodId && !isNaN(deltaNum) && deltaNum !== 0) {
+            const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
+            const branchId = raw.branchId || defaultBranch?.id;
+            if (branchId) {
+              let balance = await this.stockBalanceRepo.findOne({
+                where: { tenantId, branchId, productId: prodId },
+              });
+              const currentQty = balance ? parseFloat(balance.quantityOnHand) : 0;
+              const updatedQty = Math.max(0, currentQty + deltaNum);
+              if (!balance) {
+                balance = this.stockBalanceRepo.create({
+                  tenantId,
+                  branchId,
+                  productId: prodId,
+                  quantityOnHand: updatedQty.toFixed(3),
+                  lowStockThreshold: '5.000',
+                });
+              } else {
+                balance.quantityOnHand = updatedQty.toFixed(3);
+              }
+              await this.stockBalanceRepo.save(balance);
+
+              const movement = this.stockLedgerRepo.create({
+                tenantId,
+                branchId,
+                productId: prodId,
+                movementType:
+                  deltaNum >= 0 ? StockMovementType.ADJUSTMENT : StockMovementType.DAMAGE,
+                quantityDelta: deltaNum.toFixed(3),
+                unitCost: '0.00',
+                sourceType: 'mobile_adjustment',
+                sourceId: op.operationId,
+                idempotencyKey: `adj-${op.operationId}`,
+                reason,
+              });
+              await this.stockLedgerRepo.save(movement);
+              serverEntityId = prodId;
+            }
+          }
+        } else if (op.operationType === 'CUSTOMER_REPAYMENT') {
+          const raw = op.payload as any;
+          const custId = raw.customerId || raw.id;
+          const amountNum = parseFloat(raw.amount || '0');
+          const paymentMethod = raw.method || 'cash';
+          if (custId && amountNum > 0) {
+            const customer = await this.customerRepo.findOne({
+              where: { tenantId, id: custId },
+            });
+            if (customer) {
+              const currentBal = parseFloat(customer.currentBalance || '0');
+              const newBal = Math.max(0, currentBal - amountNum);
+              customer.currentBalance = newBal.toFixed(2);
+              await this.customerRepo.save(customer);
+
+              const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
+              const branchId = raw.branchId || defaultBranch?.id;
+              if (branchId) {
+                const ledgerEntry = this.customerLedgerRepo.create({
+                  tenantId,
+                  customerId: customer.id,
+                  branchId,
+                  entryType: CustomerLedgerEntryType.PAYMENT_CREDIT,
+                  debit: '0.00',
+                  credit: amountNum.toFixed(2),
+                  sourceType: 'repayment',
+                  sourceId: op.operationId,
+                  idempotencyKey: `repay-${op.operationId}`,
+                  paymentMethod,
+                  notes: `Mobile Khata repayment of ₹${amountNum.toFixed(2)} via ${paymentMethod.toUpperCase()}`,
+                });
+                await this.customerLedgerRepo.save(ledgerEntry);
+              }
+              serverEntityId = customer.id;
+            }
+          }
+        } else if (op.operationType === 'CREATE_CUSTOMER') {
+          const raw = op.payload as any;
+          const name = String(raw.name || '').trim();
+          const phone = String(raw.phone || '').trim();
+          if (name && phone) {
+            const rawId = raw.id ? String(raw.id).trim() : undefined;
+            const isClientUuid =
+              rawId &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                rawId,
+              );
+
+            let existingCust = await this.customerRepo.findOne({
+              where: rawId
+                ? [{ tenantId, id: rawId }, { tenantId, phone }]
+                : [{ tenantId, phone }],
+            });
+
+            if (existingCust) {
+              existingCust.name = name;
+              if (raw.creditLimit) existingCust.creditLimit = String(raw.creditLimit);
+              const saved = await this.customerRepo.save(existingCust);
+              serverEntityId = saved.id;
+            } else {
+              const newCust = this.customerRepo.create({
+                ...(isClientUuid ? { id: rawId } : {}),
+                tenantId,
+                name,
+                phone,
+                creditLimit: raw.creditLimit ? String(raw.creditLimit) : '5000.00',
+                currentBalance: '0.00',
+              });
+              const saved = await this.customerRepo.save(newCust);
+              serverEntityId = saved.id;
+            }
+          }
         }
 
         // 3. Record ingestion status
@@ -496,20 +616,97 @@ export class SyncService {
   async pullDeltas(tenantId: string, cursor?: string): Promise<SyncPullDeltaResponse> {
     const cursorDate = cursor ? new Date(cursor) : new Date(0);
 
-    const [categories, products, customers] = await Promise.all([
+    const [categories, products, customers, stockBalances, allCategories, rawInvoices] = await Promise.all([
       this.categoryRepo.find({
         where: { tenantId, updatedAt: MoreThan(cursorDate) },
         order: { updatedAt: 'ASC' },
       }),
       this.productRepo.find({
-        where: { tenantId, updatedAt: MoreThan(cursorDate) },
+        where: {
+          tenantId,
+          ...(cursorDate.getTime() > 0 ? { updatedAt: MoreThan(cursorDate) } : { isActive: true }),
+        },
         order: { updatedAt: 'ASC' },
       }),
       this.customerRepo.find({
-        where: { tenantId, updatedAt: MoreThan(cursorDate) },
+        where: {
+          tenantId,
+          ...(cursorDate.getTime() > 0 ? { updatedAt: MoreThan(cursorDate) } : {}),
+        },
         order: { updatedAt: 'ASC' },
       }),
+      this.stockBalanceRepo.find({
+        where: { tenantId },
+      }),
+      this.categoryRepo.find({
+        where: { tenantId },
+      }),
+      this.billingService.getInvoices(tenantId),
     ]);
+
+    const stockMap = new Map<string, string>();
+    for (const sb of stockBalances) {
+      stockMap.set(sb.productId, sb.quantityOnHand);
+    }
+
+    const categoryMap = new Map<string, string>();
+    for (const cat of allCategories) {
+      categoryMap.set(cat.id, cat.name);
+    }
+
+    const enrichedProducts = products.map((prod) => {
+      const qtyOnHand = stockMap.get(prod.id) ?? '0.000';
+      const catName = (prod.categoryId ? categoryMap.get(prod.categoryId) : null) ?? 'General';
+      return {
+        ...prod,
+        currentStock: parseFloat(qtyOnHand) || 0,
+        stockQuantity: parseFloat(qtyOnHand) || 0,
+        quantityOnHand: qtyOnHand,
+        categoryName: catName,
+        category: catName,
+      };
+    });
+
+    const formattedInvoices = rawInvoices.map((inv) => {
+      const paymentMethod = inv.payments?.[0]?.paymentMethod || 'cash';
+      return {
+        id: inv.id,
+        tenantId: inv.tenantId,
+        branchId: inv.branchId,
+        invoiceNumber: inv.invoiceNumber,
+        customerId: inv.customerId,
+        customerName: inv.customerGstinSnapshot ? `GST: ${inv.customerGstinSnapshot}` : 'Walk-in Customer',
+        subtotal: inv.subtotal,
+        taxTotal: inv.taxableTotal ? (parseFloat(inv.grandTotal) - parseFloat(inv.subtotal)).toFixed(2) : '0.00',
+        grandTotal: inv.grandTotal,
+        paymentMethod,
+        status: inv.status,
+        postedAt: inv.postedAt || inv.createdAt,
+        createdAt: inv.createdAt,
+        lines: (inv.lines || []).map((l) => ({
+          id: l.id,
+          productId: l.productId,
+          productName: l.productNameSnapshot || 'Product',
+          hsnCode: l.hsnSnapshot,
+          gstRatePercent: parseFloat(l.gstRatePercent || '0'),
+          quantity: parseFloat(l.quantity || '1'),
+          unitPrice: l.unitPrice,
+          taxAmount: (
+            parseFloat(l.cgstAmount || '0') +
+            parseFloat(l.sgstAmount || '0') +
+            parseFloat(l.igstAmount || '0')
+          ).toFixed(2),
+          total: l.lineTotal,
+        })),
+        payments: (inv.payments || []).map((p) => ({
+          id: p.id,
+          paymentMethod: p.paymentMethod,
+          amount: p.amount,
+          status: 'completed',
+          createdAt: p.receivedAt,
+        })),
+      };
+    });
 
     const newCursor = new Date().toISOString();
 
@@ -517,8 +714,9 @@ export class SyncService {
       cursor: newCursor,
       hasMore: false,
       categories: categories as any,
-      products: products as any,
+      products: enrichedProducts as any,
       customers: customers as any,
+      invoices: formattedInvoices as any,
     };
   }
 

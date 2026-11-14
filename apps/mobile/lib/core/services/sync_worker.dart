@@ -184,8 +184,9 @@ class SyncWorker {
           final barcode = (p['barcodePrimary'] ?? p['barcode']) as String?;
           final purchaseCost = p['purchaseCost'] ?? p['costPrice'];
           final gstRate = p['gstRatePercent'] ?? p['gstRate'];
-          final stockQty = p['currentStock'] ?? p['stockQuantity'] ?? 50.0;
+          final stockQty = p['currentStock'] ?? p['stockQuantity'] ?? p['quantityOnHand'] ?? 0.0;
           final img = (p['imageUrl'] ?? p['image']) as String?;
+          final catName = (p['categoryName'] ?? p['category']) as String?;
 
           await _db.into(_db.localProducts).insertOnConflictUpdate(
             LocalProductsCompanion(
@@ -205,13 +206,95 @@ class SyncWorker {
               ),
               gstRatePercent: Value(double.tryParse(gstRate?.toString() ?? '0') ?? 0.0),
               hsnCode: Value(p['hsnCode'] as String?),
+              categoryName: Value(catName),
               unit: Value(p['unit'] as String? ?? 'PCS'),
-              stockQuantity: Value(double.tryParse(stockQty.toString()) ?? 50.0),
+              stockQuantity: Value(double.tryParse(stockQty.toString()) ?? 0.0),
               imageUrl: Value(img),
               updatedAt: Value(DateTime.tryParse(p['updatedAt']?.toString() ?? '') ?? DateTime.now()),
             ),
           );
           pulledProducts++;
+        }
+
+        for (final inv in pullResult.invoices) {
+          final invId = inv['id'] as String? ?? '';
+          if (invId.isEmpty) continue;
+
+          final invNumber = inv['invoiceNumber'] as String? ?? 'INV';
+          final custName = inv['customerName'] as String?;
+          final paymentMethod = (inv['paymentMethod'] as String? ?? 'cash').toLowerCase();
+          final subtotalPaisa = ((double.tryParse(inv['subtotal']?.toString() ?? '0') ?? 0) * 100).round();
+          final taxPaisa = ((double.tryParse(inv['taxTotal']?.toString() ?? '0') ?? 0) * 100).round();
+          final grandTotalPaisa = ((double.tryParse(inv['grandTotal']?.toString() ?? '0') ?? 0) * 100).round();
+          final status = inv['status'] as String? ?? 'completed';
+          final postedAtStr = inv['postedAt'] ?? inv['createdAt'];
+          final createdAt = DateTime.tryParse(postedAtStr?.toString() ?? '') ?? DateTime.now();
+
+          await _db.into(_db.localInvoices).insertOnConflictUpdate(
+            LocalInvoicesCompanion(
+              id: Value(invId),
+              tenantId: Value(inv['tenantId'] as String? ?? tenantId),
+              branchId: Value(inv['branchId'] as String? ?? ''),
+              deviceId: Value(inv['deviceId'] as String? ?? 'cloud-web'),
+              invoiceNumber: Value(invNumber),
+              customerId: Value(inv['customerId'] as String?),
+              customerName: Value(custName),
+              subtotalPaisa: Value(subtotalPaisa),
+              taxPaisa: Value(taxPaisa),
+              grandTotalPaisa: Value(grandTotalPaisa),
+              paymentMethod: Value(paymentMethod),
+              status: Value(status),
+              createdAt: Value(createdAt),
+            ),
+          );
+
+          // Ingest lines
+          final lines = inv['lines'] as List<dynamic>? ?? [];
+          for (final line in lines) {
+            final lineMap = Map<String, dynamic>.from(line as Map);
+            final lineId = lineMap['id'] as String? ?? '';
+            if (lineId.isEmpty) continue;
+
+            final qty = double.tryParse(lineMap['quantity']?.toString() ?? '1') ?? 1.0;
+            final unitPricePaisa = ((double.tryParse(lineMap['unitPrice']?.toString() ?? '0') ?? 0) * 100).round();
+            final lineTaxPaisa = ((double.tryParse(lineMap['taxAmount']?.toString() ?? '0') ?? 0) * 100).round();
+            final lineTotalPaisa = ((double.tryParse(lineMap['total']?.toString() ?? '0') ?? 0) * 100).round();
+
+            await _db.into(_db.localInvoiceLines).insertOnConflictUpdate(
+              LocalInvoiceLinesCompanion(
+                id: Value(lineId),
+                invoiceId: Value(invId),
+                productId: Value(lineMap['productId'] as String? ?? ''),
+                productName: Value(lineMap['productName'] as String? ?? 'Product'),
+                hsnCode: Value(lineMap['hsnCode'] as String?),
+                gstRatePercent: Value(double.tryParse(lineMap['gstRatePercent']?.toString() ?? '0') ?? 0.0),
+                quantity: Value(qty),
+                unitPricePaisa: Value(unitPricePaisa),
+                taxPaisa: Value(lineTaxPaisa),
+                totalPaisa: Value(lineTotalPaisa),
+              ),
+            );
+          }
+
+          // Ingest payments
+          final payments = inv['payments'] as List<dynamic>? ?? [];
+          for (final pmt in payments) {
+            final pmtMap = Map<String, dynamic>.from(pmt as Map);
+            final pmtId = pmtMap['id'] as String? ?? '';
+            if (pmtId.isEmpty) continue;
+
+            final pmtAmountPaisa = ((double.tryParse(pmtMap['amount']?.toString() ?? '0') ?? 0) * 100).round();
+            await _db.into(_db.localPayments).insertOnConflictUpdate(
+              LocalPaymentsCompanion(
+                id: Value(pmtId),
+                invoiceId: Value(invId),
+                paymentMethod: Value(pmtMap['paymentMethod'] as String? ?? paymentMethod),
+                amountPaisa: Value(pmtAmountPaisa),
+                status: Value(pmtMap['status'] as String? ?? 'completed'),
+                createdAt: Value(DateTime.tryParse(pmtMap['createdAt']?.toString() ?? '') ?? createdAt),
+              ),
+            );
+          }
         }
 
         for (final c in pullResult.customers) {

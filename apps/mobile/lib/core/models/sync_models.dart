@@ -62,6 +62,7 @@ class SyncPullDeltaResult {
   final List<Map<String, dynamic>> categories;
   final List<Map<String, dynamic>> products;
   final List<Map<String, dynamic>> customers;
+  final List<Map<String, dynamic>> invoices;
 
   const SyncPullDeltaResult({
     required this.cursor,
@@ -69,12 +70,14 @@ class SyncPullDeltaResult {
     required this.categories,
     required this.products,
     this.customers = const [],
+    this.invoices = const [],
   });
 
   factory SyncPullDeltaResult.fromJson(Map<String, dynamic> json) {
     final rawCats = json['categories'] as List<dynamic>? ?? [];
     final rawProds = json['products'] as List<dynamic>? ?? [];
     final rawCusts = json['customers'] as List<dynamic>? ?? [];
+    final rawInvs = json['invoices'] as List<dynamic>? ?? [];
 
     return SyncPullDeltaResult(
       cursor: json['cursor'] as String? ?? '',
@@ -82,6 +85,7 @@ class SyncPullDeltaResult {
       categories: rawCats.map((c) => Map<String, dynamic>.from(c as Map)).toList(),
       products: rawProds.map((p) => Map<String, dynamic>.from(p as Map)).toList(),
       customers: rawCusts.map((c) => Map<String, dynamic>.from(c as Map)).toList(),
+      invoices: rawInvs.map((i) => Map<String, dynamic>.from(i as Map)).toList(),
     );
   }
 }

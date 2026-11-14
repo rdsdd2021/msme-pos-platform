@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/database/app_database.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/printer_provider.dart';
+import '../../core/providers/sync_provider.dart';
 import '../../core/services/offline_billing_service.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
@@ -32,6 +33,11 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
   void initState() {
     super.initState();
     _loadInvoices();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadInvoices(triggerSync: true);
+      }
+    });
   }
 
   @override
@@ -40,10 +46,17 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
     super.dispose();
   }
 
-  Future<void> _loadInvoices() async {
+  Future<void> _loadInvoices({bool triggerSync = false}) async {
     setState(() => _isLoading = true);
     final authState = ref.read(authProvider);
     final tenantId = authState.activeMembership?.tenantId;
+
+    if (triggerSync) {
+      try {
+        await ref.read(syncStateProvider.notifier).syncNow();
+      } catch (_) {}
+    }
+
     final invs = await OfflineBillingService.getAllInvoices(tenantId);
     if (mounted) {
       setState(() {
@@ -221,7 +234,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
             tooltip: 'Reload Invoices',
             onPressed: () {
               HapticFeedback.selectionClick();
-              _loadInvoices();
+              _loadInvoices(triggerSync: true);
             },
           ),
           const SizedBox(width: 8),

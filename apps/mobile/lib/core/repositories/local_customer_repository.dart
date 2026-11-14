@@ -76,7 +76,28 @@ class LocalCustomerRepository {
       updatedAt: Value(DateTime.now()),
     );
 
-    await _db.into(_db.localCustomers).insert(companion);
+    await _db.transaction(() async {
+      await _db.into(_db.localCustomers).insert(companion);
+
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: 'pos-mobile-01',
+          sequence: DateTime.now().millisecondsSinceEpoch % 1000000,
+          operationType: 'CREATE_CUSTOMER',
+          schemaVersion: const Value(1),
+          payload: jsonEncode({
+            'id': id,
+            'name': name.trim(),
+            'phone': phone.trim(),
+            'creditLimit': (creditLimitPaisa / 100.0).toStringAsFixed(2),
+          }),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(DateTime.now()),
+        ),
+      );
+    });
     return Customer(
       id: id,
       name: name.trim(),

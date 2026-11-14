@@ -32,6 +32,7 @@ export interface SyncPullDeltaResponse<T = Record<string, unknown>> {
   categories: T[];
   products: T[];
   customers?: T[];
+  invoices?: T[];
 }
 
 export interface DeviceInvoiceRangeAllocation {
