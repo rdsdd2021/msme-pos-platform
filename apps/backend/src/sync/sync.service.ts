@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, MoreThan } from 'typeorm';
 import { SyncIngestedOperationEntity } from './entities/sync-ingested-operation.entity';
@@ -12,6 +12,7 @@ import { BranchEntity } from '../tenants/entities/branch.entity';
 import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingService } from '../billing/billing.service';
+import { RestaurantService } from '../restaurant/restaurant.service';
 import { CreateSaleDto } from '../billing/dto/billing.dto';
 import { PushSyncBatchDto, AllocateInvoiceRangeDto } from './dto/sync.dto';
 import {
@@ -51,6 +52,8 @@ export class SyncService {
     private readonly stockLedgerRepo: Repository<StockLedgerEntity>,
     private readonly billingService: BillingService,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly restaurantService?: RestaurantService,
   ) {}
 
   /**
@@ -560,6 +563,66 @@ export class SyncService {
               serverEntityId = saved.id;
             }
           }
+        } else if (op.operationType === 'CREATE_RESTAURANT_ORDER') {
+          if (this.restaurantService) {
+            const raw = op.payload as any;
+            const branchId = raw.branchId || device.branchId;
+            const order = await this.restaurantService.createOrder(
+              tenantId,
+              branchId,
+              raw,
+              userId,
+              raw.captainName || 'Mobile Captain',
+            );
+            serverEntityId = order.id;
+          }
+        } else if (op.operationType === 'DISPATCH_KOT') {
+          if (this.restaurantService) {
+            const raw = op.payload as any;
+            const branchId = raw.branchId || device.branchId;
+            const res = await this.restaurantService.dispatchKot(
+              tenantId,
+              branchId,
+              raw,
+              raw.captainName || 'Mobile Captain',
+            );
+            serverEntityId = res.kot.id;
+          }
+        } else if (op.operationType === 'SETTLE_RESTAURANT_ORDER') {
+          if (this.restaurantService) {
+            const raw = op.payload as any;
+            const branchId = raw.branchId || device.branchId;
+            const res = await this.restaurantService.settleOrder(
+              tenantId,
+              branchId,
+              userId,
+              raw,
+            );
+            serverEntityId = res.order.id;
+          }
+        } else if (op.operationType === 'UPDATE_TABLE_STATUS') {
+          if (this.restaurantService) {
+            const raw = op.payload as any;
+            const branchId = raw.branchId || device.branchId;
+            const table = await this.restaurantService.updateTable(
+              tenantId,
+              branchId,
+              raw.tableId || raw.id,
+              raw,
+            );
+            serverEntityId = table.id;
+          }
+        } else if (op.operationType === 'TRANSFER_TABLE') {
+          if (this.restaurantService) {
+            const raw = op.payload as any;
+            const branchId = raw.branchId || device.branchId;
+            const res = await this.restaurantService.transferTable(
+              tenantId,
+              branchId,
+              raw,
+            );
+            serverEntityId = res.targetTable.id;
+          }
         }
 
         // 3. Record ingestion status
@@ -710,6 +773,27 @@ export class SyncService {
 
     const newCursor = new Date().toISOString();
 
+    let restaurantTables: any[] = [];
+    let restaurantOrders: any[] = [];
+    if (this.restaurantService) {
+      try {
+        const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
+        if (defaultBranch) {
+          const tables = await this.restaurantService.getTables(tenantId, defaultBranch.id);
+          if (tables.length === 0) {
+            restaurantTables = await this.restaurantService.seedDefaultTables(tenantId, defaultBranch.id);
+          } else {
+            restaurantTables = tables;
+          }
+          restaurantOrders = tables
+            .map((t: any) => t.activeOrder)
+            .filter((o: any) => Boolean(o));
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed pulling restaurant deltas for tenant ${tenantId}: ${err.message}`);
+      }
+    }
+
     return {
       cursor: newCursor,
       hasMore: false,
@@ -717,6 +801,8 @@ export class SyncService {
       products: enrichedProducts as any,
       customers: customers as any,
       invoices: formattedInvoices as any,
+      restaurantTables: restaurantTables as any,
+      restaurantOrders: restaurantOrders as any,
     };
   }
 

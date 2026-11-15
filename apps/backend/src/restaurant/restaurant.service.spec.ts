@@ -35,6 +35,7 @@ describe('RestaurantService', () => {
     find: jest.fn(),
     create: jest.fn().mockImplementation((dto) => ({ id: 'order-uuid-1', ...dto })),
     save: jest.fn().mockImplementation((order) => Promise.resolve(order)),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
   const mockKotRepo = {

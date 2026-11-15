@@ -16,13 +16,16 @@ part 'app_database.g.dart';
     LocalPayments,
     LocalStockMovements,
     SyncOutbox,
+    LocalRestaurantTables,
+    LocalRestaurantOrders,
+    LocalRestaurantKotLines,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {

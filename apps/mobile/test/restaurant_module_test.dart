@@ -37,7 +37,8 @@ void main() {
   group('Restaurant & Dining Module Logic Tests', () {
     test('TableStatus enum supports complete lifecycle including cleaning turnover', () {
       expect(TableStatus.vacant.label, 'Vacant');
-      expect(TableStatus.occupied.label, 'Occupied');
+      expect(TableStatus.seated.label, 'Seated');
+      expect(TableStatus.ordered.label, 'Ordered');
       expect(TableStatus.billed.label, 'Billed');
       expect(TableStatus.dirty.label, 'Needs Cleaning');
     });
@@ -52,7 +53,7 @@ void main() {
         section: 'AC Dining',
         capacity: 4,
         currentGuestCount: 3,
-        status: TableStatus.occupied,
+        status: TableStatus.seated,
         activeOrderLines: [line1, line2],
       );
 
@@ -70,7 +71,7 @@ void main() {
         section: 'Terrace',
         capacity: 6,
         currentGuestCount: 5,
-        status: TableStatus.occupied,
+        status: TableStatus.seated,
         seatedAt: DateTime(2026, 11, 5, 20, 30),
         captainNotes: 'VIP Guest',
         activeOrderLines: [
@@ -85,7 +86,7 @@ void main() {
       expect(restored.name, table.name);
       expect(restored.currentGuestCount, 5);
       expect(restored.captainNotes, 'VIP Guest');
-      expect(restored.status, TableStatus.occupied);
+      expect(restored.status, TableStatus.seated);
       expect(restored.activeOrderLines.length, 1);
       expect(restored.activeOrderLines.first.notes, 'No onion/garlic');
       expect(restored.activeOrderLines.first.product.name, 'Paneer Tikka Masala');
@@ -102,7 +103,7 @@ void main() {
       // 2. Add dish with cooking note
       notifier.addItemToTable('t-1', testProductPaneer, qty: 2, notes: 'Extra crisp');
       var t1 = notifier.state.tables.firstWhere((t) => t.id == 't-1');
-      expect(t1.status, TableStatus.occupied);
+      expect(t1.status, TableStatus.seated);
       expect(t1.activeOrderLines.length, 1);
       expect(t1.activeOrderLines.first.notes, 'Extra crisp');
 
@@ -124,7 +125,7 @@ void main() {
       final t2AfterTransfer = notifier.state.tables.firstWhere((t) => t.id == 't-2');
       expect(t1AfterTransfer.status, TableStatus.vacant);
       expect(t1AfterTransfer.activeOrderLines, isEmpty);
-      expect(t2AfterTransfer.status, TableStatus.occupied);
+      expect(t2AfterTransfer.status, TableStatus.seated);
       expect(t2AfterTransfer.activeOrderLines.length, 1);
       expect(t2AfterTransfer.activeOrderLines.first.product.id, testProductPaneer.id);
       expect(t2AfterTransfer.currentGuestCount, 4);

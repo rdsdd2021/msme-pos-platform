@@ -14,6 +14,7 @@ import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingModule } from '../billing/billing.module';
 import { TenantsModule } from '../tenants/tenants.module';
+import { RestaurantModule } from '../restaurant/restaurant.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { TenantsModule } from '../tenants/tenants.module';
     ]),
     BillingModule,
     TenantsModule,
+    RestaurantModule,
   ],
   controllers: [SyncController],
   providers: [SyncService],

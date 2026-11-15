@@ -318,6 +318,88 @@ class SyncWorker {
           );
           pulledCustomers++;
         }
+
+        // 4. Ingest restaurant tables and active orders
+        for (final tbl in pullResult.restaurantTables) {
+          final tblId = tbl['id'] as String? ?? '';
+          if (tblId.isEmpty) continue;
+
+          await _db.into(_db.localRestaurantTables).insertOnConflictUpdate(
+            LocalRestaurantTablesCompanion(
+              id: Value(tblId),
+              tenantId: Value(tbl['tenantId'] as String? ?? tenantId),
+              branchId: Value(tbl['branchId'] as String? ?? ''),
+              tableNumber: Value(tbl['tableNumber'] as String? ?? 'T-01'),
+              name: Value(tbl['tableName'] as String? ?? tbl['name'] as String?),
+              section: Value(tbl['section'] as String? ?? 'Main Dining'),
+              seatingCapacity: Value(tbl['seatingCapacity'] as int? ?? 4),
+              status: Value(tbl['status'] as String? ?? 'vacant'),
+              currentGuestCount: Value(tbl['currentGuestCount'] as int? ?? 0),
+              occupiedAt: Value(tbl['occupiedAt'] != null ? DateTime.tryParse(tbl['occupiedAt'].toString()) : null),
+              sortOrder: Value(tbl['sortOrder'] as int? ?? 0),
+              updatedAt: Value(DateTime.tryParse(tbl['updatedAt']?.toString() ?? '') ?? DateTime.now()),
+            ),
+          );
+        }
+
+        for (final ord in pullResult.restaurantOrders) {
+          final ordId = ord['id'] as String? ?? '';
+          if (ordId.isEmpty) continue;
+
+          await _db.into(_db.localRestaurantOrders).insertOnConflictUpdate(
+            LocalRestaurantOrdersCompanion(
+              id: Value(ordId),
+              tenantId: Value(ord['tenantId'] as String? ?? tenantId),
+              branchId: Value(ord['branchId'] as String? ?? ''),
+              orderNumber: Value(ord['orderNumber'] as String? ?? 'ORD'),
+              orderType: Value(ord['orderType'] as String? ?? 'dine_in'),
+              tableId: Value(ord['tableId'] as String?),
+              tableNumberSnapshot: Value(ord['tableNumberSnapshot'] as String?),
+              sectionSnapshot: Value(ord['sectionSnapshot'] as String?),
+              guestCount: Value(ord['guestCount'] as int? ?? 1),
+              customerId: Value(ord['customerId'] as String?),
+              status: Value(ord['status'] as String? ?? 'open'),
+              subtotalPaisa: Value(((double.tryParse(ord['subtotal']?.toString() ?? '0') ?? 0) * 100).round()),
+              taxTotalPaisa: Value(((double.tryParse(ord['taxTotal']?.toString() ?? '0') ?? 0) * 100).round()),
+              discountTotalPaisa: Value(((double.tryParse(ord['discountTotal']?.toString() ?? '0') ?? 0) * 100).round()),
+              grandTotalPaisa: Value(((double.tryParse(ord['grandTotal']?.toString() ?? '0') ?? 0) * 100).round()),
+              captainNameSnapshot: Value(ord['captainNameSnapshot'] as String?),
+              notes: Value(ord['notes'] as String?),
+              invoiceId: Value(ord['invoiceId'] as String?),
+              openedAt: Value(DateTime.tryParse(ord['openedAt']?.toString() ?? '') ?? DateTime.now()),
+              closedAt: Value(ord['closedAt'] != null ? DateTime.tryParse(ord['closedAt'].toString()) : null),
+            ),
+          );
+
+          final lines = ord['lines'] as List<dynamic>? ?? [];
+          for (final line in lines) {
+            final lineMap = Map<String, dynamic>.from(line as Map);
+            final lineId = lineMap['id'] as String? ?? '';
+            if (lineId.isEmpty) continue;
+
+            final qty = double.tryParse(lineMap['quantity']?.toString() ?? '1') ?? 1.0;
+            final unitPricePaisa = ((double.tryParse(lineMap['unitPrice']?.toString() ?? '0') ?? 0) * 100).round();
+            final totalPaisa = ((double.tryParse(lineMap['total']?.toString() ?? '0') ?? 0) * 100).round();
+
+            await _db.into(_db.localRestaurantKotLines).insertOnConflictUpdate(
+              LocalRestaurantKotLinesCompanion(
+                id: Value(lineId),
+                tenantId: Value(ord['tenantId'] as String? ?? tenantId),
+                orderId: Value(ordId),
+                kotId: Value(lineMap['kotId'] as String?),
+                productId: Value(lineMap['productId'] as String? ?? ''),
+                productName: Value(lineMap['productName'] as String? ?? 'Dish'),
+                quantity: Value(qty),
+                unitPricePaisa: Value(unitPricePaisa),
+                totalPaisa: Value(totalPaisa),
+                kitchenStation: Value(lineMap['kitchenStation'] as String? ?? 'main_kitchen'),
+                specialInstructions: Value(lineMap['specialInstructions'] as String?),
+                status: Value(lineMap['status'] as String? ?? 'pending'),
+                createdAt: Value(DateTime.tryParse(lineMap['createdAt']?.toString() ?? '') ?? DateTime.now()),
+              ),
+            );
+          }
+        }
       });
 
       // Save cursor and timestamp only after transaction succeeded

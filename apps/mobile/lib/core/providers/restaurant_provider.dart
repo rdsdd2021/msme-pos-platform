@@ -3,10 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
+import '../repositories/local_restaurant_repository.dart';
+import 'sync_provider.dart';
+
+final localRestaurantRepoProvider = Provider<LocalRestaurantRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return LocalRestaurantRepository(db);
+});
 
 enum TableStatus {
   vacant,
-  occupied,
+  seated,
+  ordered,
   billed,
   dirty;
 
@@ -14,14 +22,18 @@ enum TableStatus {
     switch (this) {
       case TableStatus.vacant:
         return 'Vacant';
-      case TableStatus.occupied:
-        return 'Occupied';
+      case TableStatus.seated:
+        return 'Seated';
+      case TableStatus.ordered:
+        return 'Ordered';
       case TableStatus.billed:
         return 'Billed';
       case TableStatus.dirty:
         return 'Needs Cleaning';
     }
   }
+
+  bool get isOccupied => this != TableStatus.vacant && this != TableStatus.dirty;
 }
 
 class RestaurantTable {
@@ -108,7 +120,12 @@ class RestaurantTable {
   static RestaurantTable fromJson(Map<String, dynamic> json) {
     TableStatus parsedStatus;
     try {
-      parsedStatus = TableStatus.values.byName(json['status'] as String);
+      final statusStr = (json['status'] as String? ?? '').toLowerCase();
+      if (statusStr == 'occupied') {
+        parsedStatus = TableStatus.seated;
+      } else {
+        parsedStatus = TableStatus.values.byName(statusStr);
+      }
     } catch (_) {
       parsedStatus = TableStatus.vacant;
     }
@@ -174,9 +191,9 @@ class RestaurantState {
     return tables.where((t) => t.section == selectedSection).toList();
   }
 
-  int get occupiedCount => tables.where((t) => t.status != TableStatus.vacant).length;
+  int get occupiedCount => tables.where((t) => t.status != TableStatus.vacant && t.status != TableStatus.dirty).length;
   int get activeDinersCount => tables
-      .where((t) => t.status == TableStatus.occupied || t.status == TableStatus.billed)
+      .where((t) => t.status.isOccupied || t.status == TableStatus.billed)
       .fold(0, (sum, t) => sum + t.currentGuestCount);
   int get totalDineInRunningPaisa => tables.fold(0, (sum, t) => sum + t.runningTotalPaisa);
 
@@ -272,7 +289,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
       return t.copyWith(
         activeOrderLines: lines,
-        status: TableStatus.occupied,
+        status: t.status == TableStatus.ordered ? TableStatus.ordered : TableStatus.seated,
         seatedAt: t.seatedAt ?? DateTime.now(),
       );
     }).toList();
@@ -298,7 +315,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
       return t.copyWith(
         activeOrderLines: lines,
-        status: lines.isEmpty ? TableStatus.vacant : TableStatus.occupied,
+        status: lines.isEmpty ? TableStatus.vacant : (t.status == TableStatus.ordered ? TableStatus.ordered : TableStatus.seated),
         seatedAt: lines.isEmpty ? null : t.seatedAt,
       );
     }).toList();
@@ -342,7 +359,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       }
       if (t.id == targetTableId) {
         return t.copyWith(
-          status: TableStatus.occupied,
+          status: source.status == TableStatus.ordered ? TableStatus.ordered : TableStatus.seated,
           activeOrderLines: source.activeOrderLines,
           currentGuestCount: source.currentGuestCount,
           seatedAt: source.seatedAt ?? DateTime.now(),
@@ -361,6 +378,17 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     final updated = state.tables.map((t) {
       if (t.id == tableId) {
         return t.copyWith(status: TableStatus.billed);
+      }
+      return t;
+    }).toList();
+    state = state.copyWith(tables: updated);
+    _saveToCache();
+  }
+
+  void markTableOrdered(String tableId) {
+    final updated = state.tables.map((t) {
+      if (t.id == tableId) {
+        return t.copyWith(status: TableStatus.ordered);
       }
       return t;
     }).toList();

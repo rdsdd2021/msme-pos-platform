@@ -25,8 +25,10 @@ class RestaurantTablesScreen extends ConsumerWidget {
     switch (status) {
       case TableStatus.vacant:
         return ShadcnBadgeVariant.success;
-      case TableStatus.occupied:
+      case TableStatus.seated:
         return ShadcnBadgeVariant.warning;
+      case TableStatus.ordered:
+        return ShadcnBadgeVariant.defaultVariant;
       case TableStatus.billed:
         return ShadcnBadgeVariant.secondary;
       case TableStatus.dirty:
@@ -38,8 +40,10 @@ class RestaurantTablesScreen extends ConsumerWidget {
     switch (status) {
       case TableStatus.vacant:
         return ShadcnColors.primary;
-      case TableStatus.occupied:
+      case TableStatus.seated:
         return ShadcnColors.warning;
+      case TableStatus.ordered:
+        return const Color(0xFFF97316);
       case TableStatus.billed:
         return ShadcnColors.info;
       case TableStatus.dirty:
@@ -241,7 +245,7 @@ class RestaurantTablesScreen extends ConsumerWidget {
               itemCount: restState.filteredTables.length,
               itemBuilder: (ctx, idx) {
                 final table = restState.filteredTables[idx];
-                final isOccupied = table.status == TableStatus.occupied || table.status == TableStatus.billed;
+                final isOccupied = table.status.isOccupied || table.status == TableStatus.billed;
                 final isDirty = table.status == TableStatus.dirty;
                 final accentColor = _getStatusAccentColor(table.status);
 

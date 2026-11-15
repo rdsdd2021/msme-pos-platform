@@ -44,6 +44,35 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
 
     HapticFeedback.mediumImpact();
     final notifier = ref.read(printerProvider.notifier);
+    final restRepo = ref.read(localRestaurantRepoProvider);
+    final authState = ref.read(authProvider);
+    final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+    final branchId = authState.activeBranchId ?? 'branch-1';
+    final deviceId = await AppConfig.getDeviceId();
+    final captainName = authState.user?.fullName ?? 'Captain';
+
+    final orderId = 'ord-${currentTable.id}-${DateTime.now().millisecondsSinceEpoch}';
+
+    // 1. Atomically persist KOT in local Drift SQLite and queue DISPATCH_KOT in SyncOutbox
+    try {
+      await restRepo.dispatchKotAtomic(
+        tableId: currentTable.id,
+        orderId: orderId,
+        lines: currentTable.activeOrderLines,
+        captainName: captainName,
+        tenantId: tenantId,
+        branchId: branchId,
+        deviceId: deviceId,
+      );
+
+      // 2. Mark table as ordered locally
+      ref.read(restaurantProvider.notifier).markTableOrdered(currentTable.id);
+
+      // 3. Immediately trigger background sync push to backend & KDS
+      ref.read(syncStateProvider.notifier).syncNow();
+    } catch (e) {
+      debugPrint('[TableOrderSheet] Error queuing KOT: $e');
+    }
 
     final kotDoc = ReceiptDocument(
       header: ReceiptHeader(
@@ -482,11 +511,26 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                               await ref.read(catalogProvider.notifier).deductStock(item.product.id, item.quantity);
                             }
 
+                            // Atomically settle table in SQLite & queue UPDATE_TABLE_STATUS outbox mutation so server table vacates
+                            try {
+                              final restRepo = ref.read(localRestaurantRepoProvider);
+                              await restRepo.settleTableAtomic(
+                                tableId: currentTable.id,
+                                tenantId: tenantId,
+                                branchId: branchId,
+                                deviceId: deviceId,
+                                invoiceId: result.invoiceId,
+                              );
+                            } catch (err) {
+                              debugPrint('[TableOrderSheet] Settle atomic error: $err');
+                            }
+
                             // Vacate table and mark dirty for clearing
                             ref.read(restaurantProvider.notifier).clearAndVacateTable(currentTable.id, markDirty: true);
 
-                            // Refresh outbox
+                            // Refresh outbox & push sync to cloud
                             await ref.read(syncStateProvider.notifier).refreshStatus();
+                            ref.read(syncStateProvider.notifier).syncNow();
 
                             if (mounted) {
                               Navigator.pop(ctx);

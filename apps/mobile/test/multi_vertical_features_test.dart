@@ -205,7 +205,7 @@ void main() {
       state = notifier.state;
       final updatedT1 = state.tables.firstWhere((t) => t.id == t1.id);
 
-      expect(updatedT1.status, TableStatus.occupied);
+      expect(updatedT1.status, TableStatus.seated);
       expect(updatedT1.itemCount, 2);
       expect(updatedT1.runningTotalPaisa, 58800); // ₹560.00 subtotal + 5% GST (₹28.00) = ₹588.00
       expect(state.occupiedCount, 1);

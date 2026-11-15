@@ -110,7 +110,8 @@ class RealtimeSyncService {
       if (type == 'CATALOG_CHANGED' ||
           type == 'STOCK_CHANGED' ||
           type == 'ORDER_CREATED' ||
-          type == 'CUSTOMER_UPDATED') {
+          type == 'CUSTOMER_UPDATED' ||
+          type == 'RESTAURANT_TABLE_CHANGED') {
         _ref.read(syncStateProvider.notifier).syncNow();
       }
     } catch (e) {

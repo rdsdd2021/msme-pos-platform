@@ -13,6 +13,7 @@ import { BranchEntity } from '../tenants/entities/branch.entity';
 import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingService } from '../billing/billing.service';
+import { RestaurantService } from '../restaurant/restaurant.service';
 import { DeviceStatus } from '@pos/shared-types';
 
 describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
@@ -28,6 +29,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
   let mockStockBalanceRepo: any;
   let mockStockLedgerRepo: any;
   let mockBillingService: any;
+  let mockRestaurantService: any;
   let mockDataSource: any;
 
   beforeEach(async () => {
@@ -70,6 +72,15 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
       createSale: jest.fn().mockResolvedValue({ id: 'server-invoice-uuid-101' }),
       getInvoices: jest.fn().mockResolvedValue([]),
     };
+    mockRestaurantService = {
+      createOrder: jest.fn().mockResolvedValue({ id: 'rest-order-uuid-1' }),
+      dispatchKot: jest.fn().mockResolvedValue({ kot: { id: 'kot-uuid-1' }, order: { id: 'rest-order-uuid-1' } }),
+      settleOrder: jest.fn().mockResolvedValue({ order: { id: 'rest-order-uuid-1' }, invoice: { id: 'inv-101' } }),
+      updateTable: jest.fn().mockResolvedValue({ id: 'table-uuid-1' }),
+      transferTable: jest.fn().mockResolvedValue({ sourceTable: { id: 'table-1' }, targetTable: { id: 'table-2' } }),
+      getTables: jest.fn().mockResolvedValue([{ id: 'table-uuid-1', tableNumber: 'T-01', activeOrder: { id: 'order-1' } }]),
+      seedDefaultTables: jest.fn().mockResolvedValue([]),
+    };
     mockDataSource = { transaction: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -86,6 +97,7 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
         { provide: getRepositoryToken(StockBalanceEntity), useValue: mockStockBalanceRepo },
         { provide: getRepositoryToken(StockLedgerEntity), useValue: mockStockLedgerRepo },
         { provide: BillingService, useValue: mockBillingService },
+        { provide: RestaurantService, useValue: mockRestaurantService },
         { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
@@ -326,6 +338,94 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
       expect(deltas.customers?.length).toBe(1);
       expect(deltas.hasMore).toBe(false);
       expect(deltas.cursor).toBeDefined();
+    });
+
+    it('pulls restaurant tables and orders when restaurantService is present', async () => {
+      mockProductRepo.find.mockResolvedValueOnce([]);
+      mockCategoryRepo.find.mockResolvedValueOnce([]);
+      mockCustomerRepo.find.mockResolvedValueOnce([]);
+
+      const deltas = await service.pullDeltas('tenant-1', '2026-10-31T00:00:00.000Z');
+
+      expect(deltas.restaurantTables).toBeDefined();
+      expect(deltas.restaurantTables?.length).toBe(1);
+      expect(deltas.restaurantOrders).toBeDefined();
+      expect(deltas.restaurantOrders?.length).toBe(1);
+      expect(mockRestaurantService.getTables).toHaveBeenCalled();
+    });
+  });
+
+  describe('Restaurant Dining Operations Ingestion', () => {
+    it('ingests CREATE_RESTAURANT_ORDER and delegates to restaurantService', async () => {
+      mockIngestedRepo.findOne.mockResolvedValueOnce(null);
+
+      const response = await service.ingestBatch('tenant-1', 'cashier-1', {
+        deviceId: 'device-pos-01',
+        operations: [
+          {
+            operationId: 'op-rest-order-1',
+            deviceId: 'device-pos-01',
+            sequence: 10,
+            operationType: 'CREATE_RESTAURANT_ORDER',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:00:00.000Z',
+            payload: { tableId: 'tbl-1', guestCount: 4, captainName: 'Ravi' },
+          },
+        ],
+      });
+
+      expect(response.processedCount).toBe(1);
+      expect(response.results[0].status).toBe('accepted');
+      expect(response.results[0].serverEntityId).toBe('rest-order-uuid-1');
+      expect(mockRestaurantService.createOrder).toHaveBeenCalled();
+    });
+
+    it('ingests DISPATCH_KOT and delegates to restaurantService', async () => {
+      mockIngestedRepo.findOne.mockResolvedValueOnce(null);
+
+      const response = await service.ingestBatch('tenant-1', 'cashier-1', {
+        deviceId: 'device-pos-01',
+        operations: [
+          {
+            operationId: 'op-kot-1',
+            deviceId: 'device-pos-01',
+            sequence: 11,
+            operationType: 'DISPATCH_KOT',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:05:00.000Z',
+            payload: { orderId: 'rest-order-uuid-1', lines: [] },
+          },
+        ],
+      });
+
+      expect(response.processedCount).toBe(1);
+      expect(response.results[0].status).toBe('accepted');
+      expect(response.results[0].serverEntityId).toBe('kot-uuid-1');
+      expect(mockRestaurantService.dispatchKot).toHaveBeenCalled();
+    });
+
+    it('ingests SETTLE_RESTAURANT_ORDER and delegates to restaurantService', async () => {
+      mockIngestedRepo.findOne.mockResolvedValueOnce(null);
+
+      const response = await service.ingestBatch('tenant-1', 'cashier-1', {
+        deviceId: 'device-pos-01',
+        operations: [
+          {
+            operationId: 'op-settle-1',
+            deviceId: 'device-pos-01',
+            sequence: 12,
+            operationType: 'SETTLE_RESTAURANT_ORDER',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:30:00.000Z',
+            payload: { orderId: 'rest-order-uuid-1', paymentMethod: 'cash' },
+          },
+        ],
+      });
+
+      expect(response.processedCount).toBe(1);
+      expect(response.results[0].status).toBe('accepted');
+      expect(response.results[0].serverEntityId).toBe('rest-order-uuid-1');
+      expect(mockRestaurantService.settleOrder).toHaveBeenCalled();
     });
   });
 });

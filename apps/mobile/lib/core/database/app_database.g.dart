@@ -3610,6 +3610,2211 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxData> {
   }
 }
 
+class $LocalRestaurantTablesTable extends LocalRestaurantTables
+    with TableInfo<$LocalRestaurantTablesTable, LocalRestaurantTable> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRestaurantTablesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tenantIdMeta =
+      const VerificationMeta('tenantId');
+  @override
+  late final GeneratedColumn<String> tenantId = GeneratedColumn<String>(
+      'tenant_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _branchIdMeta =
+      const VerificationMeta('branchId');
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+      'branch_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tableNumberMeta =
+      const VerificationMeta('tableNumber');
+  @override
+  late final GeneratedColumn<String> tableNumber = GeneratedColumn<String>(
+      'table_number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sectionMeta =
+      const VerificationMeta('section');
+  @override
+  late final GeneratedColumn<String> section = GeneratedColumn<String>(
+      'section', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('Main Dining'));
+  static const VerificationMeta _seatingCapacityMeta =
+      const VerificationMeta('seatingCapacity');
+  @override
+  late final GeneratedColumn<int> seatingCapacity = GeneratedColumn<int>(
+      'seating_capacity', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(4));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('vacant'));
+  static const VerificationMeta _currentGuestCountMeta =
+      const VerificationMeta('currentGuestCount');
+  @override
+  late final GeneratedColumn<int> currentGuestCount = GeneratedColumn<int>(
+      'current_guest_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _occupiedAtMeta =
+      const VerificationMeta('occupiedAt');
+  @override
+  late final GeneratedColumn<DateTime> occupiedAt = GeneratedColumn<DateTime>(
+      'occupied_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tenantId,
+        branchId,
+        tableNumber,
+        name,
+        section,
+        seatingCapacity,
+        status,
+        currentGuestCount,
+        occupiedAt,
+        sortOrder,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_restaurant_tables';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalRestaurantTable> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tenant_id')) {
+      context.handle(_tenantIdMeta,
+          tenantId.isAcceptableOrUnknown(data['tenant_id']!, _tenantIdMeta));
+    } else if (isInserting) {
+      context.missing(_tenantIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(_branchIdMeta,
+          branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta));
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('table_number')) {
+      context.handle(
+          _tableNumberMeta,
+          tableNumber.isAcceptableOrUnknown(
+              data['table_number']!, _tableNumberMeta));
+    } else if (isInserting) {
+      context.missing(_tableNumberMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('section')) {
+      context.handle(_sectionMeta,
+          section.isAcceptableOrUnknown(data['section']!, _sectionMeta));
+    }
+    if (data.containsKey('seating_capacity')) {
+      context.handle(
+          _seatingCapacityMeta,
+          seatingCapacity.isAcceptableOrUnknown(
+              data['seating_capacity']!, _seatingCapacityMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('current_guest_count')) {
+      context.handle(
+          _currentGuestCountMeta,
+          currentGuestCount.isAcceptableOrUnknown(
+              data['current_guest_count']!, _currentGuestCountMeta));
+    }
+    if (data.containsKey('occupied_at')) {
+      context.handle(
+          _occupiedAtMeta,
+          occupiedAt.isAcceptableOrUnknown(
+              data['occupied_at']!, _occupiedAtMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRestaurantTable map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRestaurantTable(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tenantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!,
+      branchId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}branch_id'])!,
+      tableNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}table_number'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name']),
+      section: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}section'])!,
+      seatingCapacity: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}seating_capacity'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      currentGuestCount: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}current_guest_count'])!,
+      occupiedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}occupied_at']),
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+    );
+  }
+
+  @override
+  $LocalRestaurantTablesTable createAlias(String alias) {
+    return $LocalRestaurantTablesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRestaurantTable extends DataClass
+    implements Insertable<LocalRestaurantTable> {
+  final String id;
+  final String tenantId;
+  final String branchId;
+  final String tableNumber;
+  final String? name;
+  final String section;
+  final int seatingCapacity;
+  final String status;
+  final int currentGuestCount;
+  final DateTime? occupiedAt;
+  final int sortOrder;
+  final DateTime updatedAt;
+  const LocalRestaurantTable(
+      {required this.id,
+      required this.tenantId,
+      required this.branchId,
+      required this.tableNumber,
+      this.name,
+      required this.section,
+      required this.seatingCapacity,
+      required this.status,
+      required this.currentGuestCount,
+      this.occupiedAt,
+      required this.sortOrder,
+      required this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tenant_id'] = Variable<String>(tenantId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['table_number'] = Variable<String>(tableNumber);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    map['section'] = Variable<String>(section);
+    map['seating_capacity'] = Variable<int>(seatingCapacity);
+    map['status'] = Variable<String>(status);
+    map['current_guest_count'] = Variable<int>(currentGuestCount);
+    if (!nullToAbsent || occupiedAt != null) {
+      map['occupied_at'] = Variable<DateTime>(occupiedAt);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LocalRestaurantTablesCompanion toCompanion(bool nullToAbsent) {
+    return LocalRestaurantTablesCompanion(
+      id: Value(id),
+      tenantId: Value(tenantId),
+      branchId: Value(branchId),
+      tableNumber: Value(tableNumber),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      section: Value(section),
+      seatingCapacity: Value(seatingCapacity),
+      status: Value(status),
+      currentGuestCount: Value(currentGuestCount),
+      occupiedAt: occupiedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(occupiedAt),
+      sortOrder: Value(sortOrder),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LocalRestaurantTable.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRestaurantTable(
+      id: serializer.fromJson<String>(json['id']),
+      tenantId: serializer.fromJson<String>(json['tenantId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      tableNumber: serializer.fromJson<String>(json['tableNumber']),
+      name: serializer.fromJson<String?>(json['name']),
+      section: serializer.fromJson<String>(json['section']),
+      seatingCapacity: serializer.fromJson<int>(json['seatingCapacity']),
+      status: serializer.fromJson<String>(json['status']),
+      currentGuestCount: serializer.fromJson<int>(json['currentGuestCount']),
+      occupiedAt: serializer.fromJson<DateTime?>(json['occupiedAt']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tenantId': serializer.toJson<String>(tenantId),
+      'branchId': serializer.toJson<String>(branchId),
+      'tableNumber': serializer.toJson<String>(tableNumber),
+      'name': serializer.toJson<String?>(name),
+      'section': serializer.toJson<String>(section),
+      'seatingCapacity': serializer.toJson<int>(seatingCapacity),
+      'status': serializer.toJson<String>(status),
+      'currentGuestCount': serializer.toJson<int>(currentGuestCount),
+      'occupiedAt': serializer.toJson<DateTime?>(occupiedAt),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LocalRestaurantTable copyWith(
+          {String? id,
+          String? tenantId,
+          String? branchId,
+          String? tableNumber,
+          Value<String?> name = const Value.absent(),
+          String? section,
+          int? seatingCapacity,
+          String? status,
+          int? currentGuestCount,
+          Value<DateTime?> occupiedAt = const Value.absent(),
+          int? sortOrder,
+          DateTime? updatedAt}) =>
+      LocalRestaurantTable(
+        id: id ?? this.id,
+        tenantId: tenantId ?? this.tenantId,
+        branchId: branchId ?? this.branchId,
+        tableNumber: tableNumber ?? this.tableNumber,
+        name: name.present ? name.value : this.name,
+        section: section ?? this.section,
+        seatingCapacity: seatingCapacity ?? this.seatingCapacity,
+        status: status ?? this.status,
+        currentGuestCount: currentGuestCount ?? this.currentGuestCount,
+        occupiedAt: occupiedAt.present ? occupiedAt.value : this.occupiedAt,
+        sortOrder: sortOrder ?? this.sortOrder,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
+  LocalRestaurantTable copyWithCompanion(LocalRestaurantTablesCompanion data) {
+    return LocalRestaurantTable(
+      id: data.id.present ? data.id.value : this.id,
+      tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      tableNumber:
+          data.tableNumber.present ? data.tableNumber.value : this.tableNumber,
+      name: data.name.present ? data.name.value : this.name,
+      section: data.section.present ? data.section.value : this.section,
+      seatingCapacity: data.seatingCapacity.present
+          ? data.seatingCapacity.value
+          : this.seatingCapacity,
+      status: data.status.present ? data.status.value : this.status,
+      currentGuestCount: data.currentGuestCount.present
+          ? data.currentGuestCount.value
+          : this.currentGuestCount,
+      occupiedAt:
+          data.occupiedAt.present ? data.occupiedAt.value : this.occupiedAt,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRestaurantTable(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('branchId: $branchId, ')
+          ..write('tableNumber: $tableNumber, ')
+          ..write('name: $name, ')
+          ..write('section: $section, ')
+          ..write('seatingCapacity: $seatingCapacity, ')
+          ..write('status: $status, ')
+          ..write('currentGuestCount: $currentGuestCount, ')
+          ..write('occupiedAt: $occupiedAt, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tenantId,
+      branchId,
+      tableNumber,
+      name,
+      section,
+      seatingCapacity,
+      status,
+      currentGuestCount,
+      occupiedAt,
+      sortOrder,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRestaurantTable &&
+          other.id == this.id &&
+          other.tenantId == this.tenantId &&
+          other.branchId == this.branchId &&
+          other.tableNumber == this.tableNumber &&
+          other.name == this.name &&
+          other.section == this.section &&
+          other.seatingCapacity == this.seatingCapacity &&
+          other.status == this.status &&
+          other.currentGuestCount == this.currentGuestCount &&
+          other.occupiedAt == this.occupiedAt &&
+          other.sortOrder == this.sortOrder &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LocalRestaurantTablesCompanion
+    extends UpdateCompanion<LocalRestaurantTable> {
+  final Value<String> id;
+  final Value<String> tenantId;
+  final Value<String> branchId;
+  final Value<String> tableNumber;
+  final Value<String?> name;
+  final Value<String> section;
+  final Value<int> seatingCapacity;
+  final Value<String> status;
+  final Value<int> currentGuestCount;
+  final Value<DateTime?> occupiedAt;
+  final Value<int> sortOrder;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const LocalRestaurantTablesCompanion({
+    this.id = const Value.absent(),
+    this.tenantId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.tableNumber = const Value.absent(),
+    this.name = const Value.absent(),
+    this.section = const Value.absent(),
+    this.seatingCapacity = const Value.absent(),
+    this.status = const Value.absent(),
+    this.currentGuestCount = const Value.absent(),
+    this.occupiedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRestaurantTablesCompanion.insert({
+    required String id,
+    required String tenantId,
+    required String branchId,
+    required String tableNumber,
+    this.name = const Value.absent(),
+    this.section = const Value.absent(),
+    this.seatingCapacity = const Value.absent(),
+    this.status = const Value.absent(),
+    this.currentGuestCount = const Value.absent(),
+    this.occupiedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tenantId = Value(tenantId),
+        branchId = Value(branchId),
+        tableNumber = Value(tableNumber);
+  static Insertable<LocalRestaurantTable> custom({
+    Expression<String>? id,
+    Expression<String>? tenantId,
+    Expression<String>? branchId,
+    Expression<String>? tableNumber,
+    Expression<String>? name,
+    Expression<String>? section,
+    Expression<int>? seatingCapacity,
+    Expression<String>? status,
+    Expression<int>? currentGuestCount,
+    Expression<DateTime>? occupiedAt,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tenantId != null) 'tenant_id': tenantId,
+      if (branchId != null) 'branch_id': branchId,
+      if (tableNumber != null) 'table_number': tableNumber,
+      if (name != null) 'name': name,
+      if (section != null) 'section': section,
+      if (seatingCapacity != null) 'seating_capacity': seatingCapacity,
+      if (status != null) 'status': status,
+      if (currentGuestCount != null) 'current_guest_count': currentGuestCount,
+      if (occupiedAt != null) 'occupied_at': occupiedAt,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRestaurantTablesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tenantId,
+      Value<String>? branchId,
+      Value<String>? tableNumber,
+      Value<String?>? name,
+      Value<String>? section,
+      Value<int>? seatingCapacity,
+      Value<String>? status,
+      Value<int>? currentGuestCount,
+      Value<DateTime?>? occupiedAt,
+      Value<int>? sortOrder,
+      Value<DateTime>? updatedAt,
+      Value<int>? rowid}) {
+    return LocalRestaurantTablesCompanion(
+      id: id ?? this.id,
+      tenantId: tenantId ?? this.tenantId,
+      branchId: branchId ?? this.branchId,
+      tableNumber: tableNumber ?? this.tableNumber,
+      name: name ?? this.name,
+      section: section ?? this.section,
+      seatingCapacity: seatingCapacity ?? this.seatingCapacity,
+      status: status ?? this.status,
+      currentGuestCount: currentGuestCount ?? this.currentGuestCount,
+      occupiedAt: occupiedAt ?? this.occupiedAt,
+      sortOrder: sortOrder ?? this.sortOrder,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tenantId.present) {
+      map['tenant_id'] = Variable<String>(tenantId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (tableNumber.present) {
+      map['table_number'] = Variable<String>(tableNumber.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (section.present) {
+      map['section'] = Variable<String>(section.value);
+    }
+    if (seatingCapacity.present) {
+      map['seating_capacity'] = Variable<int>(seatingCapacity.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (currentGuestCount.present) {
+      map['current_guest_count'] = Variable<int>(currentGuestCount.value);
+    }
+    if (occupiedAt.present) {
+      map['occupied_at'] = Variable<DateTime>(occupiedAt.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRestaurantTablesCompanion(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('branchId: $branchId, ')
+          ..write('tableNumber: $tableNumber, ')
+          ..write('name: $name, ')
+          ..write('section: $section, ')
+          ..write('seatingCapacity: $seatingCapacity, ')
+          ..write('status: $status, ')
+          ..write('currentGuestCount: $currentGuestCount, ')
+          ..write('occupiedAt: $occupiedAt, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRestaurantOrdersTable extends LocalRestaurantOrders
+    with TableInfo<$LocalRestaurantOrdersTable, LocalRestaurantOrder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRestaurantOrdersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tenantIdMeta =
+      const VerificationMeta('tenantId');
+  @override
+  late final GeneratedColumn<String> tenantId = GeneratedColumn<String>(
+      'tenant_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _branchIdMeta =
+      const VerificationMeta('branchId');
+  @override
+  late final GeneratedColumn<String> branchId = GeneratedColumn<String>(
+      'branch_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _orderNumberMeta =
+      const VerificationMeta('orderNumber');
+  @override
+  late final GeneratedColumn<String> orderNumber = GeneratedColumn<String>(
+      'order_number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _orderTypeMeta =
+      const VerificationMeta('orderType');
+  @override
+  late final GeneratedColumn<String> orderType = GeneratedColumn<String>(
+      'order_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('dine_in'));
+  static const VerificationMeta _tableIdMeta =
+      const VerificationMeta('tableId');
+  @override
+  late final GeneratedColumn<String> tableId = GeneratedColumn<String>(
+      'table_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _tableNumberSnapshotMeta =
+      const VerificationMeta('tableNumberSnapshot');
+  @override
+  late final GeneratedColumn<String> tableNumberSnapshot =
+      GeneratedColumn<String>('table_number_snapshot', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _sectionSnapshotMeta =
+      const VerificationMeta('sectionSnapshot');
+  @override
+  late final GeneratedColumn<String> sectionSnapshot = GeneratedColumn<String>(
+      'section_snapshot', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _guestCountMeta =
+      const VerificationMeta('guestCount');
+  @override
+  late final GeneratedColumn<int> guestCount = GeneratedColumn<int>(
+      'guest_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _customerIdMeta =
+      const VerificationMeta('customerId');
+  @override
+  late final GeneratedColumn<String> customerId = GeneratedColumn<String>(
+      'customer_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('open'));
+  static const VerificationMeta _subtotalPaisaMeta =
+      const VerificationMeta('subtotalPaisa');
+  @override
+  late final GeneratedColumn<int> subtotalPaisa = GeneratedColumn<int>(
+      'subtotal_paisa', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _taxTotalPaisaMeta =
+      const VerificationMeta('taxTotalPaisa');
+  @override
+  late final GeneratedColumn<int> taxTotalPaisa = GeneratedColumn<int>(
+      'tax_total_paisa', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _discountTotalPaisaMeta =
+      const VerificationMeta('discountTotalPaisa');
+  @override
+  late final GeneratedColumn<int> discountTotalPaisa = GeneratedColumn<int>(
+      'discount_total_paisa', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _grandTotalPaisaMeta =
+      const VerificationMeta('grandTotalPaisa');
+  @override
+  late final GeneratedColumn<int> grandTotalPaisa = GeneratedColumn<int>(
+      'grand_total_paisa', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _captainNameSnapshotMeta =
+      const VerificationMeta('captainNameSnapshot');
+  @override
+  late final GeneratedColumn<String> captainNameSnapshot =
+      GeneratedColumn<String>('captain_name_snapshot', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _invoiceIdMeta =
+      const VerificationMeta('invoiceId');
+  @override
+  late final GeneratedColumn<String> invoiceId = GeneratedColumn<String>(
+      'invoice_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _openedAtMeta =
+      const VerificationMeta('openedAt');
+  @override
+  late final GeneratedColumn<DateTime> openedAt = GeneratedColumn<DateTime>(
+      'opened_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _closedAtMeta =
+      const VerificationMeta('closedAt');
+  @override
+  late final GeneratedColumn<DateTime> closedAt = GeneratedColumn<DateTime>(
+      'closed_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tenantId,
+        branchId,
+        orderNumber,
+        orderType,
+        tableId,
+        tableNumberSnapshot,
+        sectionSnapshot,
+        guestCount,
+        customerId,
+        status,
+        subtotalPaisa,
+        taxTotalPaisa,
+        discountTotalPaisa,
+        grandTotalPaisa,
+        captainNameSnapshot,
+        notes,
+        invoiceId,
+        openedAt,
+        closedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_restaurant_orders';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalRestaurantOrder> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tenant_id')) {
+      context.handle(_tenantIdMeta,
+          tenantId.isAcceptableOrUnknown(data['tenant_id']!, _tenantIdMeta));
+    } else if (isInserting) {
+      context.missing(_tenantIdMeta);
+    }
+    if (data.containsKey('branch_id')) {
+      context.handle(_branchIdMeta,
+          branchId.isAcceptableOrUnknown(data['branch_id']!, _branchIdMeta));
+    } else if (isInserting) {
+      context.missing(_branchIdMeta);
+    }
+    if (data.containsKey('order_number')) {
+      context.handle(
+          _orderNumberMeta,
+          orderNumber.isAcceptableOrUnknown(
+              data['order_number']!, _orderNumberMeta));
+    } else if (isInserting) {
+      context.missing(_orderNumberMeta);
+    }
+    if (data.containsKey('order_type')) {
+      context.handle(_orderTypeMeta,
+          orderType.isAcceptableOrUnknown(data['order_type']!, _orderTypeMeta));
+    }
+    if (data.containsKey('table_id')) {
+      context.handle(_tableIdMeta,
+          tableId.isAcceptableOrUnknown(data['table_id']!, _tableIdMeta));
+    }
+    if (data.containsKey('table_number_snapshot')) {
+      context.handle(
+          _tableNumberSnapshotMeta,
+          tableNumberSnapshot.isAcceptableOrUnknown(
+              data['table_number_snapshot']!, _tableNumberSnapshotMeta));
+    }
+    if (data.containsKey('section_snapshot')) {
+      context.handle(
+          _sectionSnapshotMeta,
+          sectionSnapshot.isAcceptableOrUnknown(
+              data['section_snapshot']!, _sectionSnapshotMeta));
+    }
+    if (data.containsKey('guest_count')) {
+      context.handle(
+          _guestCountMeta,
+          guestCount.isAcceptableOrUnknown(
+              data['guest_count']!, _guestCountMeta));
+    }
+    if (data.containsKey('customer_id')) {
+      context.handle(
+          _customerIdMeta,
+          customerId.isAcceptableOrUnknown(
+              data['customer_id']!, _customerIdMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('subtotal_paisa')) {
+      context.handle(
+          _subtotalPaisaMeta,
+          subtotalPaisa.isAcceptableOrUnknown(
+              data['subtotal_paisa']!, _subtotalPaisaMeta));
+    }
+    if (data.containsKey('tax_total_paisa')) {
+      context.handle(
+          _taxTotalPaisaMeta,
+          taxTotalPaisa.isAcceptableOrUnknown(
+              data['tax_total_paisa']!, _taxTotalPaisaMeta));
+    }
+    if (data.containsKey('discount_total_paisa')) {
+      context.handle(
+          _discountTotalPaisaMeta,
+          discountTotalPaisa.isAcceptableOrUnknown(
+              data['discount_total_paisa']!, _discountTotalPaisaMeta));
+    }
+    if (data.containsKey('grand_total_paisa')) {
+      context.handle(
+          _grandTotalPaisaMeta,
+          grandTotalPaisa.isAcceptableOrUnknown(
+              data['grand_total_paisa']!, _grandTotalPaisaMeta));
+    }
+    if (data.containsKey('captain_name_snapshot')) {
+      context.handle(
+          _captainNameSnapshotMeta,
+          captainNameSnapshot.isAcceptableOrUnknown(
+              data['captain_name_snapshot']!, _captainNameSnapshotMeta));
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('invoice_id')) {
+      context.handle(_invoiceIdMeta,
+          invoiceId.isAcceptableOrUnknown(data['invoice_id']!, _invoiceIdMeta));
+    }
+    if (data.containsKey('opened_at')) {
+      context.handle(_openedAtMeta,
+          openedAt.isAcceptableOrUnknown(data['opened_at']!, _openedAtMeta));
+    }
+    if (data.containsKey('closed_at')) {
+      context.handle(_closedAtMeta,
+          closedAt.isAcceptableOrUnknown(data['closed_at']!, _closedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRestaurantOrder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRestaurantOrder(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tenantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!,
+      branchId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}branch_id'])!,
+      orderNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}order_number'])!,
+      orderType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}order_type'])!,
+      tableId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}table_id']),
+      tableNumberSnapshot: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}table_number_snapshot']),
+      sectionSnapshot: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}section_snapshot']),
+      guestCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}guest_count'])!,
+      customerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}customer_id']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      subtotalPaisa: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}subtotal_paisa'])!,
+      taxTotalPaisa: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}tax_total_paisa'])!,
+      discountTotalPaisa: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}discount_total_paisa'])!,
+      grandTotalPaisa: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}grand_total_paisa'])!,
+      captainNameSnapshot: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}captain_name_snapshot']),
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      invoiceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}invoice_id']),
+      openedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}opened_at'])!,
+      closedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}closed_at']),
+    );
+  }
+
+  @override
+  $LocalRestaurantOrdersTable createAlias(String alias) {
+    return $LocalRestaurantOrdersTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRestaurantOrder extends DataClass
+    implements Insertable<LocalRestaurantOrder> {
+  final String id;
+  final String tenantId;
+  final String branchId;
+  final String orderNumber;
+  final String orderType;
+  final String? tableId;
+  final String? tableNumberSnapshot;
+  final String? sectionSnapshot;
+  final int guestCount;
+  final String? customerId;
+  final String status;
+  final int subtotalPaisa;
+  final int taxTotalPaisa;
+  final int discountTotalPaisa;
+  final int grandTotalPaisa;
+  final String? captainNameSnapshot;
+  final String? notes;
+  final String? invoiceId;
+  final DateTime openedAt;
+  final DateTime? closedAt;
+  const LocalRestaurantOrder(
+      {required this.id,
+      required this.tenantId,
+      required this.branchId,
+      required this.orderNumber,
+      required this.orderType,
+      this.tableId,
+      this.tableNumberSnapshot,
+      this.sectionSnapshot,
+      required this.guestCount,
+      this.customerId,
+      required this.status,
+      required this.subtotalPaisa,
+      required this.taxTotalPaisa,
+      required this.discountTotalPaisa,
+      required this.grandTotalPaisa,
+      this.captainNameSnapshot,
+      this.notes,
+      this.invoiceId,
+      required this.openedAt,
+      this.closedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tenant_id'] = Variable<String>(tenantId);
+    map['branch_id'] = Variable<String>(branchId);
+    map['order_number'] = Variable<String>(orderNumber);
+    map['order_type'] = Variable<String>(orderType);
+    if (!nullToAbsent || tableId != null) {
+      map['table_id'] = Variable<String>(tableId);
+    }
+    if (!nullToAbsent || tableNumberSnapshot != null) {
+      map['table_number_snapshot'] = Variable<String>(tableNumberSnapshot);
+    }
+    if (!nullToAbsent || sectionSnapshot != null) {
+      map['section_snapshot'] = Variable<String>(sectionSnapshot);
+    }
+    map['guest_count'] = Variable<int>(guestCount);
+    if (!nullToAbsent || customerId != null) {
+      map['customer_id'] = Variable<String>(customerId);
+    }
+    map['status'] = Variable<String>(status);
+    map['subtotal_paisa'] = Variable<int>(subtotalPaisa);
+    map['tax_total_paisa'] = Variable<int>(taxTotalPaisa);
+    map['discount_total_paisa'] = Variable<int>(discountTotalPaisa);
+    map['grand_total_paisa'] = Variable<int>(grandTotalPaisa);
+    if (!nullToAbsent || captainNameSnapshot != null) {
+      map['captain_name_snapshot'] = Variable<String>(captainNameSnapshot);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || invoiceId != null) {
+      map['invoice_id'] = Variable<String>(invoiceId);
+    }
+    map['opened_at'] = Variable<DateTime>(openedAt);
+    if (!nullToAbsent || closedAt != null) {
+      map['closed_at'] = Variable<DateTime>(closedAt);
+    }
+    return map;
+  }
+
+  LocalRestaurantOrdersCompanion toCompanion(bool nullToAbsent) {
+    return LocalRestaurantOrdersCompanion(
+      id: Value(id),
+      tenantId: Value(tenantId),
+      branchId: Value(branchId),
+      orderNumber: Value(orderNumber),
+      orderType: Value(orderType),
+      tableId: tableId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tableId),
+      tableNumberSnapshot: tableNumberSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tableNumberSnapshot),
+      sectionSnapshot: sectionSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sectionSnapshot),
+      guestCount: Value(guestCount),
+      customerId: customerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customerId),
+      status: Value(status),
+      subtotalPaisa: Value(subtotalPaisa),
+      taxTotalPaisa: Value(taxTotalPaisa),
+      discountTotalPaisa: Value(discountTotalPaisa),
+      grandTotalPaisa: Value(grandTotalPaisa),
+      captainNameSnapshot: captainNameSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(captainNameSnapshot),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      invoiceId: invoiceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(invoiceId),
+      openedAt: Value(openedAt),
+      closedAt: closedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closedAt),
+    );
+  }
+
+  factory LocalRestaurantOrder.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRestaurantOrder(
+      id: serializer.fromJson<String>(json['id']),
+      tenantId: serializer.fromJson<String>(json['tenantId']),
+      branchId: serializer.fromJson<String>(json['branchId']),
+      orderNumber: serializer.fromJson<String>(json['orderNumber']),
+      orderType: serializer.fromJson<String>(json['orderType']),
+      tableId: serializer.fromJson<String?>(json['tableId']),
+      tableNumberSnapshot:
+          serializer.fromJson<String?>(json['tableNumberSnapshot']),
+      sectionSnapshot: serializer.fromJson<String?>(json['sectionSnapshot']),
+      guestCount: serializer.fromJson<int>(json['guestCount']),
+      customerId: serializer.fromJson<String?>(json['customerId']),
+      status: serializer.fromJson<String>(json['status']),
+      subtotalPaisa: serializer.fromJson<int>(json['subtotalPaisa']),
+      taxTotalPaisa: serializer.fromJson<int>(json['taxTotalPaisa']),
+      discountTotalPaisa: serializer.fromJson<int>(json['discountTotalPaisa']),
+      grandTotalPaisa: serializer.fromJson<int>(json['grandTotalPaisa']),
+      captainNameSnapshot:
+          serializer.fromJson<String?>(json['captainNameSnapshot']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      invoiceId: serializer.fromJson<String?>(json['invoiceId']),
+      openedAt: serializer.fromJson<DateTime>(json['openedAt']),
+      closedAt: serializer.fromJson<DateTime?>(json['closedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tenantId': serializer.toJson<String>(tenantId),
+      'branchId': serializer.toJson<String>(branchId),
+      'orderNumber': serializer.toJson<String>(orderNumber),
+      'orderType': serializer.toJson<String>(orderType),
+      'tableId': serializer.toJson<String?>(tableId),
+      'tableNumberSnapshot': serializer.toJson<String?>(tableNumberSnapshot),
+      'sectionSnapshot': serializer.toJson<String?>(sectionSnapshot),
+      'guestCount': serializer.toJson<int>(guestCount),
+      'customerId': serializer.toJson<String?>(customerId),
+      'status': serializer.toJson<String>(status),
+      'subtotalPaisa': serializer.toJson<int>(subtotalPaisa),
+      'taxTotalPaisa': serializer.toJson<int>(taxTotalPaisa),
+      'discountTotalPaisa': serializer.toJson<int>(discountTotalPaisa),
+      'grandTotalPaisa': serializer.toJson<int>(grandTotalPaisa),
+      'captainNameSnapshot': serializer.toJson<String?>(captainNameSnapshot),
+      'notes': serializer.toJson<String?>(notes),
+      'invoiceId': serializer.toJson<String?>(invoiceId),
+      'openedAt': serializer.toJson<DateTime>(openedAt),
+      'closedAt': serializer.toJson<DateTime?>(closedAt),
+    };
+  }
+
+  LocalRestaurantOrder copyWith(
+          {String? id,
+          String? tenantId,
+          String? branchId,
+          String? orderNumber,
+          String? orderType,
+          Value<String?> tableId = const Value.absent(),
+          Value<String?> tableNumberSnapshot = const Value.absent(),
+          Value<String?> sectionSnapshot = const Value.absent(),
+          int? guestCount,
+          Value<String?> customerId = const Value.absent(),
+          String? status,
+          int? subtotalPaisa,
+          int? taxTotalPaisa,
+          int? discountTotalPaisa,
+          int? grandTotalPaisa,
+          Value<String?> captainNameSnapshot = const Value.absent(),
+          Value<String?> notes = const Value.absent(),
+          Value<String?> invoiceId = const Value.absent(),
+          DateTime? openedAt,
+          Value<DateTime?> closedAt = const Value.absent()}) =>
+      LocalRestaurantOrder(
+        id: id ?? this.id,
+        tenantId: tenantId ?? this.tenantId,
+        branchId: branchId ?? this.branchId,
+        orderNumber: orderNumber ?? this.orderNumber,
+        orderType: orderType ?? this.orderType,
+        tableId: tableId.present ? tableId.value : this.tableId,
+        tableNumberSnapshot: tableNumberSnapshot.present
+            ? tableNumberSnapshot.value
+            : this.tableNumberSnapshot,
+        sectionSnapshot: sectionSnapshot.present
+            ? sectionSnapshot.value
+            : this.sectionSnapshot,
+        guestCount: guestCount ?? this.guestCount,
+        customerId: customerId.present ? customerId.value : this.customerId,
+        status: status ?? this.status,
+        subtotalPaisa: subtotalPaisa ?? this.subtotalPaisa,
+        taxTotalPaisa: taxTotalPaisa ?? this.taxTotalPaisa,
+        discountTotalPaisa: discountTotalPaisa ?? this.discountTotalPaisa,
+        grandTotalPaisa: grandTotalPaisa ?? this.grandTotalPaisa,
+        captainNameSnapshot: captainNameSnapshot.present
+            ? captainNameSnapshot.value
+            : this.captainNameSnapshot,
+        notes: notes.present ? notes.value : this.notes,
+        invoiceId: invoiceId.present ? invoiceId.value : this.invoiceId,
+        openedAt: openedAt ?? this.openedAt,
+        closedAt: closedAt.present ? closedAt.value : this.closedAt,
+      );
+  LocalRestaurantOrder copyWithCompanion(LocalRestaurantOrdersCompanion data) {
+    return LocalRestaurantOrder(
+      id: data.id.present ? data.id.value : this.id,
+      tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,
+      branchId: data.branchId.present ? data.branchId.value : this.branchId,
+      orderNumber:
+          data.orderNumber.present ? data.orderNumber.value : this.orderNumber,
+      orderType: data.orderType.present ? data.orderType.value : this.orderType,
+      tableId: data.tableId.present ? data.tableId.value : this.tableId,
+      tableNumberSnapshot: data.tableNumberSnapshot.present
+          ? data.tableNumberSnapshot.value
+          : this.tableNumberSnapshot,
+      sectionSnapshot: data.sectionSnapshot.present
+          ? data.sectionSnapshot.value
+          : this.sectionSnapshot,
+      guestCount:
+          data.guestCount.present ? data.guestCount.value : this.guestCount,
+      customerId:
+          data.customerId.present ? data.customerId.value : this.customerId,
+      status: data.status.present ? data.status.value : this.status,
+      subtotalPaisa: data.subtotalPaisa.present
+          ? data.subtotalPaisa.value
+          : this.subtotalPaisa,
+      taxTotalPaisa: data.taxTotalPaisa.present
+          ? data.taxTotalPaisa.value
+          : this.taxTotalPaisa,
+      discountTotalPaisa: data.discountTotalPaisa.present
+          ? data.discountTotalPaisa.value
+          : this.discountTotalPaisa,
+      grandTotalPaisa: data.grandTotalPaisa.present
+          ? data.grandTotalPaisa.value
+          : this.grandTotalPaisa,
+      captainNameSnapshot: data.captainNameSnapshot.present
+          ? data.captainNameSnapshot.value
+          : this.captainNameSnapshot,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      invoiceId: data.invoiceId.present ? data.invoiceId.value : this.invoiceId,
+      openedAt: data.openedAt.present ? data.openedAt.value : this.openedAt,
+      closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRestaurantOrder(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('branchId: $branchId, ')
+          ..write('orderNumber: $orderNumber, ')
+          ..write('orderType: $orderType, ')
+          ..write('tableId: $tableId, ')
+          ..write('tableNumberSnapshot: $tableNumberSnapshot, ')
+          ..write('sectionSnapshot: $sectionSnapshot, ')
+          ..write('guestCount: $guestCount, ')
+          ..write('customerId: $customerId, ')
+          ..write('status: $status, ')
+          ..write('subtotalPaisa: $subtotalPaisa, ')
+          ..write('taxTotalPaisa: $taxTotalPaisa, ')
+          ..write('discountTotalPaisa: $discountTotalPaisa, ')
+          ..write('grandTotalPaisa: $grandTotalPaisa, ')
+          ..write('captainNameSnapshot: $captainNameSnapshot, ')
+          ..write('notes: $notes, ')
+          ..write('invoiceId: $invoiceId, ')
+          ..write('openedAt: $openedAt, ')
+          ..write('closedAt: $closedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tenantId,
+      branchId,
+      orderNumber,
+      orderType,
+      tableId,
+      tableNumberSnapshot,
+      sectionSnapshot,
+      guestCount,
+      customerId,
+      status,
+      subtotalPaisa,
+      taxTotalPaisa,
+      discountTotalPaisa,
+      grandTotalPaisa,
+      captainNameSnapshot,
+      notes,
+      invoiceId,
+      openedAt,
+      closedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRestaurantOrder &&
+          other.id == this.id &&
+          other.tenantId == this.tenantId &&
+          other.branchId == this.branchId &&
+          other.orderNumber == this.orderNumber &&
+          other.orderType == this.orderType &&
+          other.tableId == this.tableId &&
+          other.tableNumberSnapshot == this.tableNumberSnapshot &&
+          other.sectionSnapshot == this.sectionSnapshot &&
+          other.guestCount == this.guestCount &&
+          other.customerId == this.customerId &&
+          other.status == this.status &&
+          other.subtotalPaisa == this.subtotalPaisa &&
+          other.taxTotalPaisa == this.taxTotalPaisa &&
+          other.discountTotalPaisa == this.discountTotalPaisa &&
+          other.grandTotalPaisa == this.grandTotalPaisa &&
+          other.captainNameSnapshot == this.captainNameSnapshot &&
+          other.notes == this.notes &&
+          other.invoiceId == this.invoiceId &&
+          other.openedAt == this.openedAt &&
+          other.closedAt == this.closedAt);
+}
+
+class LocalRestaurantOrdersCompanion
+    extends UpdateCompanion<LocalRestaurantOrder> {
+  final Value<String> id;
+  final Value<String> tenantId;
+  final Value<String> branchId;
+  final Value<String> orderNumber;
+  final Value<String> orderType;
+  final Value<String?> tableId;
+  final Value<String?> tableNumberSnapshot;
+  final Value<String?> sectionSnapshot;
+  final Value<int> guestCount;
+  final Value<String?> customerId;
+  final Value<String> status;
+  final Value<int> subtotalPaisa;
+  final Value<int> taxTotalPaisa;
+  final Value<int> discountTotalPaisa;
+  final Value<int> grandTotalPaisa;
+  final Value<String?> captainNameSnapshot;
+  final Value<String?> notes;
+  final Value<String?> invoiceId;
+  final Value<DateTime> openedAt;
+  final Value<DateTime?> closedAt;
+  final Value<int> rowid;
+  const LocalRestaurantOrdersCompanion({
+    this.id = const Value.absent(),
+    this.tenantId = const Value.absent(),
+    this.branchId = const Value.absent(),
+    this.orderNumber = const Value.absent(),
+    this.orderType = const Value.absent(),
+    this.tableId = const Value.absent(),
+    this.tableNumberSnapshot = const Value.absent(),
+    this.sectionSnapshot = const Value.absent(),
+    this.guestCount = const Value.absent(),
+    this.customerId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.subtotalPaisa = const Value.absent(),
+    this.taxTotalPaisa = const Value.absent(),
+    this.discountTotalPaisa = const Value.absent(),
+    this.grandTotalPaisa = const Value.absent(),
+    this.captainNameSnapshot = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.invoiceId = const Value.absent(),
+    this.openedAt = const Value.absent(),
+    this.closedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRestaurantOrdersCompanion.insert({
+    required String id,
+    required String tenantId,
+    required String branchId,
+    required String orderNumber,
+    this.orderType = const Value.absent(),
+    this.tableId = const Value.absent(),
+    this.tableNumberSnapshot = const Value.absent(),
+    this.sectionSnapshot = const Value.absent(),
+    this.guestCount = const Value.absent(),
+    this.customerId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.subtotalPaisa = const Value.absent(),
+    this.taxTotalPaisa = const Value.absent(),
+    this.discountTotalPaisa = const Value.absent(),
+    this.grandTotalPaisa = const Value.absent(),
+    this.captainNameSnapshot = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.invoiceId = const Value.absent(),
+    this.openedAt = const Value.absent(),
+    this.closedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tenantId = Value(tenantId),
+        branchId = Value(branchId),
+        orderNumber = Value(orderNumber);
+  static Insertable<LocalRestaurantOrder> custom({
+    Expression<String>? id,
+    Expression<String>? tenantId,
+    Expression<String>? branchId,
+    Expression<String>? orderNumber,
+    Expression<String>? orderType,
+    Expression<String>? tableId,
+    Expression<String>? tableNumberSnapshot,
+    Expression<String>? sectionSnapshot,
+    Expression<int>? guestCount,
+    Expression<String>? customerId,
+    Expression<String>? status,
+    Expression<int>? subtotalPaisa,
+    Expression<int>? taxTotalPaisa,
+    Expression<int>? discountTotalPaisa,
+    Expression<int>? grandTotalPaisa,
+    Expression<String>? captainNameSnapshot,
+    Expression<String>? notes,
+    Expression<String>? invoiceId,
+    Expression<DateTime>? openedAt,
+    Expression<DateTime>? closedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tenantId != null) 'tenant_id': tenantId,
+      if (branchId != null) 'branch_id': branchId,
+      if (orderNumber != null) 'order_number': orderNumber,
+      if (orderType != null) 'order_type': orderType,
+      if (tableId != null) 'table_id': tableId,
+      if (tableNumberSnapshot != null)
+        'table_number_snapshot': tableNumberSnapshot,
+      if (sectionSnapshot != null) 'section_snapshot': sectionSnapshot,
+      if (guestCount != null) 'guest_count': guestCount,
+      if (customerId != null) 'customer_id': customerId,
+      if (status != null) 'status': status,
+      if (subtotalPaisa != null) 'subtotal_paisa': subtotalPaisa,
+      if (taxTotalPaisa != null) 'tax_total_paisa': taxTotalPaisa,
+      if (discountTotalPaisa != null)
+        'discount_total_paisa': discountTotalPaisa,
+      if (grandTotalPaisa != null) 'grand_total_paisa': grandTotalPaisa,
+      if (captainNameSnapshot != null)
+        'captain_name_snapshot': captainNameSnapshot,
+      if (notes != null) 'notes': notes,
+      if (invoiceId != null) 'invoice_id': invoiceId,
+      if (openedAt != null) 'opened_at': openedAt,
+      if (closedAt != null) 'closed_at': closedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRestaurantOrdersCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tenantId,
+      Value<String>? branchId,
+      Value<String>? orderNumber,
+      Value<String>? orderType,
+      Value<String?>? tableId,
+      Value<String?>? tableNumberSnapshot,
+      Value<String?>? sectionSnapshot,
+      Value<int>? guestCount,
+      Value<String?>? customerId,
+      Value<String>? status,
+      Value<int>? subtotalPaisa,
+      Value<int>? taxTotalPaisa,
+      Value<int>? discountTotalPaisa,
+      Value<int>? grandTotalPaisa,
+      Value<String?>? captainNameSnapshot,
+      Value<String?>? notes,
+      Value<String?>? invoiceId,
+      Value<DateTime>? openedAt,
+      Value<DateTime?>? closedAt,
+      Value<int>? rowid}) {
+    return LocalRestaurantOrdersCompanion(
+      id: id ?? this.id,
+      tenantId: tenantId ?? this.tenantId,
+      branchId: branchId ?? this.branchId,
+      orderNumber: orderNumber ?? this.orderNumber,
+      orderType: orderType ?? this.orderType,
+      tableId: tableId ?? this.tableId,
+      tableNumberSnapshot: tableNumberSnapshot ?? this.tableNumberSnapshot,
+      sectionSnapshot: sectionSnapshot ?? this.sectionSnapshot,
+      guestCount: guestCount ?? this.guestCount,
+      customerId: customerId ?? this.customerId,
+      status: status ?? this.status,
+      subtotalPaisa: subtotalPaisa ?? this.subtotalPaisa,
+      taxTotalPaisa: taxTotalPaisa ?? this.taxTotalPaisa,
+      discountTotalPaisa: discountTotalPaisa ?? this.discountTotalPaisa,
+      grandTotalPaisa: grandTotalPaisa ?? this.grandTotalPaisa,
+      captainNameSnapshot: captainNameSnapshot ?? this.captainNameSnapshot,
+      notes: notes ?? this.notes,
+      invoiceId: invoiceId ?? this.invoiceId,
+      openedAt: openedAt ?? this.openedAt,
+      closedAt: closedAt ?? this.closedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tenantId.present) {
+      map['tenant_id'] = Variable<String>(tenantId.value);
+    }
+    if (branchId.present) {
+      map['branch_id'] = Variable<String>(branchId.value);
+    }
+    if (orderNumber.present) {
+      map['order_number'] = Variable<String>(orderNumber.value);
+    }
+    if (orderType.present) {
+      map['order_type'] = Variable<String>(orderType.value);
+    }
+    if (tableId.present) {
+      map['table_id'] = Variable<String>(tableId.value);
+    }
+    if (tableNumberSnapshot.present) {
+      map['table_number_snapshot'] =
+          Variable<String>(tableNumberSnapshot.value);
+    }
+    if (sectionSnapshot.present) {
+      map['section_snapshot'] = Variable<String>(sectionSnapshot.value);
+    }
+    if (guestCount.present) {
+      map['guest_count'] = Variable<int>(guestCount.value);
+    }
+    if (customerId.present) {
+      map['customer_id'] = Variable<String>(customerId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (subtotalPaisa.present) {
+      map['subtotal_paisa'] = Variable<int>(subtotalPaisa.value);
+    }
+    if (taxTotalPaisa.present) {
+      map['tax_total_paisa'] = Variable<int>(taxTotalPaisa.value);
+    }
+    if (discountTotalPaisa.present) {
+      map['discount_total_paisa'] = Variable<int>(discountTotalPaisa.value);
+    }
+    if (grandTotalPaisa.present) {
+      map['grand_total_paisa'] = Variable<int>(grandTotalPaisa.value);
+    }
+    if (captainNameSnapshot.present) {
+      map['captain_name_snapshot'] =
+          Variable<String>(captainNameSnapshot.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (invoiceId.present) {
+      map['invoice_id'] = Variable<String>(invoiceId.value);
+    }
+    if (openedAt.present) {
+      map['opened_at'] = Variable<DateTime>(openedAt.value);
+    }
+    if (closedAt.present) {
+      map['closed_at'] = Variable<DateTime>(closedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRestaurantOrdersCompanion(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('branchId: $branchId, ')
+          ..write('orderNumber: $orderNumber, ')
+          ..write('orderType: $orderType, ')
+          ..write('tableId: $tableId, ')
+          ..write('tableNumberSnapshot: $tableNumberSnapshot, ')
+          ..write('sectionSnapshot: $sectionSnapshot, ')
+          ..write('guestCount: $guestCount, ')
+          ..write('customerId: $customerId, ')
+          ..write('status: $status, ')
+          ..write('subtotalPaisa: $subtotalPaisa, ')
+          ..write('taxTotalPaisa: $taxTotalPaisa, ')
+          ..write('discountTotalPaisa: $discountTotalPaisa, ')
+          ..write('grandTotalPaisa: $grandTotalPaisa, ')
+          ..write('captainNameSnapshot: $captainNameSnapshot, ')
+          ..write('notes: $notes, ')
+          ..write('invoiceId: $invoiceId, ')
+          ..write('openedAt: $openedAt, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LocalRestaurantKotLinesTable extends LocalRestaurantKotLines
+    with TableInfo<$LocalRestaurantKotLinesTable, LocalRestaurantKotLine> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalRestaurantKotLinesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tenantIdMeta =
+      const VerificationMeta('tenantId');
+  @override
+  late final GeneratedColumn<String> tenantId = GeneratedColumn<String>(
+      'tenant_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _orderIdMeta =
+      const VerificationMeta('orderId');
+  @override
+  late final GeneratedColumn<String> orderId = GeneratedColumn<String>(
+      'order_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _kotIdMeta = const VerificationMeta('kotId');
+  @override
+  late final GeneratedColumn<String> kotId = GeneratedColumn<String>(
+      'kot_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _productIdMeta =
+      const VerificationMeta('productId');
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+      'product_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _productNameMeta =
+      const VerificationMeta('productName');
+  @override
+  late final GeneratedColumn<String> productName = GeneratedColumn<String>(
+      'product_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _quantityMeta =
+      const VerificationMeta('quantity');
+  @override
+  late final GeneratedColumn<double> quantity = GeneratedColumn<double>(
+      'quantity', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1.0));
+  static const VerificationMeta _unitPricePaisaMeta =
+      const VerificationMeta('unitPricePaisa');
+  @override
+  late final GeneratedColumn<int> unitPricePaisa = GeneratedColumn<int>(
+      'unit_price_paisa', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _totalPaisaMeta =
+      const VerificationMeta('totalPaisa');
+  @override
+  late final GeneratedColumn<int> totalPaisa = GeneratedColumn<int>(
+      'total_paisa', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _kitchenStationMeta =
+      const VerificationMeta('kitchenStation');
+  @override
+  late final GeneratedColumn<String> kitchenStation = GeneratedColumn<String>(
+      'kitchen_station', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('main_kitchen'));
+  static const VerificationMeta _specialInstructionsMeta =
+      const VerificationMeta('specialInstructions');
+  @override
+  late final GeneratedColumn<String> specialInstructions =
+      GeneratedColumn<String>('special_instructions', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tenantId,
+        orderId,
+        kotId,
+        productId,
+        productName,
+        quantity,
+        unitPricePaisa,
+        totalPaisa,
+        kitchenStation,
+        specialInstructions,
+        status,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_restaurant_kot_lines';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<LocalRestaurantKotLine> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tenant_id')) {
+      context.handle(_tenantIdMeta,
+          tenantId.isAcceptableOrUnknown(data['tenant_id']!, _tenantIdMeta));
+    } else if (isInserting) {
+      context.missing(_tenantIdMeta);
+    }
+    if (data.containsKey('order_id')) {
+      context.handle(_orderIdMeta,
+          orderId.isAcceptableOrUnknown(data['order_id']!, _orderIdMeta));
+    } else if (isInserting) {
+      context.missing(_orderIdMeta);
+    }
+    if (data.containsKey('kot_id')) {
+      context.handle(
+          _kotIdMeta, kotId.isAcceptableOrUnknown(data['kot_id']!, _kotIdMeta));
+    }
+    if (data.containsKey('product_id')) {
+      context.handle(_productIdMeta,
+          productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta));
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('product_name')) {
+      context.handle(
+          _productNameMeta,
+          productName.isAcceptableOrUnknown(
+              data['product_name']!, _productNameMeta));
+    } else if (isInserting) {
+      context.missing(_productNameMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(_quantityMeta,
+          quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta));
+    }
+    if (data.containsKey('unit_price_paisa')) {
+      context.handle(
+          _unitPricePaisaMeta,
+          unitPricePaisa.isAcceptableOrUnknown(
+              data['unit_price_paisa']!, _unitPricePaisaMeta));
+    }
+    if (data.containsKey('total_paisa')) {
+      context.handle(
+          _totalPaisaMeta,
+          totalPaisa.isAcceptableOrUnknown(
+              data['total_paisa']!, _totalPaisaMeta));
+    }
+    if (data.containsKey('kitchen_station')) {
+      context.handle(
+          _kitchenStationMeta,
+          kitchenStation.isAcceptableOrUnknown(
+              data['kitchen_station']!, _kitchenStationMeta));
+    }
+    if (data.containsKey('special_instructions')) {
+      context.handle(
+          _specialInstructionsMeta,
+          specialInstructions.isAcceptableOrUnknown(
+              data['special_instructions']!, _specialInstructionsMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LocalRestaurantKotLine map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalRestaurantKotLine(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tenantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!,
+      orderId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}order_id'])!,
+      kotId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kot_id']),
+      productId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}product_id'])!,
+      productName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}product_name'])!,
+      quantity: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}quantity'])!,
+      unitPricePaisa: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}unit_price_paisa'])!,
+      totalPaisa: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}total_paisa'])!,
+      kitchenStation: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}kitchen_station'])!,
+      specialInstructions: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}special_instructions']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $LocalRestaurantKotLinesTable createAlias(String alias) {
+    return $LocalRestaurantKotLinesTable(attachedDatabase, alias);
+  }
+}
+
+class LocalRestaurantKotLine extends DataClass
+    implements Insertable<LocalRestaurantKotLine> {
+  final String id;
+  final String tenantId;
+  final String orderId;
+  final String? kotId;
+  final String productId;
+  final String productName;
+  final double quantity;
+  final int unitPricePaisa;
+  final int totalPaisa;
+  final String kitchenStation;
+  final String? specialInstructions;
+  final String status;
+  final DateTime createdAt;
+  const LocalRestaurantKotLine(
+      {required this.id,
+      required this.tenantId,
+      required this.orderId,
+      this.kotId,
+      required this.productId,
+      required this.productName,
+      required this.quantity,
+      required this.unitPricePaisa,
+      required this.totalPaisa,
+      required this.kitchenStation,
+      this.specialInstructions,
+      required this.status,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tenant_id'] = Variable<String>(tenantId);
+    map['order_id'] = Variable<String>(orderId);
+    if (!nullToAbsent || kotId != null) {
+      map['kot_id'] = Variable<String>(kotId);
+    }
+    map['product_id'] = Variable<String>(productId);
+    map['product_name'] = Variable<String>(productName);
+    map['quantity'] = Variable<double>(quantity);
+    map['unit_price_paisa'] = Variable<int>(unitPricePaisa);
+    map['total_paisa'] = Variable<int>(totalPaisa);
+    map['kitchen_station'] = Variable<String>(kitchenStation);
+    if (!nullToAbsent || specialInstructions != null) {
+      map['special_instructions'] = Variable<String>(specialInstructions);
+    }
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  LocalRestaurantKotLinesCompanion toCompanion(bool nullToAbsent) {
+    return LocalRestaurantKotLinesCompanion(
+      id: Value(id),
+      tenantId: Value(tenantId),
+      orderId: Value(orderId),
+      kotId:
+          kotId == null && nullToAbsent ? const Value.absent() : Value(kotId),
+      productId: Value(productId),
+      productName: Value(productName),
+      quantity: Value(quantity),
+      unitPricePaisa: Value(unitPricePaisa),
+      totalPaisa: Value(totalPaisa),
+      kitchenStation: Value(kitchenStation),
+      specialInstructions: specialInstructions == null && nullToAbsent
+          ? const Value.absent()
+          : Value(specialInstructions),
+      status: Value(status),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory LocalRestaurantKotLine.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalRestaurantKotLine(
+      id: serializer.fromJson<String>(json['id']),
+      tenantId: serializer.fromJson<String>(json['tenantId']),
+      orderId: serializer.fromJson<String>(json['orderId']),
+      kotId: serializer.fromJson<String?>(json['kotId']),
+      productId: serializer.fromJson<String>(json['productId']),
+      productName: serializer.fromJson<String>(json['productName']),
+      quantity: serializer.fromJson<double>(json['quantity']),
+      unitPricePaisa: serializer.fromJson<int>(json['unitPricePaisa']),
+      totalPaisa: serializer.fromJson<int>(json['totalPaisa']),
+      kitchenStation: serializer.fromJson<String>(json['kitchenStation']),
+      specialInstructions:
+          serializer.fromJson<String?>(json['specialInstructions']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tenantId': serializer.toJson<String>(tenantId),
+      'orderId': serializer.toJson<String>(orderId),
+      'kotId': serializer.toJson<String?>(kotId),
+      'productId': serializer.toJson<String>(productId),
+      'productName': serializer.toJson<String>(productName),
+      'quantity': serializer.toJson<double>(quantity),
+      'unitPricePaisa': serializer.toJson<int>(unitPricePaisa),
+      'totalPaisa': serializer.toJson<int>(totalPaisa),
+      'kitchenStation': serializer.toJson<String>(kitchenStation),
+      'specialInstructions': serializer.toJson<String?>(specialInstructions),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  LocalRestaurantKotLine copyWith(
+          {String? id,
+          String? tenantId,
+          String? orderId,
+          Value<String?> kotId = const Value.absent(),
+          String? productId,
+          String? productName,
+          double? quantity,
+          int? unitPricePaisa,
+          int? totalPaisa,
+          String? kitchenStation,
+          Value<String?> specialInstructions = const Value.absent(),
+          String? status,
+          DateTime? createdAt}) =>
+      LocalRestaurantKotLine(
+        id: id ?? this.id,
+        tenantId: tenantId ?? this.tenantId,
+        orderId: orderId ?? this.orderId,
+        kotId: kotId.present ? kotId.value : this.kotId,
+        productId: productId ?? this.productId,
+        productName: productName ?? this.productName,
+        quantity: quantity ?? this.quantity,
+        unitPricePaisa: unitPricePaisa ?? this.unitPricePaisa,
+        totalPaisa: totalPaisa ?? this.totalPaisa,
+        kitchenStation: kitchenStation ?? this.kitchenStation,
+        specialInstructions: specialInstructions.present
+            ? specialInstructions.value
+            : this.specialInstructions,
+        status: status ?? this.status,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  LocalRestaurantKotLine copyWithCompanion(
+      LocalRestaurantKotLinesCompanion data) {
+    return LocalRestaurantKotLine(
+      id: data.id.present ? data.id.value : this.id,
+      tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,
+      orderId: data.orderId.present ? data.orderId.value : this.orderId,
+      kotId: data.kotId.present ? data.kotId.value : this.kotId,
+      productId: data.productId.present ? data.productId.value : this.productId,
+      productName:
+          data.productName.present ? data.productName.value : this.productName,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      unitPricePaisa: data.unitPricePaisa.present
+          ? data.unitPricePaisa.value
+          : this.unitPricePaisa,
+      totalPaisa:
+          data.totalPaisa.present ? data.totalPaisa.value : this.totalPaisa,
+      kitchenStation: data.kitchenStation.present
+          ? data.kitchenStation.value
+          : this.kitchenStation,
+      specialInstructions: data.specialInstructions.present
+          ? data.specialInstructions.value
+          : this.specialInstructions,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRestaurantKotLine(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('orderId: $orderId, ')
+          ..write('kotId: $kotId, ')
+          ..write('productId: $productId, ')
+          ..write('productName: $productName, ')
+          ..write('quantity: $quantity, ')
+          ..write('unitPricePaisa: $unitPricePaisa, ')
+          ..write('totalPaisa: $totalPaisa, ')
+          ..write('kitchenStation: $kitchenStation, ')
+          ..write('specialInstructions: $specialInstructions, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tenantId,
+      orderId,
+      kotId,
+      productId,
+      productName,
+      quantity,
+      unitPricePaisa,
+      totalPaisa,
+      kitchenStation,
+      specialInstructions,
+      status,
+      createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalRestaurantKotLine &&
+          other.id == this.id &&
+          other.tenantId == this.tenantId &&
+          other.orderId == this.orderId &&
+          other.kotId == this.kotId &&
+          other.productId == this.productId &&
+          other.productName == this.productName &&
+          other.quantity == this.quantity &&
+          other.unitPricePaisa == this.unitPricePaisa &&
+          other.totalPaisa == this.totalPaisa &&
+          other.kitchenStation == this.kitchenStation &&
+          other.specialInstructions == this.specialInstructions &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt);
+}
+
+class LocalRestaurantKotLinesCompanion
+    extends UpdateCompanion<LocalRestaurantKotLine> {
+  final Value<String> id;
+  final Value<String> tenantId;
+  final Value<String> orderId;
+  final Value<String?> kotId;
+  final Value<String> productId;
+  final Value<String> productName;
+  final Value<double> quantity;
+  final Value<int> unitPricePaisa;
+  final Value<int> totalPaisa;
+  final Value<String> kitchenStation;
+  final Value<String?> specialInstructions;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const LocalRestaurantKotLinesCompanion({
+    this.id = const Value.absent(),
+    this.tenantId = const Value.absent(),
+    this.orderId = const Value.absent(),
+    this.kotId = const Value.absent(),
+    this.productId = const Value.absent(),
+    this.productName = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unitPricePaisa = const Value.absent(),
+    this.totalPaisa = const Value.absent(),
+    this.kitchenStation = const Value.absent(),
+    this.specialInstructions = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalRestaurantKotLinesCompanion.insert({
+    required String id,
+    required String tenantId,
+    required String orderId,
+    this.kotId = const Value.absent(),
+    required String productId,
+    required String productName,
+    this.quantity = const Value.absent(),
+    this.unitPricePaisa = const Value.absent(),
+    this.totalPaisa = const Value.absent(),
+    this.kitchenStation = const Value.absent(),
+    this.specialInstructions = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tenantId = Value(tenantId),
+        orderId = Value(orderId),
+        productId = Value(productId),
+        productName = Value(productName);
+  static Insertable<LocalRestaurantKotLine> custom({
+    Expression<String>? id,
+    Expression<String>? tenantId,
+    Expression<String>? orderId,
+    Expression<String>? kotId,
+    Expression<String>? productId,
+    Expression<String>? productName,
+    Expression<double>? quantity,
+    Expression<int>? unitPricePaisa,
+    Expression<int>? totalPaisa,
+    Expression<String>? kitchenStation,
+    Expression<String>? specialInstructions,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tenantId != null) 'tenant_id': tenantId,
+      if (orderId != null) 'order_id': orderId,
+      if (kotId != null) 'kot_id': kotId,
+      if (productId != null) 'product_id': productId,
+      if (productName != null) 'product_name': productName,
+      if (quantity != null) 'quantity': quantity,
+      if (unitPricePaisa != null) 'unit_price_paisa': unitPricePaisa,
+      if (totalPaisa != null) 'total_paisa': totalPaisa,
+      if (kitchenStation != null) 'kitchen_station': kitchenStation,
+      if (specialInstructions != null)
+        'special_instructions': specialInstructions,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalRestaurantKotLinesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tenantId,
+      Value<String>? orderId,
+      Value<String?>? kotId,
+      Value<String>? productId,
+      Value<String>? productName,
+      Value<double>? quantity,
+      Value<int>? unitPricePaisa,
+      Value<int>? totalPaisa,
+      Value<String>? kitchenStation,
+      Value<String?>? specialInstructions,
+      Value<String>? status,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return LocalRestaurantKotLinesCompanion(
+      id: id ?? this.id,
+      tenantId: tenantId ?? this.tenantId,
+      orderId: orderId ?? this.orderId,
+      kotId: kotId ?? this.kotId,
+      productId: productId ?? this.productId,
+      productName: productName ?? this.productName,
+      quantity: quantity ?? this.quantity,
+      unitPricePaisa: unitPricePaisa ?? this.unitPricePaisa,
+      totalPaisa: totalPaisa ?? this.totalPaisa,
+      kitchenStation: kitchenStation ?? this.kitchenStation,
+      specialInstructions: specialInstructions ?? this.specialInstructions,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tenantId.present) {
+      map['tenant_id'] = Variable<String>(tenantId.value);
+    }
+    if (orderId.present) {
+      map['order_id'] = Variable<String>(orderId.value);
+    }
+    if (kotId.present) {
+      map['kot_id'] = Variable<String>(kotId.value);
+    }
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (productName.present) {
+      map['product_name'] = Variable<String>(productName.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<double>(quantity.value);
+    }
+    if (unitPricePaisa.present) {
+      map['unit_price_paisa'] = Variable<int>(unitPricePaisa.value);
+    }
+    if (totalPaisa.present) {
+      map['total_paisa'] = Variable<int>(totalPaisa.value);
+    }
+    if (kitchenStation.present) {
+      map['kitchen_station'] = Variable<String>(kitchenStation.value);
+    }
+    if (specialInstructions.present) {
+      map['special_instructions'] = Variable<String>(specialInstructions.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalRestaurantKotLinesCompanion(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('orderId: $orderId, ')
+          ..write('kotId: $kotId, ')
+          ..write('productId: $productId, ')
+          ..write('productName: $productName, ')
+          ..write('quantity: $quantity, ')
+          ..write('unitPricePaisa: $unitPricePaisa, ')
+          ..write('totalPaisa: $totalPaisa, ')
+          ..write('kitchenStation: $kitchenStation, ')
+          ..write('specialInstructions: $specialInstructions, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3622,6 +5827,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LocalStockMovementsTable localStockMovements =
       $LocalStockMovementsTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
+  late final $LocalRestaurantTablesTable localRestaurantTables =
+      $LocalRestaurantTablesTable(this);
+  late final $LocalRestaurantOrdersTable localRestaurantOrders =
+      $LocalRestaurantOrdersTable(this);
+  late final $LocalRestaurantKotLinesTable localRestaurantKotLines =
+      $LocalRestaurantKotLinesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3633,7 +5844,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         localInvoiceLines,
         localPayments,
         localStockMovements,
-        syncOutbox
+        syncOutbox,
+        localRestaurantTables,
+        localRestaurantOrders,
+        localRestaurantKotLines
       ];
 }
 
@@ -5392,6 +7606,1018 @@ typedef $$SyncOutboxTableProcessedTableManager = ProcessedTableManager<
     ),
     SyncOutboxData,
     PrefetchHooks Function()>;
+typedef $$LocalRestaurantTablesTableCreateCompanionBuilder
+    = LocalRestaurantTablesCompanion Function({
+  required String id,
+  required String tenantId,
+  required String branchId,
+  required String tableNumber,
+  Value<String?> name,
+  Value<String> section,
+  Value<int> seatingCapacity,
+  Value<String> status,
+  Value<int> currentGuestCount,
+  Value<DateTime?> occupiedAt,
+  Value<int> sortOrder,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+typedef $$LocalRestaurantTablesTableUpdateCompanionBuilder
+    = LocalRestaurantTablesCompanion Function({
+  Value<String> id,
+  Value<String> tenantId,
+  Value<String> branchId,
+  Value<String> tableNumber,
+  Value<String?> name,
+  Value<String> section,
+  Value<int> seatingCapacity,
+  Value<String> status,
+  Value<int> currentGuestCount,
+  Value<DateTime?> occupiedAt,
+  Value<int> sortOrder,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
+
+class $$LocalRestaurantTablesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantTablesTable> {
+  $$LocalRestaurantTablesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tenantId => $composableBuilder(
+      column: $table.tenantId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+      column: $table.branchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tableNumber => $composableBuilder(
+      column: $table.tableNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get section => $composableBuilder(
+      column: $table.section, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get seatingCapacity => $composableBuilder(
+      column: $table.seatingCapacity,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get currentGuestCount => $composableBuilder(
+      column: $table.currentGuestCount,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get occupiedAt => $composableBuilder(
+      column: $table.occupiedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalRestaurantTablesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantTablesTable> {
+  $$LocalRestaurantTablesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tenantId => $composableBuilder(
+      column: $table.tenantId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+      column: $table.branchId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tableNumber => $composableBuilder(
+      column: $table.tableNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get section => $composableBuilder(
+      column: $table.section, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get seatingCapacity => $composableBuilder(
+      column: $table.seatingCapacity,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get currentGuestCount => $composableBuilder(
+      column: $table.currentGuestCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get occupiedAt => $composableBuilder(
+      column: $table.occupiedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalRestaurantTablesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantTablesTable> {
+  $$LocalRestaurantTablesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tenantId =>
+      $composableBuilder(column: $table.tenantId, builder: (column) => column);
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<String> get tableNumber => $composableBuilder(
+      column: $table.tableNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get section =>
+      $composableBuilder(column: $table.section, builder: (column) => column);
+
+  GeneratedColumn<int> get seatingCapacity => $composableBuilder(
+      column: $table.seatingCapacity, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get currentGuestCount => $composableBuilder(
+      column: $table.currentGuestCount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get occupiedAt => $composableBuilder(
+      column: $table.occupiedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$LocalRestaurantTablesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalRestaurantTablesTable,
+    LocalRestaurantTable,
+    $$LocalRestaurantTablesTableFilterComposer,
+    $$LocalRestaurantTablesTableOrderingComposer,
+    $$LocalRestaurantTablesTableAnnotationComposer,
+    $$LocalRestaurantTablesTableCreateCompanionBuilder,
+    $$LocalRestaurantTablesTableUpdateCompanionBuilder,
+    (
+      LocalRestaurantTable,
+      BaseReferences<_$AppDatabase, $LocalRestaurantTablesTable,
+          LocalRestaurantTable>
+    ),
+    LocalRestaurantTable,
+    PrefetchHooks Function()> {
+  $$LocalRestaurantTablesTableTableManager(
+      _$AppDatabase db, $LocalRestaurantTablesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRestaurantTablesTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRestaurantTablesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRestaurantTablesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tenantId = const Value.absent(),
+            Value<String> branchId = const Value.absent(),
+            Value<String> tableNumber = const Value.absent(),
+            Value<String?> name = const Value.absent(),
+            Value<String> section = const Value.absent(),
+            Value<int> seatingCapacity = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> currentGuestCount = const Value.absent(),
+            Value<DateTime?> occupiedAt = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRestaurantTablesCompanion(
+            id: id,
+            tenantId: tenantId,
+            branchId: branchId,
+            tableNumber: tableNumber,
+            name: name,
+            section: section,
+            seatingCapacity: seatingCapacity,
+            status: status,
+            currentGuestCount: currentGuestCount,
+            occupiedAt: occupiedAt,
+            sortOrder: sortOrder,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tenantId,
+            required String branchId,
+            required String tableNumber,
+            Value<String?> name = const Value.absent(),
+            Value<String> section = const Value.absent(),
+            Value<int> seatingCapacity = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> currentGuestCount = const Value.absent(),
+            Value<DateTime?> occupiedAt = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRestaurantTablesCompanion.insert(
+            id: id,
+            tenantId: tenantId,
+            branchId: branchId,
+            tableNumber: tableNumber,
+            name: name,
+            section: section,
+            seatingCapacity: seatingCapacity,
+            status: status,
+            currentGuestCount: currentGuestCount,
+            occupiedAt: occupiedAt,
+            sortOrder: sortOrder,
+            updatedAt: updatedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalRestaurantTablesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $LocalRestaurantTablesTable,
+        LocalRestaurantTable,
+        $$LocalRestaurantTablesTableFilterComposer,
+        $$LocalRestaurantTablesTableOrderingComposer,
+        $$LocalRestaurantTablesTableAnnotationComposer,
+        $$LocalRestaurantTablesTableCreateCompanionBuilder,
+        $$LocalRestaurantTablesTableUpdateCompanionBuilder,
+        (
+          LocalRestaurantTable,
+          BaseReferences<_$AppDatabase, $LocalRestaurantTablesTable,
+              LocalRestaurantTable>
+        ),
+        LocalRestaurantTable,
+        PrefetchHooks Function()>;
+typedef $$LocalRestaurantOrdersTableCreateCompanionBuilder
+    = LocalRestaurantOrdersCompanion Function({
+  required String id,
+  required String tenantId,
+  required String branchId,
+  required String orderNumber,
+  Value<String> orderType,
+  Value<String?> tableId,
+  Value<String?> tableNumberSnapshot,
+  Value<String?> sectionSnapshot,
+  Value<int> guestCount,
+  Value<String?> customerId,
+  Value<String> status,
+  Value<int> subtotalPaisa,
+  Value<int> taxTotalPaisa,
+  Value<int> discountTotalPaisa,
+  Value<int> grandTotalPaisa,
+  Value<String?> captainNameSnapshot,
+  Value<String?> notes,
+  Value<String?> invoiceId,
+  Value<DateTime> openedAt,
+  Value<DateTime?> closedAt,
+  Value<int> rowid,
+});
+typedef $$LocalRestaurantOrdersTableUpdateCompanionBuilder
+    = LocalRestaurantOrdersCompanion Function({
+  Value<String> id,
+  Value<String> tenantId,
+  Value<String> branchId,
+  Value<String> orderNumber,
+  Value<String> orderType,
+  Value<String?> tableId,
+  Value<String?> tableNumberSnapshot,
+  Value<String?> sectionSnapshot,
+  Value<int> guestCount,
+  Value<String?> customerId,
+  Value<String> status,
+  Value<int> subtotalPaisa,
+  Value<int> taxTotalPaisa,
+  Value<int> discountTotalPaisa,
+  Value<int> grandTotalPaisa,
+  Value<String?> captainNameSnapshot,
+  Value<String?> notes,
+  Value<String?> invoiceId,
+  Value<DateTime> openedAt,
+  Value<DateTime?> closedAt,
+  Value<int> rowid,
+});
+
+class $$LocalRestaurantOrdersTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantOrdersTable> {
+  $$LocalRestaurantOrdersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tenantId => $composableBuilder(
+      column: $table.tenantId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get branchId => $composableBuilder(
+      column: $table.branchId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get orderNumber => $composableBuilder(
+      column: $table.orderNumber, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get orderType => $composableBuilder(
+      column: $table.orderType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tableId => $composableBuilder(
+      column: $table.tableId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tableNumberSnapshot => $composableBuilder(
+      column: $table.tableNumberSnapshot,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get sectionSnapshot => $composableBuilder(
+      column: $table.sectionSnapshot,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get guestCount => $composableBuilder(
+      column: $table.guestCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get subtotalPaisa => $composableBuilder(
+      column: $table.subtotalPaisa, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get taxTotalPaisa => $composableBuilder(
+      column: $table.taxTotalPaisa, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get discountTotalPaisa => $composableBuilder(
+      column: $table.discountTotalPaisa,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get grandTotalPaisa => $composableBuilder(
+      column: $table.grandTotalPaisa,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get captainNameSnapshot => $composableBuilder(
+      column: $table.captainNameSnapshot,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get invoiceId => $composableBuilder(
+      column: $table.invoiceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get openedAt => $composableBuilder(
+      column: $table.openedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get closedAt => $composableBuilder(
+      column: $table.closedAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalRestaurantOrdersTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantOrdersTable> {
+  $$LocalRestaurantOrdersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tenantId => $composableBuilder(
+      column: $table.tenantId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get branchId => $composableBuilder(
+      column: $table.branchId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get orderNumber => $composableBuilder(
+      column: $table.orderNumber, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get orderType => $composableBuilder(
+      column: $table.orderType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tableId => $composableBuilder(
+      column: $table.tableId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tableNumberSnapshot => $composableBuilder(
+      column: $table.tableNumberSnapshot,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get sectionSnapshot => $composableBuilder(
+      column: $table.sectionSnapshot,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get guestCount => $composableBuilder(
+      column: $table.guestCount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get subtotalPaisa => $composableBuilder(
+      column: $table.subtotalPaisa,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get taxTotalPaisa => $composableBuilder(
+      column: $table.taxTotalPaisa,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get discountTotalPaisa => $composableBuilder(
+      column: $table.discountTotalPaisa,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get grandTotalPaisa => $composableBuilder(
+      column: $table.grandTotalPaisa,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get captainNameSnapshot => $composableBuilder(
+      column: $table.captainNameSnapshot,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get invoiceId => $composableBuilder(
+      column: $table.invoiceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get openedAt => $composableBuilder(
+      column: $table.openedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get closedAt => $composableBuilder(
+      column: $table.closedAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalRestaurantOrdersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantOrdersTable> {
+  $$LocalRestaurantOrdersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tenantId =>
+      $composableBuilder(column: $table.tenantId, builder: (column) => column);
+
+  GeneratedColumn<String> get branchId =>
+      $composableBuilder(column: $table.branchId, builder: (column) => column);
+
+  GeneratedColumn<String> get orderNumber => $composableBuilder(
+      column: $table.orderNumber, builder: (column) => column);
+
+  GeneratedColumn<String> get orderType =>
+      $composableBuilder(column: $table.orderType, builder: (column) => column);
+
+  GeneratedColumn<String> get tableId =>
+      $composableBuilder(column: $table.tableId, builder: (column) => column);
+
+  GeneratedColumn<String> get tableNumberSnapshot => $composableBuilder(
+      column: $table.tableNumberSnapshot, builder: (column) => column);
+
+  GeneratedColumn<String> get sectionSnapshot => $composableBuilder(
+      column: $table.sectionSnapshot, builder: (column) => column);
+
+  GeneratedColumn<int> get guestCount => $composableBuilder(
+      column: $table.guestCount, builder: (column) => column);
+
+  GeneratedColumn<String> get customerId => $composableBuilder(
+      column: $table.customerId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get subtotalPaisa => $composableBuilder(
+      column: $table.subtotalPaisa, builder: (column) => column);
+
+  GeneratedColumn<int> get taxTotalPaisa => $composableBuilder(
+      column: $table.taxTotalPaisa, builder: (column) => column);
+
+  GeneratedColumn<int> get discountTotalPaisa => $composableBuilder(
+      column: $table.discountTotalPaisa, builder: (column) => column);
+
+  GeneratedColumn<int> get grandTotalPaisa => $composableBuilder(
+      column: $table.grandTotalPaisa, builder: (column) => column);
+
+  GeneratedColumn<String> get captainNameSnapshot => $composableBuilder(
+      column: $table.captainNameSnapshot, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get invoiceId =>
+      $composableBuilder(column: $table.invoiceId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get openedAt =>
+      $composableBuilder(column: $table.openedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get closedAt =>
+      $composableBuilder(column: $table.closedAt, builder: (column) => column);
+}
+
+class $$LocalRestaurantOrdersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalRestaurantOrdersTable,
+    LocalRestaurantOrder,
+    $$LocalRestaurantOrdersTableFilterComposer,
+    $$LocalRestaurantOrdersTableOrderingComposer,
+    $$LocalRestaurantOrdersTableAnnotationComposer,
+    $$LocalRestaurantOrdersTableCreateCompanionBuilder,
+    $$LocalRestaurantOrdersTableUpdateCompanionBuilder,
+    (
+      LocalRestaurantOrder,
+      BaseReferences<_$AppDatabase, $LocalRestaurantOrdersTable,
+          LocalRestaurantOrder>
+    ),
+    LocalRestaurantOrder,
+    PrefetchHooks Function()> {
+  $$LocalRestaurantOrdersTableTableManager(
+      _$AppDatabase db, $LocalRestaurantOrdersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRestaurantOrdersTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRestaurantOrdersTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRestaurantOrdersTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tenantId = const Value.absent(),
+            Value<String> branchId = const Value.absent(),
+            Value<String> orderNumber = const Value.absent(),
+            Value<String> orderType = const Value.absent(),
+            Value<String?> tableId = const Value.absent(),
+            Value<String?> tableNumberSnapshot = const Value.absent(),
+            Value<String?> sectionSnapshot = const Value.absent(),
+            Value<int> guestCount = const Value.absent(),
+            Value<String?> customerId = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> subtotalPaisa = const Value.absent(),
+            Value<int> taxTotalPaisa = const Value.absent(),
+            Value<int> discountTotalPaisa = const Value.absent(),
+            Value<int> grandTotalPaisa = const Value.absent(),
+            Value<String?> captainNameSnapshot = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<String?> invoiceId = const Value.absent(),
+            Value<DateTime> openedAt = const Value.absent(),
+            Value<DateTime?> closedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRestaurantOrdersCompanion(
+            id: id,
+            tenantId: tenantId,
+            branchId: branchId,
+            orderNumber: orderNumber,
+            orderType: orderType,
+            tableId: tableId,
+            tableNumberSnapshot: tableNumberSnapshot,
+            sectionSnapshot: sectionSnapshot,
+            guestCount: guestCount,
+            customerId: customerId,
+            status: status,
+            subtotalPaisa: subtotalPaisa,
+            taxTotalPaisa: taxTotalPaisa,
+            discountTotalPaisa: discountTotalPaisa,
+            grandTotalPaisa: grandTotalPaisa,
+            captainNameSnapshot: captainNameSnapshot,
+            notes: notes,
+            invoiceId: invoiceId,
+            openedAt: openedAt,
+            closedAt: closedAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tenantId,
+            required String branchId,
+            required String orderNumber,
+            Value<String> orderType = const Value.absent(),
+            Value<String?> tableId = const Value.absent(),
+            Value<String?> tableNumberSnapshot = const Value.absent(),
+            Value<String?> sectionSnapshot = const Value.absent(),
+            Value<int> guestCount = const Value.absent(),
+            Value<String?> customerId = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> subtotalPaisa = const Value.absent(),
+            Value<int> taxTotalPaisa = const Value.absent(),
+            Value<int> discountTotalPaisa = const Value.absent(),
+            Value<int> grandTotalPaisa = const Value.absent(),
+            Value<String?> captainNameSnapshot = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<String?> invoiceId = const Value.absent(),
+            Value<DateTime> openedAt = const Value.absent(),
+            Value<DateTime?> closedAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRestaurantOrdersCompanion.insert(
+            id: id,
+            tenantId: tenantId,
+            branchId: branchId,
+            orderNumber: orderNumber,
+            orderType: orderType,
+            tableId: tableId,
+            tableNumberSnapshot: tableNumberSnapshot,
+            sectionSnapshot: sectionSnapshot,
+            guestCount: guestCount,
+            customerId: customerId,
+            status: status,
+            subtotalPaisa: subtotalPaisa,
+            taxTotalPaisa: taxTotalPaisa,
+            discountTotalPaisa: discountTotalPaisa,
+            grandTotalPaisa: grandTotalPaisa,
+            captainNameSnapshot: captainNameSnapshot,
+            notes: notes,
+            invoiceId: invoiceId,
+            openedAt: openedAt,
+            closedAt: closedAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalRestaurantOrdersTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $LocalRestaurantOrdersTable,
+        LocalRestaurantOrder,
+        $$LocalRestaurantOrdersTableFilterComposer,
+        $$LocalRestaurantOrdersTableOrderingComposer,
+        $$LocalRestaurantOrdersTableAnnotationComposer,
+        $$LocalRestaurantOrdersTableCreateCompanionBuilder,
+        $$LocalRestaurantOrdersTableUpdateCompanionBuilder,
+        (
+          LocalRestaurantOrder,
+          BaseReferences<_$AppDatabase, $LocalRestaurantOrdersTable,
+              LocalRestaurantOrder>
+        ),
+        LocalRestaurantOrder,
+        PrefetchHooks Function()>;
+typedef $$LocalRestaurantKotLinesTableCreateCompanionBuilder
+    = LocalRestaurantKotLinesCompanion Function({
+  required String id,
+  required String tenantId,
+  required String orderId,
+  Value<String?> kotId,
+  required String productId,
+  required String productName,
+  Value<double> quantity,
+  Value<int> unitPricePaisa,
+  Value<int> totalPaisa,
+  Value<String> kitchenStation,
+  Value<String?> specialInstructions,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+typedef $$LocalRestaurantKotLinesTableUpdateCompanionBuilder
+    = LocalRestaurantKotLinesCompanion Function({
+  Value<String> id,
+  Value<String> tenantId,
+  Value<String> orderId,
+  Value<String?> kotId,
+  Value<String> productId,
+  Value<String> productName,
+  Value<double> quantity,
+  Value<int> unitPricePaisa,
+  Value<int> totalPaisa,
+  Value<String> kitchenStation,
+  Value<String?> specialInstructions,
+  Value<String> status,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$LocalRestaurantKotLinesTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantKotLinesTable> {
+  $$LocalRestaurantKotLinesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get tenantId => $composableBuilder(
+      column: $table.tenantId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get orderId => $composableBuilder(
+      column: $table.orderId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kotId => $composableBuilder(
+      column: $table.kotId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get productId => $composableBuilder(
+      column: $table.productId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get productName => $composableBuilder(
+      column: $table.productName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get unitPricePaisa => $composableBuilder(
+      column: $table.unitPricePaisa,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get totalPaisa => $composableBuilder(
+      column: $table.totalPaisa, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kitchenStation => $composableBuilder(
+      column: $table.kitchenStation,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get specialInstructions => $composableBuilder(
+      column: $table.specialInstructions,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$LocalRestaurantKotLinesTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantKotLinesTable> {
+  $$LocalRestaurantKotLinesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get tenantId => $composableBuilder(
+      column: $table.tenantId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get orderId => $composableBuilder(
+      column: $table.orderId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kotId => $composableBuilder(
+      column: $table.kotId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get productId => $composableBuilder(
+      column: $table.productId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get productName => $composableBuilder(
+      column: $table.productName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get unitPricePaisa => $composableBuilder(
+      column: $table.unitPricePaisa,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get totalPaisa => $composableBuilder(
+      column: $table.totalPaisa, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kitchenStation => $composableBuilder(
+      column: $table.kitchenStation,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get specialInstructions => $composableBuilder(
+      column: $table.specialInstructions,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$LocalRestaurantKotLinesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalRestaurantKotLinesTable> {
+  $$LocalRestaurantKotLinesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get tenantId =>
+      $composableBuilder(column: $table.tenantId, builder: (column) => column);
+
+  GeneratedColumn<String> get orderId =>
+      $composableBuilder(column: $table.orderId, builder: (column) => column);
+
+  GeneratedColumn<String> get kotId =>
+      $composableBuilder(column: $table.kotId, builder: (column) => column);
+
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get productName => $composableBuilder(
+      column: $table.productName, builder: (column) => column);
+
+  GeneratedColumn<double> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<int> get unitPricePaisa => $composableBuilder(
+      column: $table.unitPricePaisa, builder: (column) => column);
+
+  GeneratedColumn<int> get totalPaisa => $composableBuilder(
+      column: $table.totalPaisa, builder: (column) => column);
+
+  GeneratedColumn<String> get kitchenStation => $composableBuilder(
+      column: $table.kitchenStation, builder: (column) => column);
+
+  GeneratedColumn<String> get specialInstructions => $composableBuilder(
+      column: $table.specialInstructions, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$LocalRestaurantKotLinesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $LocalRestaurantKotLinesTable,
+    LocalRestaurantKotLine,
+    $$LocalRestaurantKotLinesTableFilterComposer,
+    $$LocalRestaurantKotLinesTableOrderingComposer,
+    $$LocalRestaurantKotLinesTableAnnotationComposer,
+    $$LocalRestaurantKotLinesTableCreateCompanionBuilder,
+    $$LocalRestaurantKotLinesTableUpdateCompanionBuilder,
+    (
+      LocalRestaurantKotLine,
+      BaseReferences<_$AppDatabase, $LocalRestaurantKotLinesTable,
+          LocalRestaurantKotLine>
+    ),
+    LocalRestaurantKotLine,
+    PrefetchHooks Function()> {
+  $$LocalRestaurantKotLinesTableTableManager(
+      _$AppDatabase db, $LocalRestaurantKotLinesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalRestaurantKotLinesTableFilterComposer(
+                  $db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalRestaurantKotLinesTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalRestaurantKotLinesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tenantId = const Value.absent(),
+            Value<String> orderId = const Value.absent(),
+            Value<String?> kotId = const Value.absent(),
+            Value<String> productId = const Value.absent(),
+            Value<String> productName = const Value.absent(),
+            Value<double> quantity = const Value.absent(),
+            Value<int> unitPricePaisa = const Value.absent(),
+            Value<int> totalPaisa = const Value.absent(),
+            Value<String> kitchenStation = const Value.absent(),
+            Value<String?> specialInstructions = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRestaurantKotLinesCompanion(
+            id: id,
+            tenantId: tenantId,
+            orderId: orderId,
+            kotId: kotId,
+            productId: productId,
+            productName: productName,
+            quantity: quantity,
+            unitPricePaisa: unitPricePaisa,
+            totalPaisa: totalPaisa,
+            kitchenStation: kitchenStation,
+            specialInstructions: specialInstructions,
+            status: status,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tenantId,
+            required String orderId,
+            Value<String?> kotId = const Value.absent(),
+            required String productId,
+            required String productName,
+            Value<double> quantity = const Value.absent(),
+            Value<int> unitPricePaisa = const Value.absent(),
+            Value<int> totalPaisa = const Value.absent(),
+            Value<String> kitchenStation = const Value.absent(),
+            Value<String?> specialInstructions = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              LocalRestaurantKotLinesCompanion.insert(
+            id: id,
+            tenantId: tenantId,
+            orderId: orderId,
+            kotId: kotId,
+            productId: productId,
+            productName: productName,
+            quantity: quantity,
+            unitPricePaisa: unitPricePaisa,
+            totalPaisa: totalPaisa,
+            kitchenStation: kitchenStation,
+            specialInstructions: specialInstructions,
+            status: status,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$LocalRestaurantKotLinesTableProcessedTableManager
+    = ProcessedTableManager<
+        _$AppDatabase,
+        $LocalRestaurantKotLinesTable,
+        LocalRestaurantKotLine,
+        $$LocalRestaurantKotLinesTableFilterComposer,
+        $$LocalRestaurantKotLinesTableOrderingComposer,
+        $$LocalRestaurantKotLinesTableAnnotationComposer,
+        $$LocalRestaurantKotLinesTableCreateCompanionBuilder,
+        $$LocalRestaurantKotLinesTableUpdateCompanionBuilder,
+        (
+          LocalRestaurantKotLine,
+          BaseReferences<_$AppDatabase, $LocalRestaurantKotLinesTable,
+              LocalRestaurantKotLine>
+        ),
+        LocalRestaurantKotLine,
+        PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5410,4 +8636,11 @@ class $AppDatabaseManager {
       $$LocalStockMovementsTableTableManager(_db, _db.localStockMovements);
   $$SyncOutboxTableTableManager get syncOutbox =>
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
+  $$LocalRestaurantTablesTableTableManager get localRestaurantTables =>
+      $$LocalRestaurantTablesTableTableManager(_db, _db.localRestaurantTables);
+  $$LocalRestaurantOrdersTableTableManager get localRestaurantOrders =>
+      $$LocalRestaurantOrdersTableTableManager(_db, _db.localRestaurantOrders);
+  $$LocalRestaurantKotLinesTableTableManager get localRestaurantKotLines =>
+      $$LocalRestaurantKotLinesTableTableManager(
+          _db, _db.localRestaurantKotLines);
 }

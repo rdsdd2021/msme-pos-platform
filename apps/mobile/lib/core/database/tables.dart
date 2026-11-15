@@ -119,3 +119,69 @@ class SyncOutbox extends Table {
   Set<Column> get primaryKey => {operationId};
 }
 
+// --- Local Restaurant & Dining Tables ---
+
+class LocalRestaurantTables extends Table {
+  TextColumn get id => text()();
+  TextColumn get tenantId => text()();
+  TextColumn get branchId => text()();
+  TextColumn get tableNumber => text()();
+  TextColumn get name => text().nullable()();
+  TextColumn get section => text().withDefault(const Constant('Main Dining'))();
+  IntColumn get seatingCapacity => integer().withDefault(const Constant(4))();
+  TextColumn get status => text().withDefault(const Constant('vacant'))(); // vacant, seated, ordered, billed, dirty
+  IntColumn get currentGuestCount => integer().withDefault(const Constant(0))();
+  DateTimeColumn get occupiedAt => dateTime().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class LocalRestaurantOrders extends Table {
+  TextColumn get id => text()();
+  TextColumn get tenantId => text()();
+  TextColumn get branchId => text()();
+  TextColumn get orderNumber => text()();
+  TextColumn get orderType => text().withDefault(const Constant('dine_in'))(); // dine_in, takeaway, delivery
+  TextColumn get tableId => text().nullable()();
+  TextColumn get tableNumberSnapshot => text().nullable()();
+  TextColumn get sectionSnapshot => text().nullable()();
+  IntColumn get guestCount => integer().withDefault(const Constant(1))();
+  TextColumn get customerId => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('open'))(); // open, billed, completed, cancelled
+  IntColumn get subtotalPaisa => integer().withDefault(const Constant(0))();
+  IntColumn get taxTotalPaisa => integer().withDefault(const Constant(0))();
+  IntColumn get discountTotalPaisa => integer().withDefault(const Constant(0))();
+  IntColumn get grandTotalPaisa => integer().withDefault(const Constant(0))();
+  TextColumn get captainNameSnapshot => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  TextColumn get invoiceId => text().nullable()();
+  DateTimeColumn get openedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get closedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class LocalRestaurantKotLines extends Table {
+  TextColumn get id => text()();
+  TextColumn get tenantId => text()();
+  TextColumn get orderId => text()();
+  TextColumn get kotId => text().nullable()();
+  TextColumn get productId => text()();
+  TextColumn get productName => text()();
+  RealColumn get quantity => real().withDefault(const Constant(1.0))();
+  IntColumn get unitPricePaisa => integer().withDefault(const Constant(0))();
+  IntColumn get totalPaisa => integer().withDefault(const Constant(0))();
+  TextColumn get kitchenStation => text().withDefault(const Constant('main_kitchen'))();
+  TextColumn get specialInstructions => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('pending'))(); // pending, preparing, ready, served
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+
