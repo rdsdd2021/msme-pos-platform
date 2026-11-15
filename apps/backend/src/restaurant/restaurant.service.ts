@@ -686,7 +686,23 @@ export class RestaurantService {
       await this.kotLineRepo.save(kot.lines);
     }
 
-    return this.kotRepo.save(kot);
+    const savedKot = await this.kotRepo.save(kot);
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        {
+          action: 'KOT_STATUS_CHANGED',
+          kotId: savedKot.id,
+          orderId: savedKot.orderId,
+          status: savedKot.status,
+        },
+        branchId,
+      );
+    }
+
+    return savedKot;
   }
 
   // =========================================================================
@@ -742,6 +758,19 @@ export class RestaurantService {
 
       const savedSource = await manager.save(source);
       const savedTarget = await manager.save(target);
+
+      if (this.realtimeService) {
+        this.realtimeService.emit(
+          tenantId,
+          'RESTAURANT_TABLE_CHANGED',
+          {
+            action: 'TRANSFER_TABLE',
+            sourceTableId: savedSource.id,
+            targetTableId: savedTarget.id,
+          },
+          branchId,
+        );
+      }
 
       return { sourceTable: savedSource, targetTable: savedTarget };
     });

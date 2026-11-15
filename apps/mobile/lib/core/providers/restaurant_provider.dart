@@ -294,16 +294,36 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         parsedStatus = TableStatus.vacant;
       }
 
-      var activeLines = existing?.activeOrderLines ?? [];
-      if (activeLines.isEmpty && (parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed)) {
+      List<CartItem> activeLines;
+      int confirmedCount;
+
+      if (parsedStatus == TableStatus.vacant || parsedStatus == TableStatus.dirty) {
+        // Table is vacant or dirty: completely reset active lines and confirmed count
+        activeLines = const [];
+        confirmedCount = 0;
+      } else {
+        // Query committed lines from local SQLite (populated by sync pull or local KOT outbox)
         final dbLines = await _repo?.getTableActiveCartItems(tblId) ?? [];
         if (dbLines.isNotEmpty) {
           activeLines = dbLines;
+          confirmedCount = dbLines.fold<int>(0, (sum, i) => sum + i.quantity);
+
+          // If waiter has uncommitted local draft items added in-memory, preserve the delta
+          if (existing != null && existing.hasNewItems) {
+            final committedIds = {for (final l in dbLines) l.product.id};
+            for (final localLine in existing.activeOrderLines) {
+              if (!committedIds.contains(localLine.product.id)) {
+                activeLines = [...activeLines, localLine];
+              }
+            }
+          }
+        } else {
+          activeLines = existing?.activeOrderLines ?? [];
+          final isFired = parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed;
+          confirmedCount = existing?.confirmedItemCount ??
+              (isFired ? activeLines.fold<int>(0, (sum, i) => sum + i.quantity) : 0);
         }
       }
-
-      final isFired = parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed;
-      final int existingConfirmed = existing?.confirmedItemCount ?? (isFired ? activeLines.fold<int>(0, (sum, i) => sum + i.quantity) : 0);
 
       merged.add(
         RestaurantTable(
@@ -314,7 +334,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           currentGuestCount: tbl.currentGuestCount > 0 ? tbl.currentGuestCount : (existing?.currentGuestCount ?? 2),
           status: parsedStatus,
           activeOrderLines: activeLines,
-          confirmedItemCount: existingConfirmed,
+          confirmedItemCount: confirmedCount,
           seatedAt: tbl.occupiedAt ?? existing?.seatedAt,
           captainNotes: existing?.captainNotes,
         ),

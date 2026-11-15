@@ -219,6 +219,20 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     }
   }
 
+  void _handlePrintBillReceiptOnly(RestaurantTable currentTable) {
+    final billDoc = _buildPreBillReceiptDocument(currentTable);
+    ref.read(printerProvider.notifier).printReceipt(billDoc);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bill receipt printed for ${currentTable.name}!'),
+          backgroundColor: ShadcnColors.primary,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Future<void> _handlePrintKot(RestaurantTable currentTable) async {
     await _handleConfirmOrder(currentTable);
   }
@@ -950,6 +964,14 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                       size: ShadcnButtonSize.sm,
                       onPressed: () => _handleConfirmOrder(currentTable),
                     )
+                  else if (currentTable.status == TableStatus.billed)
+                    ShadcnButton(
+                      key: const Key('quick_settle_bill_btn'),
+                      text: 'Settle Bill',
+                      leadingIcon: const Icon(Icons.check_circle_outline, size: 16),
+                      size: ShadcnButtonSize.sm,
+                      onPressed: () => _showSettlementModal(currentTable),
+                    )
                   else
                     ShadcnButton(
                       key: const Key('quick_print_bill_btn'),
@@ -1264,28 +1286,48 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                             leadingIcon: const Icon(Icons.local_fire_department, size: 16),
                             onPressed: () => _handleConfirmOrder(currentTable),
                           )
-                        : ShadcnButton(
-                            key: const Key('settle_table_btn'),
-                            text: 'Print Bill',
-                            variant: ShadcnButtonVariant.primary,
-                            leadingIcon: const Icon(Icons.receipt_long, size: 16),
-                            onPressed: currentTable.activeOrderLines.isEmpty
-                                ? null
-                                : () => _handlePrintBillAndSettle(currentTable),
-                          ),
+                        : currentTable.status == TableStatus.billed
+                            ? ShadcnButton(
+                                key: const Key('settle_table_btn'),
+                                text: 'Settle Bill',
+                                variant: ShadcnButtonVariant.primary,
+                                leadingIcon: const Icon(Icons.check_circle_outline, size: 16),
+                                onPressed: currentTable.activeOrderLines.isEmpty
+                                    ? null
+                                    : () => _showSettlementModal(currentTable),
+                              )
+                            : ShadcnButton(
+                                key: const Key('settle_table_btn'),
+                                text: 'Print Bill',
+                                variant: ShadcnButtonVariant.primary,
+                                leadingIcon: const Icon(Icons.receipt_long, size: 16),
+                                onPressed: currentTable.activeOrderLines.isEmpty
+                                    ? null
+                                    : () => _handlePrintBillAndSettle(currentTable),
+                              ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     flex: 4,
-                    child: ShadcnButton(
-                      key: const Key('print_kot_btn'),
-                      text: 'KOT Slip',
-                      variant: ShadcnButtonVariant.outline,
-                      leadingIcon: const Icon(Icons.print, size: 14),
-                      onPressed: currentTable.activeOrderLines.isEmpty
-                          ? null
-                          : () => _handlePrintKotOnly(currentTable),
-                    ),
+                    child: currentTable.status == TableStatus.billed
+                        ? ShadcnButton(
+                            key: const Key('reprint_bill_btn'),
+                            text: 'Re-Print Bill',
+                            variant: ShadcnButtonVariant.outline,
+                            leadingIcon: const Icon(Icons.receipt, size: 14),
+                            onPressed: currentTable.activeOrderLines.isEmpty
+                                ? null
+                                : () => _handlePrintBillReceiptOnly(currentTable),
+                          )
+                        : ShadcnButton(
+                            key: const Key('print_kot_btn'),
+                            text: 'KOT Slip',
+                            variant: ShadcnButtonVariant.outline,
+                            leadingIcon: const Icon(Icons.print, size: 14),
+                            onPressed: currentTable.activeOrderLines.isEmpty
+                                ? null
+                                : () => _handlePrintKotOnly(currentTable),
+                          ),
                   ),
                 ],
               ),
