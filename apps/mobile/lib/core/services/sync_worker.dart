@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../database/app_database.dart';
@@ -211,6 +212,12 @@ class SyncWorker {
               unit: Value(p['unit'] as String? ?? 'PCS'),
               stockQuantity: Value(double.tryParse(stockQty.toString()) ?? 0.0),
               imageUrl: Value(img),
+              foodType: Value(p['foodType'] as String?),
+              kitchenStation: Value(p['kitchenStation'] as String?),
+              prepTimeMinutes: Value(p['prepTimeMinutes'] != null ? int.tryParse(p['prepTimeMinutes'].toString()) : null),
+              isAvailable: Value(p['isAvailable'] as bool? ?? true),
+              isMadeToOrder: Value(p['isMadeToOrder'] as bool? ?? false),
+              variantsJson: Value(p['variants'] != null ? jsonEncode(p['variants']) : null),
               updatedAt: Value(DateTime.tryParse(p['updatedAt']?.toString() ?? '') ?? DateTime.now()),
             ),
           );

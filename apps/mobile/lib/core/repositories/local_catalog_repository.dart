@@ -12,6 +12,19 @@ class LocalCatalogRepository {
   LocalCatalogRepository(this._db);
 
   Product _mapToModel(LocalProduct row) {
+    List<ProductVariant>? variants;
+    if (row.variantsJson != null && row.variantsJson!.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(row.variantsJson!) as List<dynamic>;
+        variants = decoded
+            .map((v) => ProductVariant(
+                  name: v['name'] as String? ?? 'Standard',
+                  price: (double.tryParse(v['price']?.toString() ?? '0') ?? 0.0),
+                ))
+            .toList();
+      } catch (_) {}
+    }
+
     return Product(
       id: row.id,
       name: row.name,
@@ -25,6 +38,12 @@ class LocalCatalogRepository {
       currentStock: row.stockQuantity,
       hsnCode: row.hsnCode,
       imageUrl: row.imageUrl,
+      foodType: row.foodType,
+      kitchenStation: row.kitchenStation,
+      prepTimeMinutes: row.prepTimeMinutes,
+      isAvailable: row.isAvailable,
+      isMadeToOrder: row.isMadeToOrder,
+      variants: variants,
     );
   }
 
@@ -121,6 +140,7 @@ class LocalCatalogRepository {
     int? prepTimeMinutes,
     bool isAvailable = true,
     bool isMadeToOrder = false,
+    List<ProductVariant>? variants,
     String tenantId = 'tenant-1',
     String? deviceId,
   }) async {
@@ -147,6 +167,14 @@ class LocalCatalogRepository {
           unit: Value(unit),
           stockQuantity: Value(initialStock),
           imageUrl: Value(imageUrl),
+          foodType: Value(foodType),
+          kitchenStation: Value(kitchenStation),
+          prepTimeMinutes: Value(prepTimeMinutes),
+          isAvailable: Value(isAvailable),
+          isMadeToOrder: Value(isMadeToOrder),
+          variantsJson: Value(variants != null && variants.isNotEmpty
+              ? jsonEncode(variants.map((v) => {'name': v.name, 'price': v.price}).toList())
+              : null),
           updatedAt: Value(now),
         ),
       );
@@ -192,6 +220,7 @@ class LocalCatalogRepository {
             'prepTimeMinutes': prepTimeMinutes,
             'isAvailable': isAvailable,
             'isMadeToOrder': isMadeToOrder,
+            'variants': variants?.map((v) => {'name': v.name, 'price': v.price}).toList(),
           }),
           status: const Value('pending'),
           retryCount: const Value(0),
@@ -218,6 +247,7 @@ class LocalCatalogRepository {
       prepTimeMinutes: prepTimeMinutes,
       isAvailable: isAvailable,
       isMadeToOrder: isMadeToOrder,
+      variants: variants,
     );
   }
 
@@ -239,6 +269,14 @@ class LocalCatalogRepository {
         gstRatePercent: Value(product.gstRate.toDouble()),
         hsnCode: Value(product.hsnCode?.trim()),
         imageUrl: Value(product.imageUrl),
+        foodType: Value(product.foodType),
+        kitchenStation: Value(product.kitchenStation),
+        prepTimeMinutes: Value(product.prepTimeMinutes),
+        isAvailable: Value(product.isAvailable),
+        isMadeToOrder: Value(product.isMadeToOrder),
+        variantsJson: Value(product.variants != null && product.variants!.isNotEmpty
+            ? jsonEncode(product.variants!.map((v) => {'name': v.name, 'price': v.price}).toList())
+            : null),
         updatedAt: Value(now),
       ),
     );
@@ -268,6 +306,7 @@ class LocalCatalogRepository {
           'prepTimeMinutes': product.prepTimeMinutes,
           'isAvailable': product.isAvailable,
           'isMadeToOrder': product.isMadeToOrder,
+          'variants': product.variants?.map((v) => {'name': v.name, 'price': v.price}).toList(),
         }),
         status: const Value('pending'),
         retryCount: const Value(0),

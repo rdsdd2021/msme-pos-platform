@@ -1,3 +1,25 @@
+class ProductVariant {
+  final String name; // e.g. 'Half', 'Full', 'Regular', 'Large'
+  final double price;
+
+  const ProductVariant({
+    required this.name,
+    required this.price,
+  });
+
+  int get pricePaisa => (price * 100).round();
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'price': price,
+      };
+
+  factory ProductVariant.fromJson(Map<String, dynamic> json) => ProductVariant(
+        name: json['name'] as String? ?? 'Standard',
+        price: (double.tryParse(json['price']?.toString() ?? '0') ?? 0.0),
+      );
+}
+
 class Product {
   final String id;
   final String name;
@@ -16,6 +38,7 @@ class Product {
   final int? prepTimeMinutes;
   final bool isAvailable;
   final bool isMadeToOrder;
+  final List<ProductVariant>? variants;
 
   const Product({
     required this.id,
@@ -35,7 +58,50 @@ class Product {
     this.prepTimeMinutes,
     this.isAvailable = true,
     this.isMadeToOrder = false,
+    this.variants,
   });
+
+  Product copyWith({
+    String? id,
+    String? name,
+    String? sku,
+    String? barcode,
+    String? category,
+    String? unit,
+    int? sellingPricePaisa,
+    int? purchaseCostPaisa,
+    int? gstRate,
+    double? currentStock,
+    String? hsnCode,
+    String? imageUrl,
+    String? foodType,
+    String? kitchenStation,
+    int? prepTimeMinutes,
+    bool? isAvailable,
+    bool? isMadeToOrder,
+    List<ProductVariant>? variants,
+  }) {
+    return Product(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      sku: sku ?? this.sku,
+      barcode: barcode ?? this.barcode,
+      category: category ?? this.category,
+      unit: unit ?? this.unit,
+      sellingPricePaisa: sellingPricePaisa ?? this.sellingPricePaisa,
+      purchaseCostPaisa: purchaseCostPaisa ?? this.purchaseCostPaisa,
+      gstRate: gstRate ?? this.gstRate,
+      currentStock: currentStock ?? this.currentStock,
+      hsnCode: hsnCode ?? this.hsnCode,
+      imageUrl: imageUrl ?? this.imageUrl,
+      foodType: foodType ?? this.foodType,
+      kitchenStation: kitchenStation ?? this.kitchenStation,
+      prepTimeMinutes: prepTimeMinutes ?? this.prepTimeMinutes,
+      isAvailable: isAvailable ?? this.isAvailable,
+      isMadeToOrder: isMadeToOrder ?? this.isMadeToOrder,
+      variants: variants ?? this.variants,
+    );
+  }
 
   double get sellingPriceRupees => sellingPricePaisa / 100.0;
   double get purchaseCostRupees => purchaseCostPaisa / 100.0;

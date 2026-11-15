@@ -99,6 +99,50 @@ class $LocalProductsTable extends LocalProducts
   late final GeneratedColumn<String> imageUrl = GeneratedColumn<String>(
       'image_url', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _foodTypeMeta =
+      const VerificationMeta('foodType');
+  @override
+  late final GeneratedColumn<String> foodType = GeneratedColumn<String>(
+      'food_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _kitchenStationMeta =
+      const VerificationMeta('kitchenStation');
+  @override
+  late final GeneratedColumn<String> kitchenStation = GeneratedColumn<String>(
+      'kitchen_station', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _prepTimeMinutesMeta =
+      const VerificationMeta('prepTimeMinutes');
+  @override
+  late final GeneratedColumn<int> prepTimeMinutes = GeneratedColumn<int>(
+      'prep_time_minutes', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _isAvailableMeta =
+      const VerificationMeta('isAvailable');
+  @override
+  late final GeneratedColumn<bool> isAvailable = GeneratedColumn<bool>(
+      'is_available', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_available" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _isMadeToOrderMeta =
+      const VerificationMeta('isMadeToOrder');
+  @override
+  late final GeneratedColumn<bool> isMadeToOrder = GeneratedColumn<bool>(
+      'is_made_to_order', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_made_to_order" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _variantsJsonMeta =
+      const VerificationMeta('variantsJson');
+  @override
+  late final GeneratedColumn<String> variantsJson = GeneratedColumn<String>(
+      'variants_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -123,6 +167,12 @@ class $LocalProductsTable extends LocalProducts
         unit,
         stockQuantity,
         imageUrl,
+        foodType,
+        kitchenStation,
+        prepTimeMinutes,
+        isAvailable,
+        isMadeToOrder,
+        variantsJson,
         updatedAt
       ];
   @override
@@ -210,6 +260,40 @@ class $LocalProductsTable extends LocalProducts
       context.handle(_imageUrlMeta,
           imageUrl.isAcceptableOrUnknown(data['image_url']!, _imageUrlMeta));
     }
+    if (data.containsKey('food_type')) {
+      context.handle(_foodTypeMeta,
+          foodType.isAcceptableOrUnknown(data['food_type']!, _foodTypeMeta));
+    }
+    if (data.containsKey('kitchen_station')) {
+      context.handle(
+          _kitchenStationMeta,
+          kitchenStation.isAcceptableOrUnknown(
+              data['kitchen_station']!, _kitchenStationMeta));
+    }
+    if (data.containsKey('prep_time_minutes')) {
+      context.handle(
+          _prepTimeMinutesMeta,
+          prepTimeMinutes.isAcceptableOrUnknown(
+              data['prep_time_minutes']!, _prepTimeMinutesMeta));
+    }
+    if (data.containsKey('is_available')) {
+      context.handle(
+          _isAvailableMeta,
+          isAvailable.isAcceptableOrUnknown(
+              data['is_available']!, _isAvailableMeta));
+    }
+    if (data.containsKey('is_made_to_order')) {
+      context.handle(
+          _isMadeToOrderMeta,
+          isMadeToOrder.isAcceptableOrUnknown(
+              data['is_made_to_order']!, _isMadeToOrderMeta));
+    }
+    if (data.containsKey('variants_json')) {
+      context.handle(
+          _variantsJsonMeta,
+          variantsJson.isAcceptableOrUnknown(
+              data['variants_json']!, _variantsJsonMeta));
+    }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
@@ -251,6 +335,18 @@ class $LocalProductsTable extends LocalProducts
           .read(DriftSqlType.double, data['${effectivePrefix}stock_quantity'])!,
       imageUrl: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}image_url']),
+      foodType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}food_type']),
+      kitchenStation: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kitchen_station']),
+      prepTimeMinutes: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}prep_time_minutes']),
+      isAvailable: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_available'])!,
+      isMadeToOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_made_to_order'])!,
+      variantsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}variants_json']),
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
     );
@@ -277,6 +373,12 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
   final String unit;
   final double stockQuantity;
   final String? imageUrl;
+  final String? foodType;
+  final String? kitchenStation;
+  final int? prepTimeMinutes;
+  final bool isAvailable;
+  final bool isMadeToOrder;
+  final String? variantsJson;
   final DateTime updatedAt;
   const LocalProduct(
       {required this.id,
@@ -293,6 +395,12 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       required this.unit,
       required this.stockQuantity,
       this.imageUrl,
+      this.foodType,
+      this.kitchenStation,
+      this.prepTimeMinutes,
+      required this.isAvailable,
+      required this.isMadeToOrder,
+      this.variantsJson,
       required this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -318,6 +426,20 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
     map['stock_quantity'] = Variable<double>(stockQuantity);
     if (!nullToAbsent || imageUrl != null) {
       map['image_url'] = Variable<String>(imageUrl);
+    }
+    if (!nullToAbsent || foodType != null) {
+      map['food_type'] = Variable<String>(foodType);
+    }
+    if (!nullToAbsent || kitchenStation != null) {
+      map['kitchen_station'] = Variable<String>(kitchenStation);
+    }
+    if (!nullToAbsent || prepTimeMinutes != null) {
+      map['prep_time_minutes'] = Variable<int>(prepTimeMinutes);
+    }
+    map['is_available'] = Variable<bool>(isAvailable);
+    map['is_made_to_order'] = Variable<bool>(isMadeToOrder);
+    if (!nullToAbsent || variantsJson != null) {
+      map['variants_json'] = Variable<String>(variantsJson);
     }
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -347,6 +469,20 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       imageUrl: imageUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(imageUrl),
+      foodType: foodType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(foodType),
+      kitchenStation: kitchenStation == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kitchenStation),
+      prepTimeMinutes: prepTimeMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prepTimeMinutes),
+      isAvailable: Value(isAvailable),
+      isMadeToOrder: Value(isMadeToOrder),
+      variantsJson: variantsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(variantsJson),
       updatedAt: Value(updatedAt),
     );
   }
@@ -369,6 +505,12 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       unit: serializer.fromJson<String>(json['unit']),
       stockQuantity: serializer.fromJson<double>(json['stockQuantity']),
       imageUrl: serializer.fromJson<String?>(json['imageUrl']),
+      foodType: serializer.fromJson<String?>(json['foodType']),
+      kitchenStation: serializer.fromJson<String?>(json['kitchenStation']),
+      prepTimeMinutes: serializer.fromJson<int?>(json['prepTimeMinutes']),
+      isAvailable: serializer.fromJson<bool>(json['isAvailable']),
+      isMadeToOrder: serializer.fromJson<bool>(json['isMadeToOrder']),
+      variantsJson: serializer.fromJson<String?>(json['variantsJson']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -390,6 +532,12 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
       'unit': serializer.toJson<String>(unit),
       'stockQuantity': serializer.toJson<double>(stockQuantity),
       'imageUrl': serializer.toJson<String?>(imageUrl),
+      'foodType': serializer.toJson<String?>(foodType),
+      'kitchenStation': serializer.toJson<String?>(kitchenStation),
+      'prepTimeMinutes': serializer.toJson<int?>(prepTimeMinutes),
+      'isAvailable': serializer.toJson<bool>(isAvailable),
+      'isMadeToOrder': serializer.toJson<bool>(isMadeToOrder),
+      'variantsJson': serializer.toJson<String?>(variantsJson),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -409,6 +557,12 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           String? unit,
           double? stockQuantity,
           Value<String?> imageUrl = const Value.absent(),
+          Value<String?> foodType = const Value.absent(),
+          Value<String?> kitchenStation = const Value.absent(),
+          Value<int?> prepTimeMinutes = const Value.absent(),
+          bool? isAvailable,
+          bool? isMadeToOrder,
+          Value<String?> variantsJson = const Value.absent(),
           DateTime? updatedAt}) =>
       LocalProduct(
         id: id ?? this.id,
@@ -426,6 +580,16 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
         unit: unit ?? this.unit,
         stockQuantity: stockQuantity ?? this.stockQuantity,
         imageUrl: imageUrl.present ? imageUrl.value : this.imageUrl,
+        foodType: foodType.present ? foodType.value : this.foodType,
+        kitchenStation:
+            kitchenStation.present ? kitchenStation.value : this.kitchenStation,
+        prepTimeMinutes: prepTimeMinutes.present
+            ? prepTimeMinutes.value
+            : this.prepTimeMinutes,
+        isAvailable: isAvailable ?? this.isAvailable,
+        isMadeToOrder: isMadeToOrder ?? this.isMadeToOrder,
+        variantsJson:
+            variantsJson.present ? variantsJson.value : this.variantsJson,
         updatedAt: updatedAt ?? this.updatedAt,
       );
   LocalProduct copyWithCompanion(LocalProductsCompanion data) {
@@ -454,6 +618,21 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           ? data.stockQuantity.value
           : this.stockQuantity,
       imageUrl: data.imageUrl.present ? data.imageUrl.value : this.imageUrl,
+      foodType: data.foodType.present ? data.foodType.value : this.foodType,
+      kitchenStation: data.kitchenStation.present
+          ? data.kitchenStation.value
+          : this.kitchenStation,
+      prepTimeMinutes: data.prepTimeMinutes.present
+          ? data.prepTimeMinutes.value
+          : this.prepTimeMinutes,
+      isAvailable:
+          data.isAvailable.present ? data.isAvailable.value : this.isAvailable,
+      isMadeToOrder: data.isMadeToOrder.present
+          ? data.isMadeToOrder.value
+          : this.isMadeToOrder,
+      variantsJson: data.variantsJson.present
+          ? data.variantsJson.value
+          : this.variantsJson,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -475,28 +654,41 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           ..write('unit: $unit, ')
           ..write('stockQuantity: $stockQuantity, ')
           ..write('imageUrl: $imageUrl, ')
+          ..write('foodType: $foodType, ')
+          ..write('kitchenStation: $kitchenStation, ')
+          ..write('prepTimeMinutes: $prepTimeMinutes, ')
+          ..write('isAvailable: $isAvailable, ')
+          ..write('isMadeToOrder: $isMadeToOrder, ')
+          ..write('variantsJson: $variantsJson, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      tenantId,
-      sku,
-      name,
-      barcode,
-      sellingPricePaisa,
-      purchaseCostPaisa,
-      mrpPaisa,
-      gstRatePercent,
-      hsnCode,
-      categoryName,
-      unit,
-      stockQuantity,
-      imageUrl,
-      updatedAt);
+  int get hashCode => Object.hashAll([
+        id,
+        tenantId,
+        sku,
+        name,
+        barcode,
+        sellingPricePaisa,
+        purchaseCostPaisa,
+        mrpPaisa,
+        gstRatePercent,
+        hsnCode,
+        categoryName,
+        unit,
+        stockQuantity,
+        imageUrl,
+        foodType,
+        kitchenStation,
+        prepTimeMinutes,
+        isAvailable,
+        isMadeToOrder,
+        variantsJson,
+        updatedAt
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -515,6 +707,12 @@ class LocalProduct extends DataClass implements Insertable<LocalProduct> {
           other.unit == this.unit &&
           other.stockQuantity == this.stockQuantity &&
           other.imageUrl == this.imageUrl &&
+          other.foodType == this.foodType &&
+          other.kitchenStation == this.kitchenStation &&
+          other.prepTimeMinutes == this.prepTimeMinutes &&
+          other.isAvailable == this.isAvailable &&
+          other.isMadeToOrder == this.isMadeToOrder &&
+          other.variantsJson == this.variantsJson &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -533,6 +731,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
   final Value<String> unit;
   final Value<double> stockQuantity;
   final Value<String?> imageUrl;
+  final Value<String?> foodType;
+  final Value<String?> kitchenStation;
+  final Value<int?> prepTimeMinutes;
+  final Value<bool> isAvailable;
+  final Value<bool> isMadeToOrder;
+  final Value<String?> variantsJson;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const LocalProductsCompanion({
@@ -550,6 +754,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     this.unit = const Value.absent(),
     this.stockQuantity = const Value.absent(),
     this.imageUrl = const Value.absent(),
+    this.foodType = const Value.absent(),
+    this.kitchenStation = const Value.absent(),
+    this.prepTimeMinutes = const Value.absent(),
+    this.isAvailable = const Value.absent(),
+    this.isMadeToOrder = const Value.absent(),
+    this.variantsJson = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -568,6 +778,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     this.unit = const Value.absent(),
     this.stockQuantity = const Value.absent(),
     this.imageUrl = const Value.absent(),
+    this.foodType = const Value.absent(),
+    this.kitchenStation = const Value.absent(),
+    this.prepTimeMinutes = const Value.absent(),
+    this.isAvailable = const Value.absent(),
+    this.isMadeToOrder = const Value.absent(),
+    this.variantsJson = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -590,6 +806,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     Expression<String>? unit,
     Expression<double>? stockQuantity,
     Expression<String>? imageUrl,
+    Expression<String>? foodType,
+    Expression<String>? kitchenStation,
+    Expression<int>? prepTimeMinutes,
+    Expression<bool>? isAvailable,
+    Expression<bool>? isMadeToOrder,
+    Expression<String>? variantsJson,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -608,6 +830,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
       if (unit != null) 'unit': unit,
       if (stockQuantity != null) 'stock_quantity': stockQuantity,
       if (imageUrl != null) 'image_url': imageUrl,
+      if (foodType != null) 'food_type': foodType,
+      if (kitchenStation != null) 'kitchen_station': kitchenStation,
+      if (prepTimeMinutes != null) 'prep_time_minutes': prepTimeMinutes,
+      if (isAvailable != null) 'is_available': isAvailable,
+      if (isMadeToOrder != null) 'is_made_to_order': isMadeToOrder,
+      if (variantsJson != null) 'variants_json': variantsJson,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -628,6 +856,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
       Value<String>? unit,
       Value<double>? stockQuantity,
       Value<String?>? imageUrl,
+      Value<String?>? foodType,
+      Value<String?>? kitchenStation,
+      Value<int?>? prepTimeMinutes,
+      Value<bool>? isAvailable,
+      Value<bool>? isMadeToOrder,
+      Value<String?>? variantsJson,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
     return LocalProductsCompanion(
@@ -645,6 +879,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
       unit: unit ?? this.unit,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       imageUrl: imageUrl ?? this.imageUrl,
+      foodType: foodType ?? this.foodType,
+      kitchenStation: kitchenStation ?? this.kitchenStation,
+      prepTimeMinutes: prepTimeMinutes ?? this.prepTimeMinutes,
+      isAvailable: isAvailable ?? this.isAvailable,
+      isMadeToOrder: isMadeToOrder ?? this.isMadeToOrder,
+      variantsJson: variantsJson ?? this.variantsJson,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -695,6 +935,24 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
     if (imageUrl.present) {
       map['image_url'] = Variable<String>(imageUrl.value);
     }
+    if (foodType.present) {
+      map['food_type'] = Variable<String>(foodType.value);
+    }
+    if (kitchenStation.present) {
+      map['kitchen_station'] = Variable<String>(kitchenStation.value);
+    }
+    if (prepTimeMinutes.present) {
+      map['prep_time_minutes'] = Variable<int>(prepTimeMinutes.value);
+    }
+    if (isAvailable.present) {
+      map['is_available'] = Variable<bool>(isAvailable.value);
+    }
+    if (isMadeToOrder.present) {
+      map['is_made_to_order'] = Variable<bool>(isMadeToOrder.value);
+    }
+    if (variantsJson.present) {
+      map['variants_json'] = Variable<String>(variantsJson.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -721,6 +979,12 @@ class LocalProductsCompanion extends UpdateCompanion<LocalProduct> {
           ..write('unit: $unit, ')
           ..write('stockQuantity: $stockQuantity, ')
           ..write('imageUrl: $imageUrl, ')
+          ..write('foodType: $foodType, ')
+          ..write('kitchenStation: $kitchenStation, ')
+          ..write('prepTimeMinutes: $prepTimeMinutes, ')
+          ..write('isAvailable: $isAvailable, ')
+          ..write('isMadeToOrder: $isMadeToOrder, ')
+          ..write('variantsJson: $variantsJson, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -5867,6 +6131,12 @@ typedef $$LocalProductsTableCreateCompanionBuilder = LocalProductsCompanion
   Value<String> unit,
   Value<double> stockQuantity,
   Value<String?> imageUrl,
+  Value<String?> foodType,
+  Value<String?> kitchenStation,
+  Value<int?> prepTimeMinutes,
+  Value<bool> isAvailable,
+  Value<bool> isMadeToOrder,
+  Value<String?> variantsJson,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -5886,6 +6156,12 @@ typedef $$LocalProductsTableUpdateCompanionBuilder = LocalProductsCompanion
   Value<String> unit,
   Value<double> stockQuantity,
   Value<String?> imageUrl,
+  Value<String?> foodType,
+  Value<String?> kitchenStation,
+  Value<int?> prepTimeMinutes,
+  Value<bool> isAvailable,
+  Value<bool> isMadeToOrder,
+  Value<String?> variantsJson,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -5943,6 +6219,26 @@ class $$LocalProductsTableFilterComposer
 
   ColumnFilters<String> get imageUrl => $composableBuilder(
       column: $table.imageUrl, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get foodType => $composableBuilder(
+      column: $table.foodType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kitchenStation => $composableBuilder(
+      column: $table.kitchenStation,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get prepTimeMinutes => $composableBuilder(
+      column: $table.prepTimeMinutes,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isAvailable => $composableBuilder(
+      column: $table.isAvailable, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isMadeToOrder => $composableBuilder(
+      column: $table.isMadeToOrder, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get variantsJson => $composableBuilder(
+      column: $table.variantsJson, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
@@ -6004,6 +6300,28 @@ class $$LocalProductsTableOrderingComposer
   ColumnOrderings<String> get imageUrl => $composableBuilder(
       column: $table.imageUrl, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get foodType => $composableBuilder(
+      column: $table.foodType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kitchenStation => $composableBuilder(
+      column: $table.kitchenStation,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get prepTimeMinutes => $composableBuilder(
+      column: $table.prepTimeMinutes,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isAvailable => $composableBuilder(
+      column: $table.isAvailable, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isMadeToOrder => $composableBuilder(
+      column: $table.isMadeToOrder,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get variantsJson => $composableBuilder(
+      column: $table.variantsJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
@@ -6059,6 +6377,24 @@ class $$LocalProductsTableAnnotationComposer
   GeneratedColumn<String> get imageUrl =>
       $composableBuilder(column: $table.imageUrl, builder: (column) => column);
 
+  GeneratedColumn<String> get foodType =>
+      $composableBuilder(column: $table.foodType, builder: (column) => column);
+
+  GeneratedColumn<String> get kitchenStation => $composableBuilder(
+      column: $table.kitchenStation, builder: (column) => column);
+
+  GeneratedColumn<int> get prepTimeMinutes => $composableBuilder(
+      column: $table.prepTimeMinutes, builder: (column) => column);
+
+  GeneratedColumn<bool> get isAvailable => $composableBuilder(
+      column: $table.isAvailable, builder: (column) => column);
+
+  GeneratedColumn<bool> get isMadeToOrder => $composableBuilder(
+      column: $table.isMadeToOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get variantsJson => $composableBuilder(
+      column: $table.variantsJson, builder: (column) => column);
+
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 }
@@ -6103,6 +6439,12 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             Value<String> unit = const Value.absent(),
             Value<double> stockQuantity = const Value.absent(),
             Value<String?> imageUrl = const Value.absent(),
+            Value<String?> foodType = const Value.absent(),
+            Value<String?> kitchenStation = const Value.absent(),
+            Value<int?> prepTimeMinutes = const Value.absent(),
+            Value<bool> isAvailable = const Value.absent(),
+            Value<bool> isMadeToOrder = const Value.absent(),
+            Value<String?> variantsJson = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -6121,6 +6463,12 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             unit: unit,
             stockQuantity: stockQuantity,
             imageUrl: imageUrl,
+            foodType: foodType,
+            kitchenStation: kitchenStation,
+            prepTimeMinutes: prepTimeMinutes,
+            isAvailable: isAvailable,
+            isMadeToOrder: isMadeToOrder,
+            variantsJson: variantsJson,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
@@ -6139,6 +6487,12 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             Value<String> unit = const Value.absent(),
             Value<double> stockQuantity = const Value.absent(),
             Value<String?> imageUrl = const Value.absent(),
+            Value<String?> foodType = const Value.absent(),
+            Value<String?> kitchenStation = const Value.absent(),
+            Value<int?> prepTimeMinutes = const Value.absent(),
+            Value<bool> isAvailable = const Value.absent(),
+            Value<bool> isMadeToOrder = const Value.absent(),
+            Value<String?> variantsJson = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -6157,6 +6511,12 @@ class $$LocalProductsTableTableManager extends RootTableManager<
             unit: unit,
             stockQuantity: stockQuantity,
             imageUrl: imageUrl,
+            foodType: foodType,
+            kitchenStation: kitchenStation,
+            prepTimeMinutes: prepTimeMinutes,
+            isAvailable: isAvailable,
+            isMadeToOrder: isMadeToOrder,
+            variantsJson: variantsJson,
             updatedAt: updatedAt,
             rowid: rowid,
           ),

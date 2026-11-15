@@ -139,6 +139,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     int? prepTimeMinutes,
     bool isAvailable = true,
     bool isMadeToOrder = false,
+    List<ProductVariant>? variants,
     String tenantId = 'tenant-1',
   }) async {
     final newProduct = await _repo.createProduct(
@@ -159,6 +160,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       prepTimeMinutes: prepTimeMinutes,
       isAvailable: isAvailable,
       isMadeToOrder: isMadeToOrder,
+      variants: variants,
       tenantId: tenantId,
     );
     state = state.copyWith(allProducts: [newProduct, ...state.allProducts]);

@@ -32,6 +32,7 @@ class TableOrderSheet extends ConsumerStatefulWidget {
 class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
   final TextEditingController _menuSearchController = TextEditingController();
   String _selectedCategory = 'All';
+  String _selectedDietary = 'all'; // 'all', 'veg', 'non_veg', 'egg'
   int _activeTab = 0; // 0 = Menu Catalog, 1 = Table Order
 
   @override
@@ -62,9 +63,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         customerName: '${currentTable.name} (${currentTable.currentGuestCount} guests)',
       ),
       lines: effectiveLines.map((i) {
-        final lineDesc = i.notes != null && i.notes!.isNotEmpty
-            ? '${i.product.name} [NOTE: ${i.notes}]'
-            : i.product.name;
+        final dietTag = i.product.isVeg ? '[VEG]' : (i.product.isNonVeg ? '[NV]' : (i.product.isEgg ? '[EGG]' : ''));
+        final stationTag = i.product.kitchenStation != null && i.product.kitchenStation != 'main_kitchen'
+            ? ' [${i.product.kitchenStation == 'tandoor' ? 'Tandoor' : i.product.kitchenStation == 'beverage_bar' ? 'Bar' : 'Bakery'}]'
+            : '';
+        final noteTag = i.notes != null && i.notes!.isNotEmpty ? ' [NOTE: ${i.notes}]' : '';
+        final lineDesc = '$dietTag ${i.product.name}$stationTag$noteTag'.trim();
         return ReceiptLineItem(
           name: lineDesc,
           quantity: i.quantity,
@@ -398,6 +402,113 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
             child: Text('Cancel', style: TextStyle(color: ShadcnColors.mutedForeground)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showPortionPickerSheet(RestaurantTable currentTable, Product product) {
+    if (product.variants == null || product.variants!.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: ShadcnColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.name,
+                            style: ShadcnTypography.h3,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text('Choose portion size for ${currentTable.name}:', style: ShadcnTypography.caption),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(height: 16),
+                ...product.variants!.map((variant) {
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    title: Text(variant.name, style: ShadcnTypography.bodySemibold),
+                    subtitle: Text('₹${variant.price.toStringAsFixed(2)}', style: ShadcnTypography.currency),
+                    trailing: ShadcnButton(
+                      text: 'Add',
+                      leadingIcon: const Icon(Icons.add, size: 14),
+                      size: ShadcnButtonSize.sm,
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        final variantProduct = product.copyWith(
+                          id: '${product.id}__${variant.name}',
+                          name: '${product.name} (${variant.name})',
+                          sellingPricePaisa: variant.pricePaisa,
+                        );
+                        ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, variantProduct);
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDietaryFilterChip(String key, String label, Color color, [IconData? icon]) {
+    final isSel = _selectedDietary == key;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedDietary = key),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSel ? color.withOpacity(0.15) : ShadcnColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSel ? color : ShadcnColors.border,
+            width: isSel ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 10, color: color),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                color: isSel ? color : ShadcnColors.mutedForeground,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -738,8 +849,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     final query = _menuSearchController.text.toLowerCase().trim();
     final filteredMenuItems = catalogState.allProducts.where((p) {
       final matchCat = _selectedCategory == 'All' || p.category == _selectedCategory;
+      final matchDiet = _selectedDietary == 'all' ||
+          (_selectedDietary == 'veg' && p.isVeg) ||
+          (_selectedDietary == 'non_veg' && p.isNonVeg) ||
+          (_selectedDietary == 'egg' && p.isEgg);
       final matchQ = query.isEmpty || p.name.toLowerCase().contains(query);
-      return matchCat && matchQ;
+      return matchCat && matchDiet && matchQ;
     }).toList();
 
     final screenWidth = MediaQuery.of(context).size.width;
@@ -1075,7 +1190,26 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
             ),
           ),
 
-          const SizedBox(height: 6),
+          // Quick Dietary filter chips
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildDietaryFilterChip('all', 'All Dishes', Colors.grey),
+                  const SizedBox(width: 6),
+                  _buildDietaryFilterChip('veg', 'Pure Veg', const Color(0xFF16A34A), Icons.circle),
+                  const SizedBox(width: 6),
+                  _buildDietaryFilterChip('non_veg', 'Non-Veg', const Color(0xFFDC2626), Icons.change_history),
+                  const SizedBox(width: 6),
+                  _buildDietaryFilterChip('egg', 'Egg', const Color(0xFFD97706), Icons.egg),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 4),
 
           // Product Items List
           Expanded(
@@ -1206,13 +1340,20 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                               )
                             else
                               ShadcnButton(
-                                text: 'Add',
-                                leadingIcon: const Icon(Icons.add, size: 14),
+                                text: item.variants != null && item.variants!.isNotEmpty ? 'Portions' : 'Add',
+                                leadingIcon: Icon(
+                                  item.variants != null && item.variants!.isNotEmpty ? Icons.restaurant_menu : Icons.add,
+                                  size: 14,
+                                ),
                                 size: ShadcnButtonSize.sm,
                                 variant: ShadcnButtonVariant.outline,
                                 onPressed: () {
-                                  HapticFeedback.selectionClick();
-                                  ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, item);
+                                  if (item.variants != null && item.variants!.isNotEmpty) {
+                                    _showPortionPickerSheet(currentTable, item);
+                                  } else {
+                                    HapticFeedback.selectionClick();
+                                    ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, item);
+                                  }
                                 },
                               ),
                           ],

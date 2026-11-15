@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pos_mobile/core/database/app_database.dart';
 import 'package:pos_mobile/core/models/cart_item.dart';
 import 'package:pos_mobile/core/models/product.dart';
 import 'package:pos_mobile/core/providers/restaurant_provider.dart';
+import 'package:pos_mobile/core/repositories/local_catalog_repository.dart';
 import 'package:pos_mobile/features/restaurant/restaurant_tables_screen.dart';
 import 'package:pos_mobile/features/restaurant/table_order_sheet.dart';
 
@@ -243,6 +245,97 @@ void main() {
       expect(dish.isMadeToOrder, isTrue);
       expect(dish.isAvailable, isTrue);
       expect(dish.prepTimeMinutes, 20);
+    });
+
+    test('Product supports portion variants (Half/Full) and price calculation', () {
+      final variants = [
+        const ProductVariant(name: 'Half', price: 180.0),
+        const ProductVariant(name: 'Full', price: 320.0),
+      ];
+
+      final dish = Product(
+        id: 'dish-paneer-butter',
+        name: 'Paneer Butter Masala',
+        sku: 'DISH-PBM-01',
+        category: 'Main Course',
+        unit: 'PORTION',
+        sellingPricePaisa: 32000,
+        purchaseCostPaisa: 0,
+        gstRate: 5,
+        currentStock: 0,
+        foodType: 'veg',
+        kitchenStation: 'main_kitchen',
+        variants: variants,
+      );
+
+      expect(dish.isVeg, isTrue);
+      expect(dish.variants?.length, 2);
+      expect(dish.variants?[0].name, 'Half');
+      expect(dish.variants?[0].pricePaisa, 18000);
+      expect(dish.variants?[1].name, 'Full');
+      expect(dish.variants?[1].pricePaisa, 32000);
+
+      // Create variant-specific portion item
+      final halfPortion = dish.copyWith(
+        id: '${dish.id}__Half',
+        name: '${dish.name} (Half)',
+        sellingPricePaisa: variants[0].pricePaisa,
+      );
+      expect(halfPortion.name, 'Paneer Butter Masala (Half)');
+      expect(halfPortion.sellingPricePaisa, 18000);
+    });
+
+    test('LocalCatalogRepository persists and retrieves restaurant dish culinary fields in SQLite', () async {
+      final db = AppDatabase.inMemory();
+      final repo = LocalCatalogRepository(db);
+
+      final variants = [
+        const ProductVariant(name: 'Half', price: 150.0),
+        const ProductVariant(name: 'Full', price: 270.0),
+      ];
+
+      // 1. Create dish with culinary attributes
+      final created = await repo.createProduct(
+        name: 'Dal Makhani',
+        sku: 'DISH-DM-01',
+        category: 'Main Course',
+        sellingPricePaisa: 27000,
+        foodType: 'veg',
+        kitchenStation: 'main_kitchen',
+        prepTimeMinutes: 15,
+        isAvailable: true,
+        isMadeToOrder: true,
+        variants: variants,
+        tenantId: 'tenant-test',
+      );
+
+      expect(created.foodType, 'veg');
+      expect(created.kitchenStation, 'main_kitchen');
+      expect(created.isVeg, isTrue);
+      expect(created.variants?.length, 2);
+
+      // 2. Query all products from SQLite
+      final all = await repo.getAllProducts(tenantId: 'tenant-test');
+      expect(all.length, 1);
+      final fetched = all.first;
+      expect(fetched.name, 'Dal Makhani');
+      expect(fetched.foodType, 'veg');
+      expect(fetched.kitchenStation, 'main_kitchen');
+      expect(fetched.prepTimeMinutes, 15);
+      expect(fetched.isAvailable, isTrue);
+      expect(fetched.isMadeToOrder, isTrue);
+      expect(fetched.variants?.length, 2);
+      expect(fetched.variants?[0].name, 'Half');
+      expect(fetched.variants?[0].price, 150.0);
+
+      // 3. Update availability (86'd)
+      final soldOutDish = fetched.copyWith(isAvailable: false);
+      await repo.updateProduct(soldOutDish);
+
+      final afterUpdate = await repo.getAllProducts(tenantId: 'tenant-test');
+      expect(afterUpdate.first.isAvailable, isFalse);
+
+      await db.close();
     });
   });
 }

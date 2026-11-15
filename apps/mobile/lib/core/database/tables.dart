@@ -17,6 +17,12 @@ class LocalProducts extends Table {
   TextColumn get unit => text().withDefault(const Constant('PCS'))();
   RealColumn get stockQuantity => real().withDefault(const Constant(0.0))();
   TextColumn get imageUrl => text().nullable()();
+  TextColumn get foodType => text().nullable()(); // 'veg', 'non_veg', 'egg', 'vegan'
+  TextColumn get kitchenStation => text().nullable()(); // 'main_kitchen', 'tandoor', 'beverage_bar', 'dessert'
+  IntColumn get prepTimeMinutes => integer().nullable()();
+  BoolColumn get isAvailable => boolean().withDefault(const Constant(true))();
+  BoolColumn get isMadeToOrder => boolean().withDefault(const Constant(false))();
+  TextColumn get variantsJson => text().nullable()(); // JSON string of [{name, price}]
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
   @override

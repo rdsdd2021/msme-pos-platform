@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,6 +14,9 @@ class AppConfig {
 
   /// Retrieve the persistent RFC4122 v4 UUID for this terminal installation.
   static Future<String> getDeviceId() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return '11111111-1111-4111-8111-111111111111';
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       var id = prefs.getString(_keyDeviceId);

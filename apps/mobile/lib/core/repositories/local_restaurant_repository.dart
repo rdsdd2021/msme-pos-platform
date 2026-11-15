@@ -126,7 +126,7 @@ class LocalRestaurantRepository {
         'productName': i.product.name,
         'quantity': i.quantity,
         'unitPrice': (i.product.sellingPricePaisa / 100).toStringAsFixed(2),
-        'kitchenStation': 'main_kitchen',
+        'kitchenStation': i.product.kitchenStation ?? 'main_kitchen',
         'specialInstructions': i.notes,
       }).toList(),
     };
@@ -188,7 +188,7 @@ class LocalRestaurantRepository {
             quantity: Value(line.quantity.toDouble()),
             unitPricePaisa: Value(line.product.sellingPricePaisa),
             totalPaisa: Value(line.totalPaisa),
-            kitchenStation: const Value('main_kitchen'),
+            kitchenStation: Value(line.product.kitchenStation ?? 'main_kitchen'),
             specialInstructions: Value(line.notes),
             status: const Value('pending'),
             createdAt: Value(now),

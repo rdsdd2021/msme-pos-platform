@@ -25,7 +25,22 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 3) {
+            await m.addColumn(localProducts, localProducts.foodType);
+            await m.addColumn(localProducts, localProducts.kitchenStation);
+            await m.addColumn(localProducts, localProducts.prepTimeMinutes);
+            await m.addColumn(localProducts, localProducts.isAvailable);
+            await m.addColumn(localProducts, localProducts.isMadeToOrder);
+            await m.addColumn(localProducts, localProducts.variantsJson);
+          }
+        },
+      );
 
   static LazyDatabase _openConnection() {
     return LazyDatabase(() async {
