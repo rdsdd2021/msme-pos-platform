@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../models/cart_item.dart';
+import '../models/product.dart';
 
 class LocalRestaurantRepository {
   final AppDatabase _db;
@@ -40,6 +41,56 @@ class LocalRestaurantRepository {
   /// Get active order lines for a table
   Future<List<LocalRestaurantKotLine>> getTableKotLines(String orderId) async {
     return (_db.select(_db.localRestaurantKotLines)..where((l) => l.orderId.equals(orderId))).get();
+  }
+
+  /// Get active CartItems for a table from SQLite (hydrates dishes from KOT lines)
+  Future<List<CartItem>> getTableActiveCartItems(String tableId) async {
+    try {
+      final activeOrders = await (_db.select(_db.localRestaurantOrders)
+            ..where((o) => o.tableId.equals(tableId))
+            ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
+            ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]))
+          .get();
+
+      if (activeOrders.isEmpty) return [];
+
+      final activeOrderId = activeOrders.first.id;
+      final kotLines = await (_db.select(_db.localRestaurantKotLines)
+            ..where((l) => l.orderId.equals(activeOrderId)))
+          .get();
+
+      if (kotLines.isEmpty) return [];
+
+      final Map<String, CartItem> itemsMap = {};
+      for (final line in kotLines) {
+        final key = '${line.productId}_${line.specialInstructions ?? ""}';
+        final qty = line.quantity.round();
+        if (itemsMap.containsKey(key)) {
+          final existing = itemsMap[key]!;
+          itemsMap[key] = existing.copyWith(quantity: existing.quantity + qty);
+        } else {
+          itemsMap[key] = CartItem(
+            product: Product(
+              id: line.productId,
+              name: line.productName,
+              sku: line.productId,
+              category: 'Kitchen',
+              unit: 'PCS',
+              sellingPricePaisa: line.unitPricePaisa,
+              purchaseCostPaisa: line.unitPricePaisa,
+              gstRate: 5,
+              currentStock: 100.0,
+            ),
+            quantity: qty,
+            notes: line.specialInstructions,
+          );
+        }
+      }
+
+      return itemsMap.values.toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Atomically dispatch a KOT ticket: updates table to 'ordered', persists lines, enqueues DISPATCH_KOT in SyncOutbox

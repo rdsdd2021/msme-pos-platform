@@ -39,6 +39,7 @@ import {
   apiClient,
 } from '@/lib/api-client';
 import { SplitBillModal } from './split-bill-modal';
+import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   Flame,
   UtensilsCrossed,
@@ -105,6 +106,29 @@ export function TableOrderDrawer({
   // Split bill settlement modal
   const [settleModalOpen, setSettleModalOpen] = useState(false);
 
+  // Reload active order data (handles SSE real-time updates and manual refresh)
+  const loadOrderData = React.useCallback(async () => {
+    if (!open || !table) return;
+    try {
+      if (table.activeOrder?.id) {
+        const orderRes = await apiClient.getRestaurantOrder(table.tenantId, table.activeOrder.id);
+        setActiveOrder(orderRes);
+      } else {
+        // Query server tables to check if an order was just created by mobile
+        const tables = await apiClient.getRestaurantTables(table.tenantId, table.branchId);
+        const currentTable = tables.find((t) => t.id === table.id);
+        if (currentTable?.activeOrder?.id) {
+          const orderRes = await apiClient.getRestaurantOrder(table.tenantId, currentTable.activeOrder.id);
+          setActiveOrder(orderRes);
+        } else {
+          setActiveOrder(null);
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load restaurant data.');
+    }
+  }, [open, table]);
+
   // Load active order and products when drawer opens
   useEffect(() => {
     if (!open || !table) return;
@@ -112,20 +136,12 @@ export function TableOrderDrawer({
     setError(null);
     setDraftItems([]);
 
-    const loadData = async () => {
+    const loadInitialData = async () => {
       setLoading(true);
       try {
-        // Load products for menu
         const prodRes = await apiClient.getProducts(table.tenantId);
         setProducts(prodRes || []);
-
-        // If table has active order, load full order details
-        if (table.activeOrder?.id) {
-          const orderRes = await apiClient.getRestaurantOrder(table.tenantId, table.activeOrder.id);
-          setActiveOrder(orderRes);
-        } else {
-          setActiveOrder(null);
-        }
+        await loadOrderData();
       } catch (err: any) {
         setError(err?.message || 'Failed to load restaurant data.');
       } finally {
@@ -133,8 +149,19 @@ export function TableOrderDrawer({
       }
     };
 
-    loadData();
-  }, [open, table]);
+    loadInitialData();
+  }, [open, table, loadOrderData]);
+
+  // Listen to SSE real-time events while drawer is open
+  useRealtimeEvents({
+    tenantId: table?.tenantId,
+    enabled: open,
+    onRestaurantTableChanged: () => {
+      loadOrderData();
+      onRefreshTable();
+    },
+    pollIntervalMs: 10000,
+  });
 
   // Categories extracted from products
   const categories = React.useMemo(() => {

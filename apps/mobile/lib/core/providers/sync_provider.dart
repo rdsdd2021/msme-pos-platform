@@ -8,6 +8,7 @@ import '../services/sync_worker.dart';
 import 'auth_provider.dart';
 import 'catalog_provider.dart';
 import 'customer_provider.dart';
+import 'restaurant_provider.dart';
 
 enum SyncStatus {
   idle,
@@ -114,13 +115,15 @@ class SyncNotifier extends StateNotifier<SyncState> {
           lastError: null,
         );
 
-        // Instantly reload local catalog and customer lists if deltas were pulled
+        // Instantly reload local catalog, customer lists and restaurant tables if deltas were pulled
         if (result.pulledProductsCount > 0) {
           await _ref.read(catalogProvider.notifier).reload();
         }
         if (result.pulledCustomersCount > 0) {
           await _ref.read(customerProvider.notifier).reload();
         }
+        // Always refresh dining floor tables and orders from local SQLite to reflect cloud changes
+        await _ref.read(restaurantProvider.notifier).refreshFromDb();
 
         return true;
       } else {

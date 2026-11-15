@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/restaurant_provider.dart';
+import '../../core/providers/sync_provider.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
 import '../../core/widgets/shadcn_app_bar.dart';
@@ -232,10 +233,17 @@ class RestaurantTablesScreen extends ConsumerWidget {
 
           const Divider(height: 1, color: ShadcnColors.border),
 
-          // Table Cards Grid
+          // Table Cards Grid with Pull-to-Refresh
           Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.all(16),
+            child: RefreshIndicator(
+              color: ShadcnColors.primary,
+              onRefresh: () async {
+                await ref.read(syncStateProvider.notifier).syncNow();
+                await notifier.refreshFromDb();
+              },
+              child: GridView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 crossAxisSpacing: 12,
@@ -409,6 +417,7 @@ class RestaurantTablesScreen extends ConsumerWidget {
               },
             ),
           ),
+        ),
         ],
       ),
     );

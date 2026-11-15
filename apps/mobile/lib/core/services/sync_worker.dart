@@ -168,6 +168,7 @@ class SyncWorker {
     int pulledProducts = 0;
     int pulledCategories = 0;
     int pulledCustomers = 0;
+    int pulledRestaurantTables = 0;
     String newCursor = '';
 
     try {
@@ -340,6 +341,7 @@ class SyncWorker {
               updatedAt: Value(DateTime.tryParse(tbl['updatedAt']?.toString() ?? '') ?? DateTime.now()),
             ),
           );
+          pulledRestaurantTables++;
         }
 
         for (final ord in pullResult.restaurantOrders) {
@@ -415,6 +417,7 @@ class SyncWorker {
         pulledProductsCount: 0,
         pulledCategoriesCount: 0,
         pulledCustomersCount: 0,
+        pulledRestaurantTablesCount: 0,
         newCursor: '',
         isSuccess: false,
         error: pushError != null
@@ -428,6 +431,7 @@ class SyncWorker {
       pulledProductsCount: pulledProducts,
       pulledCategoriesCount: pulledCategories,
       pulledCustomersCount: pulledCustomers,
+      pulledRestaurantTablesCount: pulledRestaurantTables,
       newCursor: newCursor,
       isSuccess: pushError == null,
       error: pushError,

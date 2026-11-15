@@ -103,6 +103,7 @@ class SyncCycleResult {
   final int pulledProductsCount;
   final int pulledCategoriesCount;
   final int pulledCustomersCount;
+  final int pulledRestaurantTablesCount;
   final String newCursor;
   final bool isSuccess;
   final String? error;
@@ -112,6 +113,7 @@ class SyncCycleResult {
     required this.pulledProductsCount,
     required this.pulledCategoriesCount,
     this.pulledCustomersCount = 0,
+    this.pulledRestaurantTablesCount = 0,
     required this.newCursor,
     required this.isSuccess,
     this.error,

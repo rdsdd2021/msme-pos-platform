@@ -257,15 +257,16 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     try {
       final dbTables = await _repo?.getAllTables();
       if (dbTables != null && dbTables.isNotEmpty) {
-        _syncTablesFromDb(dbTables);
+        await _syncTablesFromDb(dbTables);
       }
     } catch (_) {}
   }
 
-  void _syncTablesFromDb(List<dynamic> dbTables) {
+  Future<void> _syncTablesFromDb(List<dynamic> dbTables) async {
     final currentMap = {for (final t in state.tables) t.id: t};
 
-    final merged = dbTables.map((tbl) {
+    final List<RestaurantTable> merged = [];
+    for (final tbl in dbTables) {
       final tblId = tbl.id as String;
       final existing = currentMap[tblId] ?? currentMap[tbl.tableNumber];
 
@@ -281,25 +282,35 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         parsedStatus = TableStatus.vacant;
       }
 
-      final existingLines = existing?.activeOrderLines ?? [];
-      final isFired = parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed;
-      final int existingConfirmed = existing?.confirmedItemCount ?? (isFired ? existingLines.fold<int>(0, (sum, i) => sum + i.quantity) : 0);
+      var activeLines = existing?.activeOrderLines ?? [];
+      if (activeLines.isEmpty && (parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed)) {
+        final dbLines = await _repo?.getTableActiveCartItems(tblId) ?? [];
+        if (dbLines.isNotEmpty) {
+          activeLines = dbLines;
+        }
+      }
 
-      return RestaurantTable(
-        id: tblId,
-        name: tbl.name ?? tbl.tableNumber ?? existing?.name ?? 'Table',
-        section: tbl.section ?? existing?.section ?? 'Main Dining',
-        capacity: tbl.seatingCapacity ?? existing?.capacity ?? 4,
-        currentGuestCount: tbl.currentGuestCount > 0 ? tbl.currentGuestCount : (existing?.currentGuestCount ?? 2),
-        status: parsedStatus,
-        activeOrderLines: existingLines,
-        confirmedItemCount: existingConfirmed,
-        seatedAt: tbl.occupiedAt ?? existing?.seatedAt,
-        captainNotes: existing?.captainNotes,
+      final isFired = parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed;
+      final int existingConfirmed = existing?.confirmedItemCount ?? (isFired ? activeLines.fold<int>(0, (sum, i) => sum + i.quantity) : 0);
+
+      merged.add(
+        RestaurantTable(
+          id: tblId,
+          name: tbl.name ?? tbl.tableNumber ?? existing?.name ?? 'Table',
+          section: tbl.section ?? existing?.section ?? 'Main Dining',
+          capacity: tbl.seatingCapacity ?? existing?.capacity ?? 4,
+          currentGuestCount: tbl.currentGuestCount > 0 ? tbl.currentGuestCount : (existing?.currentGuestCount ?? 2),
+          status: parsedStatus,
+          activeOrderLines: activeLines,
+          confirmedItemCount: existingConfirmed,
+          seatedAt: tbl.occupiedAt ?? existing?.seatedAt,
+          captainNotes: existing?.captainNotes,
+        ),
       );
-    }).toList();
+    }
 
     state = state.copyWith(tables: merged);
+    await _saveToCache();
   }
 
   @override
@@ -316,7 +327,10 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         final decoded = jsonDecode(cachedJson) as List<dynamic>;
         final loaded = decoded.map((e) => RestaurantTable.fromJson(e as Map<String, dynamic>)).toList();
         if (loaded.isNotEmpty) {
-          state = state.copyWith(tables: loaded);
+          // Merge any default tables that may be missing from an older cache version
+          final loadedIds = {for (final t in loaded) t.id};
+          final missing = _defaultTables.where((t) => !loadedIds.contains(t.id)).toList();
+          state = state.copyWith(tables: [...loaded, ...missing]);
         }
       }
     } catch (_) {}
