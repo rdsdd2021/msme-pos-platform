@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/models/product.dart';
 import '../../../core/providers/catalog_provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/sync_provider.dart';
 import '../../../core/theme/shadcn_colors.dart';
 import '../../../core/theme/shadcn_typography.dart';
+import '../../../core/widgets/product_photo_picker.dart';
 
 class AddEditRestaurantDishDialog extends ConsumerStatefulWidget {
   final Product? dish;
@@ -15,6 +17,20 @@ class AddEditRestaurantDishDialog extends ConsumerStatefulWidget {
   ConsumerState<AddEditRestaurantDishDialog> createState() => _AddEditRestaurantDishDialogState();
 }
 
+class _VariantRow {
+  final TextEditingController nameController;
+  final TextEditingController priceController;
+
+  _VariantRow({required String name, required String price})
+      : nameController = TextEditingController(text: name),
+        priceController = TextEditingController(text: price);
+
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+  }
+}
+
 class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantDishDialog> {
   final _formKey = GlobalKey<FormState>();
 
@@ -22,11 +38,14 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
   late TextEditingController _priceController;
   late TextEditingController _prepTimeController;
 
+  String? _selectedImageUrl;
   late String _selectedCourse;
   late String _selectedFoodType; // 'veg', 'non_veg', 'egg', 'vegan'
   late String _selectedKitchenStation; // 'main_kitchen', 'tandoor', 'beverage_bar', 'bakery_dessert'
   late bool _isAvailable;
   late bool _isMadeToOrder;
+  bool _hasVariants = false;
+  final List<_VariantRow> _variantRows = [];
   bool _isSaving = false;
 
   final List<String> _courses = [
@@ -51,6 +70,7 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
       text: (d?.prepTimeMinutes ?? 15).toString(),
     );
 
+    _selectedImageUrl = d?.imageUrl;
     _selectedCourse = (d != null && _courses.contains(d.category))
         ? d.category
         : _courses[1]; // Default to Main Course
@@ -58,6 +78,16 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
     _selectedKitchenStation = d?.kitchenStation ?? 'main_kitchen';
     _isAvailable = d?.isAvailable ?? true;
     _isMadeToOrder = d?.isMadeToOrder ?? true;
+
+    if (d?.variants != null && d!.variants!.isNotEmpty) {
+      _hasVariants = true;
+      for (final v in d.variants!) {
+        _variantRows.add(_VariantRow(
+          name: v.name,
+          price: v.price.toStringAsFixed(2),
+        ));
+      }
+    }
   }
 
   @override
@@ -65,7 +95,29 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
     _nameController.dispose();
     _priceController.dispose();
     _prepTimeController.dispose();
+    for (final row in _variantRows) {
+      row.dispose();
+    }
     super.dispose();
+  }
+
+  void _addVariantPreset(List<Map<String, String>> presets) {
+    setState(() {
+      _hasVariants = true;
+      for (final row in _variantRows) {
+        row.dispose();
+      }
+      _variantRows.clear();
+      for (final p in presets) {
+        _variantRows.add(_VariantRow(name: p['name']!, price: p['price']!));
+      }
+    });
+  }
+
+  void _addNewBlankVariant() {
+    setState(() {
+      _variantRows.add(_VariantRow(name: '', price: ''));
+    });
   }
 
   Future<void> _handleSave() async {
@@ -76,9 +128,37 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
 
     try {
       final name = _nameController.text.trim();
-      final priceRupees = double.tryParse(_priceController.text.trim()) ?? 0.0;
-      final pricePaisa = (priceRupees * 100).round();
       final prepTime = int.tryParse(_prepTimeController.text.trim()) ?? 15;
+
+      // Extract variants if configured
+      List<ProductVariant>? variants;
+      if (_hasVariants && _variantRows.isNotEmpty) {
+        final parsed = <ProductVariant>[];
+        for (final row in _variantRows) {
+          final vName = row.nameController.text.trim();
+          final vPrice = double.tryParse(row.priceController.text.trim());
+          if (vName.isNotEmpty && vPrice != null && vPrice > 0) {
+            parsed.add(ProductVariant(name: vName, price: vPrice));
+          }
+        }
+        if (parsed.isNotEmpty) {
+          variants = parsed;
+        }
+      }
+
+      int pricePaisa;
+      if (variants != null && variants.isNotEmpty) {
+        // Base price is first variant or parsed from single price field if provided
+        final singlePrice = double.tryParse(_priceController.text.trim());
+        if (singlePrice != null && singlePrice > 0) {
+          pricePaisa = (singlePrice * 100).round();
+        } else {
+          pricePaisa = variants.first.pricePaisa;
+        }
+      } else {
+        final priceRupees = double.tryParse(_priceController.text.trim()) ?? 0.0;
+        pricePaisa = (priceRupees * 100).round();
+      }
 
       if (widget.dish != null) {
         final updated = Product(
@@ -93,12 +173,13 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
           gstRate: 5, // 5% composite F&B GST
           currentStock: widget.dish!.currentStock,
           hsnCode: widget.dish!.hsnCode,
-          imageUrl: widget.dish!.imageUrl,
+          imageUrl: _selectedImageUrl,
           foodType: _selectedFoodType,
           kitchenStation: _selectedKitchenStation,
           prepTimeMinutes: prepTime,
           isAvailable: _isAvailable,
           isMadeToOrder: _isMadeToOrder,
+          variants: variants,
         );
         await ref.read(catalogProvider.notifier).updateProduct(updated);
       } else {
@@ -113,14 +194,19 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
           mrpPaisa: pricePaisa,
           gstRate: 5.0,
           initialStock: 0.0,
+          imageUrl: _selectedImageUrl,
           foodType: _selectedFoodType,
           kitchenStation: _selectedKitchenStation,
           prepTimeMinutes: prepTime,
           isAvailable: _isAvailable,
           isMadeToOrder: _isMadeToOrder,
+          variants: variants,
           tenantId: tenantId,
         );
       }
+
+      // Trigger background cloud sync
+      ref.read(syncStateProvider.notifier).syncNow();
 
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -153,7 +239,8 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       backgroundColor: ShadcnColors.card,
       child: Container(
-        width: 480,
+        width: 500,
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -184,7 +271,7 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Culinary dish attributes & kitchen routing',
+                            'Culinary dish attributes, portions & kitchen routing',
                             style: ShadcnTypography.caption,
                           ),
                         ],
@@ -198,6 +285,16 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                 ),
                 const SizedBox(height: 16),
                 const Divider(height: 1, color: ShadcnColors.border),
+                const SizedBox(height: 16),
+
+                // Dish Photo Picker
+                ProductPhotoPicker(
+                  initialImageUrl: _selectedImageUrl,
+                  initialSearchQuery: _nameController.text.trim(),
+                  onPhotoChanged: (url) {
+                    setState(() => _selectedImageUrl = url);
+                  },
+                ),
                 const SizedBox(height: 16),
 
                 // Dish Name
@@ -260,7 +357,7 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                 ),
                 const SizedBox(height: 16),
 
-                // Price & Prep Time
+                // Base Price & Prep Time
                 Row(
                   children: [
                     Expanded(
@@ -268,7 +365,10 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Selling Price (₹) *', style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold)),
+                          Text(
+                            _hasVariants ? 'Base / Regular Price (₹)' : 'Selling Price (₹) *',
+                            style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold),
+                          ),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _priceController,
@@ -280,8 +380,10 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                               isDense: true,
                             ),
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) return 'Price required';
-                              if (double.tryParse(v.trim()) == null) return 'Invalid price';
+                              if (!_hasVariants && (v == null || v.trim().isEmpty)) return 'Price required';
+                              if (v != null && v.trim().isNotEmpty && double.tryParse(v.trim()) == null) {
+                                return 'Invalid price';
+                              }
                               return null;
                             },
                           ),
@@ -313,6 +415,164 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                 ),
                 const SizedBox(height: 14),
 
+                // Portion Sizes / Variants Section
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ShadcnColors.background,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: ShadcnColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.pie_chart_outline, size: 16, color: ShadcnColors.primary),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Portion Sizes (Half / Full / Custom)',
+                                    style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _hasVariants,
+                            activeColor: ShadcnColors.primary,
+                            onChanged: (val) {
+                              setState(() {
+                                _hasVariants = val;
+                                if (val && _variantRows.isEmpty) {
+                                  _addVariantPreset([
+                                    {'name': 'Half', 'price': '180.00'},
+                                    {'name': 'Full', 'price': '320.00'},
+                                  ]);
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (_hasVariants) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Configure multiple portions with individual prices for table ordering & thermal tickets.',
+                          style: ShadcnTypography.caption.copyWith(fontSize: 11),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Quick Presets
+                        Row(
+                          children: [
+                            Text('Presets: ', style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.w600)),
+                            const SizedBox(width: 4),
+                            InkWell(
+                              onTap: () => _addVariantPreset([
+                                {'name': 'Half', 'price': '180.00'},
+                                {'name': 'Full', 'price': '320.00'},
+                              ]),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: ShadcnColors.card,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: ShadcnColors.border),
+                                ),
+                                child: const Text('Half / Full', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            InkWell(
+                              onTap: () => _addVariantPreset([
+                                {'name': 'Small', 'price': '150.00'},
+                                {'name': 'Medium', 'price': '250.00'},
+                                {'name': 'Large', 'price': '350.00'},
+                              ]),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: ShadcnColors.card,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: ShadcnColors.border),
+                                ),
+                                child: const Text('S / M / L', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Variant Rows
+                        ..._variantRows.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final row = entry.value;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
+                                    controller: row.nameController,
+                                    decoration: InputDecoration(
+                                      hintText: 'e.g. Half, Full',
+                                      labelText: 'Portion ${idx + 1}',
+                                      isDense: true,
+                                      border: const OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 2,
+                                  child: TextFormField(
+                                    controller: row.priceController,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(
+                                      prefixText: '₹ ',
+                                      hintText: '180',
+                                      isDense: true,
+                                      border: OutlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: ShadcnColors.destructive),
+                                  onPressed: () {
+                                    setState(() {
+                                      final removed = _variantRows.removeAt(idx);
+                                      removed.dispose();
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+
+                        // Add Custom Row
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Add Another Portion', style: TextStyle(fontSize: 12)),
+                            onPressed: _addNewBlankVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
                 // Availability & Made to Order Checkboxes
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
@@ -327,7 +587,7 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                   title: const Text('Made to Order (Cooked Food)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                  subtitle: const Text('No inventory balance or stock deduction', style: TextStyle(fontSize: 11)),
+                  subtitle: const Text('Prepared freshly; bypasses raw grocery inventory checks', style: TextStyle(fontSize: 11)),
                   value: _isMadeToOrder,
                   activeColor: ShadcnColors.primary,
                   onChanged: (v) => setState(() => _isMadeToOrder = v ?? true),

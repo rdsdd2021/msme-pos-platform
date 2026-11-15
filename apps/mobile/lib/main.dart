@@ -15,6 +15,7 @@ import 'features/khata/khata_screen.dart';
 import 'features/owner/owner_screen.dart';
 import 'features/pos/pos_screen.dart';
 import 'features/restaurant/restaurant_tables_screen.dart';
+import 'features/restaurant/restaurant_menu_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -150,7 +151,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       ));
 
       if (hasInventory) {
-        screens.add(const MobileInventoryScreen());
+        screens.add(const RestaurantMenuScreen());
         items.add(const _NavItem(
           icon: Icons.restaurant_menu_outlined,
           activeIcon: Icons.restaurant_menu,

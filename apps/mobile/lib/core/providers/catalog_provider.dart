@@ -89,6 +89,8 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     }
   }
 
+  Future<void> loadCatalog() => _init();
+
   void selectCategory(String category) {
     state = state.copyWith(selectedCategory: category);
   }
