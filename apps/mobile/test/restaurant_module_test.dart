@@ -208,7 +208,15 @@ void main() {
       expect(find.text('Active Running Order'), findsOneWidget);
       expect(find.text('Paneer Tikka Masala'), findsOneWidget);
       expect(find.byKey(const Key('print_kot_btn')), findsOneWidget);
+      expect(find.byKey(const Key('confirm_order_btn')), findsOneWidget);
+
+      // Tap Confirm / Place Order
+      await tester.tap(find.byKey(const Key('confirm_order_btn')));
+      await tester.pumpAndSettle();
+
+      // Now all items are placed -> button changes to Print Bill (settle_table_btn)
       expect(find.byKey(const Key('settle_table_btn')), findsOneWidget);
+      expect(find.text('Print Bill'), findsOneWidget);
     });
   });
 }

@@ -583,7 +583,12 @@ export class SyncService {
             const res = await this.restaurantService.dispatchKot(
               tenantId,
               branchId,
-              raw,
+              {
+                orderId: raw.orderId,
+                tableId: raw.tableId,
+                items: raw.items || raw.lines,
+                kitchenStation: raw.kitchenStation,
+              },
               raw.captainName || 'Mobile Captain',
             );
             serverEntityId = res.kot.id;

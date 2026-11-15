@@ -132,15 +132,27 @@ export class DispatchKotItemDto {
 }
 
 export class DispatchKotDto {
-  @ApiProperty({ example: 'uuid-of-order' })
-  @IsUUID()
-  orderId!: string;
+  @ApiProperty({ example: 'uuid-of-order', required: false })
+  @IsString()
+  @IsOptional()
+  orderId?: string;
 
-  @ApiProperty({ type: [DispatchKotItemDto] })
+  @ApiProperty({ example: 'uuid-of-table', required: false })
+  @IsString()
+  @IsOptional()
+  tableId?: string;
+
+  @ApiProperty({ type: [DispatchKotItemDto], required: false })
   @IsArray()
+  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => DispatchKotItemDto)
-  items!: DispatchKotItemDto[];
+  items?: DispatchKotItemDto[];
+
+  @ApiProperty({ required: false })
+  @IsArray()
+  @IsOptional()
+  lines?: any[];
 
   @ApiProperty({ enum: KitchenStation, example: KitchenStation.MAIN_KITCHEN, required: false })
   @IsEnum(KitchenStation)

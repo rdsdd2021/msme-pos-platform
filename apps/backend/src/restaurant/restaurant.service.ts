@@ -222,6 +222,36 @@ export class RestaurantService {
         seatingCapacity: 8,
         sortOrder: 12,
       },
+      // Terrace (2 tables)
+      {
+        tableNumber: 'TR-01',
+        tableName: 'Terrace 1',
+        section: 'Terrace',
+        seatingCapacity: 4,
+        sortOrder: 13,
+      },
+      {
+        tableNumber: 'TR-02',
+        tableName: 'Terrace 2',
+        section: 'Terrace',
+        seatingCapacity: 4,
+        sortOrder: 14,
+      },
+      // Takeaway / Delivery Counters (2 counters)
+      {
+        tableNumber: 'TAK-01',
+        tableName: 'Takeaway Counter 1',
+        section: 'Takeaway',
+        seatingCapacity: 1,
+        sortOrder: 15,
+      },
+      {
+        tableNumber: 'TAK-02',
+        tableName: 'Takeaway Counter 2',
+        section: 'Takeaway',
+        seatingCapacity: 1,
+        sortOrder: 16,
+      },
     ];
 
     const entities = defaultSeed.map((d) =>
@@ -235,7 +265,18 @@ export class RestaurantService {
       }),
     );
 
-    return this.tableRepo.save(entities);
+    const saved = await this.tableRepo.save(entities);
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        { action: 'SEED_TABLES', count: saved.length },
+        branchId,
+      );
+    }
+
+    return saved;
   }
 
   async updateTable(
@@ -244,9 +285,14 @@ export class RestaurantService {
     tableId: string,
     dto: UpdateTableDto,
   ): Promise<RestaurantTableEntity> {
-    const table = await this.tableRepo.findOne({
+    let table = await this.tableRepo.findOne({
       where: { id: tableId, tenantId, branchId },
     });
+    if (!table) {
+      table = await this.tableRepo.findOne({
+        where: { tableNumber: tableId, tenantId, branchId },
+      });
+    }
     if (!table) {
       throw new NotFoundException(`Table not found`);
     }
@@ -264,7 +310,18 @@ export class RestaurantService {
       }
     }
 
-    return this.tableRepo.save(table);
+    const saved = await this.tableRepo.save(table);
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        { tableId: saved.id, status: saved.status },
+        branchId,
+      );
+    }
+
+    return saved;
   }
 
   // =========================================================================
@@ -369,12 +426,80 @@ export class RestaurantService {
     captainName?: string,
   ): Promise<{ kot: RestaurantKotEntity; order: RestaurantOrderEntity }> {
     const result = await this.dataSource.transaction(async (manager) => {
-      const order = await manager.findOne(RestaurantOrderEntity, {
-        where: { id: dto.orderId, tenantId, branchId },
-      });
-      if (!order) {
-        throw new NotFoundException('Restaurant order not found');
+      let order: RestaurantOrderEntity | null = null;
+
+      // 1. If orderId is provided, try to find existing order
+      if (dto.orderId) {
+        order = await manager.findOne(RestaurantOrderEntity, {
+          where: { id: dto.orderId, tenantId, branchId },
+        });
       }
+
+      // 2. If order not found by orderId, find active order by tableId
+      const targetTableId = dto.tableId;
+      let table: RestaurantTableEntity | null = null;
+      if (!order && targetTableId) {
+        table = await manager.findOne(RestaurantTableEntity, {
+          where: { id: targetTableId, tenantId, branchId },
+        });
+        if (!table) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { tableNumber: targetTableId, tenantId, branchId },
+          });
+        }
+
+        if (table) {
+          order = await manager.findOne(RestaurantOrderEntity, {
+            where: {
+              tableId: table.id,
+              tenantId,
+              branchId,
+              status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
+            },
+          });
+        }
+      }
+
+      // 3. If still no active order, automatically create one for the table
+      if (!order) {
+        if (!table && targetTableId) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: [
+              { id: targetTableId, tenantId, branchId },
+              { tableNumber: targetTableId, tenantId, branchId },
+            ],
+          });
+        }
+
+        const isTakeaway = table?.section?.toLowerCase().includes('takeaway') || false;
+        const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
+        order = manager.create(RestaurantOrderEntity, {
+          tenantId,
+          branchId,
+          orderNumber,
+          orderType: isTakeaway ? RestaurantOrderType.TAKEAWAY : RestaurantOrderType.DINE_IN,
+          tableId: table?.id || null,
+          tableNumberSnapshot: table?.tableNumber || dto.tableId || 'Takeaway',
+          sectionSnapshot: table?.section || 'Main Dining',
+          guestCount: table?.currentGuestCount || 2,
+          status: RestaurantOrderStatus.OPEN,
+          captainNameSnapshot: captainName || 'Captain',
+          subtotal: '0.00',
+          taxTotal: '0.00',
+          discountTotal: '0.00',
+          grandTotal: '0.00',
+          openedAt: new Date(),
+        });
+        order = await manager.save(order);
+
+        if (table) {
+          table.status = TableStatus.SEATED;
+          table.currentGuestCount = table.currentGuestCount || 2;
+          table.occupiedAt = new Date();
+          await manager.save(table);
+        }
+      }
+
       if (
         order.status !== RestaurantOrderStatus.OPEN &&
         order.status !== RestaurantOrderStatus.BILLED
@@ -382,15 +507,27 @@ export class RestaurantService {
         throw new BadRequestException(`Cannot add KOT to order with status ${order.status}`);
       }
 
-      if (!dto.items || dto.items.length === 0) {
+      const rawItems = dto.items || (dto as any).lines || [];
+      if (!rawItems || rawItems.length === 0) {
         throw new BadRequestException('KOT must contain at least one line item');
       }
 
+      const itemsToProcess = rawItems.map((i: any) => ({
+        productId: i.productId || i.id,
+        productName: i.productName || i.name,
+        quantity: String(i.quantity || '1'),
+        unitPrice: i.unitPrice ? String(i.unitPrice) : undefined,
+        specialInstructions: i.specialInstructions || i.notes,
+        kitchenStation: i.kitchenStation || dto.kitchenStation || KitchenStation.MAIN_KITCHEN,
+      }));
+
       // Fetch products to snapshot pricing & name
-      const productIds = dto.items.map((i) => i.productId);
-      const products = await manager.find(ProductEntity, {
-        where: { id: In(productIds), tenantId },
-      });
+      const productIds = itemsToProcess.map((i: any) => i.productId).filter(Boolean);
+      const products = productIds.length > 0
+        ? await manager.find(ProductEntity, {
+            where: { id: In(productIds), tenantId },
+          })
+        : [];
       const productMap = new Map(products.map((p) => [p.id, p]));
 
       const kotCount = await manager.count(RestaurantKotEntity, {
@@ -403,7 +540,7 @@ export class RestaurantService {
         branchId,
         orderId: order.id,
         kotNumber,
-        tableNumber: order.tableNumberSnapshot || 'Takeaway',
+        tableNumber: order.tableNumberSnapshot || table?.tableNumber || 'Takeaway',
         kitchenStation: dto.kitchenStation || KitchenStation.MAIN_KITCHEN,
         status: KotStatus.PENDING,
         captainName: captainName || order.captainNameSnapshot || 'Captain',
@@ -414,14 +551,13 @@ export class RestaurantService {
       let additionalSubtotal = 0;
       const kotLines: RestaurantKotLineEntity[] = [];
 
-      for (const item of dto.items) {
+      for (const item of itemsToProcess) {
         const product = productMap.get(item.productId);
-        if (!product) {
-          throw new NotFoundException(`Product ${item.productId} not found`);
-        }
-
-        const qtyNum = parseFloat(item.quantity);
-        const priceNum = parseFloat(product.sellingPrice);
+        const nameSnapshot = product?.name || item.productName || 'Dish Item';
+        const priceNum = product
+          ? parseFloat(product.sellingPrice)
+          : parseFloat(item.unitPrice || '0') || 0;
+        const qtyNum = parseFloat(item.quantity) || 1;
         const lineTotalNum = Math.round(qtyNum * priceNum * 100) / 100;
 
         additionalSubtotal += lineTotalNum;
@@ -430,8 +566,8 @@ export class RestaurantService {
           tenantId,
           kotId: savedKot.id,
           orderId: order.id,
-          productId: product.id,
-          productNameSnapshot: product.name,
+          productId: product?.id || item.productId,
+          productNameSnapshot: nameSnapshot,
           quantity: qtyNum.toFixed(3),
           unitPrice: priceNum.toFixed(2),
           lineTotal: lineTotalNum.toFixed(2),

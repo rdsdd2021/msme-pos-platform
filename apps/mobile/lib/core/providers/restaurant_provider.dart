@@ -44,6 +44,7 @@ class RestaurantTable {
   final int currentGuestCount;
   final TableStatus status;
   final List<CartItem> activeOrderLines;
+  final int confirmedItemCount;
   final DateTime? seatedAt;
   final String? captainNotes;
 
@@ -55,12 +56,23 @@ class RestaurantTable {
     this.currentGuestCount = 2,
     this.status = TableStatus.vacant,
     this.activeOrderLines = const [],
+    this.confirmedItemCount = 0,
     this.seatedAt,
     this.captainNotes,
   });
 
   int get runningTotalPaisa => activeOrderLines.fold(0, (sum, i) => sum + i.totalPaisa);
   int get itemCount => activeOrderLines.fold(0, (sum, i) => sum + i.quantity);
+
+  bool get hasNewItems {
+    if (activeOrderLines.isEmpty) return false;
+    return itemCount > confirmedItemCount;
+  }
+
+  int get newItemsCount {
+    final diff = itemCount - confirmedItemCount;
+    return diff > 0 ? diff : 0;
+  }
 
   RestaurantTable copyWith({
     String? id,
@@ -70,6 +82,7 @@ class RestaurantTable {
     int? currentGuestCount,
     TableStatus? status,
     List<CartItem>? activeOrderLines,
+    int? confirmedItemCount,
     DateTime? seatedAt,
     String? captainNotes,
   }) {
@@ -81,6 +94,7 @@ class RestaurantTable {
       currentGuestCount: currentGuestCount ?? this.currentGuestCount,
       status: status ?? this.status,
       activeOrderLines: activeOrderLines ?? this.activeOrderLines,
+      confirmedItemCount: confirmedItemCount ?? this.confirmedItemCount,
       seatedAt: seatedAt ?? this.seatedAt,
       captainNotes: captainNotes ?? this.captainNotes,
     );
@@ -94,6 +108,7 @@ class RestaurantTable {
       'capacity': capacity,
       'currentGuestCount': currentGuestCount,
       'status': status.name,
+      'confirmedItemCount': confirmedItemCount,
       'seatedAt': seatedAt?.toIso8601String(),
       'captainNotes': captainNotes,
       'activeOrderLines': activeOrderLines.map((line) => {
@@ -162,6 +177,7 @@ class RestaurantTable {
       capacity: json['capacity'] as int? ?? 4,
       currentGuestCount: json['currentGuestCount'] as int? ?? 2,
       status: parsedStatus,
+      confirmedItemCount: json['confirmedItemCount'] as int? ?? 0,
       seatedAt: json['seatedAt'] != null ? DateTime.tryParse(json['seatedAt'] as String) : null,
       captainNotes: json['captainNotes'] as String?,
       activeOrderLines: lines,
@@ -210,6 +226,8 @@ class RestaurantState {
 
 class RestaurantNotifier extends StateNotifier<RestaurantState> {
   static const _storageKey = 'cached_restaurant_tables_v1';
+  final LocalRestaurantRepository? _repo;
+  dynamic _tablesSubscription;
 
   static final List<RestaurantTable> _defaultTables = [
     const RestaurantTable(id: 't-1', name: 'Table 1', section: 'AC Dining', capacity: 4),
@@ -222,8 +240,72 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     const RestaurantTable(id: 'takeaway-2', name: 'Takeaway 2', section: 'Takeaway', capacity: 1),
   ];
 
-  RestaurantNotifier() : super(RestaurantState(tables: _defaultTables)) {
+  RestaurantNotifier([this._repo]) : super(RestaurantState(tables: _defaultTables)) {
+    if (_repo != null) {
+      _initFromRepo();
+    } else {
+      _loadFromCache();
+    }
+  }
+
+  void _initFromRepo() {
     _loadFromCache();
+    refreshFromDb();
+  }
+
+  Future<void> refreshFromDb() async {
+    try {
+      final dbTables = await _repo?.getAllTables();
+      if (dbTables != null && dbTables.isNotEmpty) {
+        _syncTablesFromDb(dbTables);
+      }
+    } catch (_) {}
+  }
+
+  void _syncTablesFromDb(List<dynamic> dbTables) {
+    final currentMap = {for (final t in state.tables) t.id: t};
+
+    final merged = dbTables.map((tbl) {
+      final tblId = tbl.id as String;
+      final existing = currentMap[tblId] ?? currentMap[tbl.tableNumber];
+
+      TableStatus parsedStatus;
+      try {
+        final s = (tbl.status as String? ?? '').toLowerCase();
+        if (s == 'occupied') {
+          parsedStatus = TableStatus.seated;
+        } else {
+          parsedStatus = TableStatus.values.byName(s);
+        }
+      } catch (_) {
+        parsedStatus = TableStatus.vacant;
+      }
+
+      final existingLines = existing?.activeOrderLines ?? [];
+      final isFired = parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed;
+      final int existingConfirmed = existing?.confirmedItemCount ?? (isFired ? existingLines.fold<int>(0, (sum, i) => sum + i.quantity) : 0);
+
+      return RestaurantTable(
+        id: tblId,
+        name: tbl.name ?? tbl.tableNumber ?? existing?.name ?? 'Table',
+        section: tbl.section ?? existing?.section ?? 'Main Dining',
+        capacity: tbl.seatingCapacity ?? existing?.capacity ?? 4,
+        currentGuestCount: tbl.currentGuestCount > 0 ? tbl.currentGuestCount : (existing?.currentGuestCount ?? 2),
+        status: parsedStatus,
+        activeOrderLines: existingLines,
+        confirmedItemCount: existingConfirmed,
+        seatedAt: tbl.occupiedAt ?? existing?.seatedAt,
+        captainNotes: existing?.captainNotes,
+      );
+    }).toList();
+
+    state = state.copyWith(tables: merged);
+  }
+
+  @override
+  void dispose() {
+    _tablesSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadFromCache() async {
@@ -294,6 +376,18 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       );
     }).toList();
 
+    state = state.copyWith(tables: updated);
+    _saveToCache();
+  }
+
+  void markOrderConfirmed(String tableId) {
+    final updated = state.tables.map((t) {
+      if (t.id != tableId) return t;
+      return t.copyWith(
+        status: TableStatus.ordered,
+        confirmedItemCount: t.itemCount,
+      );
+    }).toList();
     state = state.copyWith(tables: updated);
     _saveToCache();
   }
@@ -429,6 +523,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         return t.copyWith(
           status: markDirty ? TableStatus.dirty : TableStatus.vacant,
           activeOrderLines: const [],
+          confirmedItemCount: 0,
           seatedAt: null,
           captainNotes: null,
         );
@@ -441,5 +536,6 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 }
 
 final restaurantProvider = StateNotifierProvider<RestaurantNotifier, RestaurantState>((ref) {
-  return RestaurantNotifier();
+  final repo = ref.watch(localRestaurantRepoProvider);
+  return RestaurantNotifier(repo);
 });

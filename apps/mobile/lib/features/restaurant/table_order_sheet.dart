@@ -39,42 +39,8 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     super.dispose();
   }
 
-  Future<void> _handlePrintKot(RestaurantTable currentTable) async {
-    if (currentTable.activeOrderLines.isEmpty) return;
-
-    HapticFeedback.mediumImpact();
-    final notifier = ref.read(printerProvider.notifier);
-    final restRepo = ref.read(localRestaurantRepoProvider);
-    final authState = ref.read(authProvider);
-    final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
-    final branchId = authState.activeBranchId ?? 'branch-1';
-    final deviceId = await AppConfig.getDeviceId();
-    final captainName = authState.user?.fullName ?? 'Captain';
-
-    final orderId = 'ord-${currentTable.id}-${DateTime.now().millisecondsSinceEpoch}';
-
-    // 1. Atomically persist KOT in local Drift SQLite and queue DISPATCH_KOT in SyncOutbox
-    try {
-      await restRepo.dispatchKotAtomic(
-        tableId: currentTable.id,
-        orderId: orderId,
-        lines: currentTable.activeOrderLines,
-        captainName: captainName,
-        tenantId: tenantId,
-        branchId: branchId,
-        deviceId: deviceId,
-      );
-
-      // 2. Mark table as ordered locally
-      ref.read(restaurantProvider.notifier).markTableOrdered(currentTable.id);
-
-      // 3. Immediately trigger background sync push to backend & KDS
-      ref.read(syncStateProvider.notifier).syncNow();
-    } catch (e) {
-      debugPrint('[TableOrderSheet] Error queuing KOT: $e');
-    }
-
-    final kotDoc = ReceiptDocument(
+  ReceiptDocument _buildKotReceiptDocument(RestaurantTable currentTable) {
+    return ReceiptDocument(
       header: ReceiptHeader(
         storeName: '*** KITCHEN ORDER TICKET ***',
         address: 'Table: ${currentTable.name} (${currentTable.section})',
@@ -108,21 +74,127 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         grandTotalPaisa: currentTable.runningTotalPaisa,
       ),
     );
+  }
 
-    final res = await notifier.printReceipt(kotDoc);
+  ReceiptDocument _buildPreBillReceiptDocument(RestaurantTable currentTable) {
+    final subtotal = currentTable.runningTotalPaisa;
+    final cgst = (subtotal * 0.025).round();
+    final sgst = (subtotal * 0.025).round();
+    final grandTotal = subtotal + cgst + sgst;
 
+    return ReceiptDocument(
+      header: ReceiptHeader(
+        storeName: '*** DINE-IN PRE-BILL ***',
+        address: 'Table: ${currentTable.name} (${currentTable.section})',
+      ),
+      meta: ReceiptInvoiceMeta(
+        invoiceNumber: 'BILL-${DateTime.now().millisecondsSinceEpoch % 10000}',
+        invoiceId: 'bill-${currentTable.id}',
+        date: DateTime.now(),
+        paymentMethod: 'PENDING_SETTLEMENT',
+        customerName: '${currentTable.name} (${currentTable.currentGuestCount} guests)',
+      ),
+      lines: currentTable.activeOrderLines.map((i) {
+        return ReceiptLineItem(
+          name: i.product.name,
+          quantity: i.quantity,
+          unit: i.product.unit,
+          unitPricePaisa: i.product.sellingPricePaisa,
+          taxRatePercent: 5,
+          taxPaisa: (i.totalPaisa * 0.05).round(),
+          totalPaisa: i.totalPaisa,
+        );
+      }).toList(),
+      taxSlabs: const [],
+      totals: ReceiptTotals(
+        subtotalPaisa: subtotal,
+        cgstTotalPaisa: cgst,
+        sgstTotalPaisa: sgst,
+        grandTotalPaisa: grandTotal,
+      ),
+    );
+  }
+
+  Future<void> _handleConfirmOrder(RestaurantTable currentTable) async {
+    if (currentTable.activeOrderLines.isEmpty) return;
+
+    HapticFeedback.mediumImpact();
+
+    // 1. Mark order as confirmed locally (sets confirmedItemCount = itemCount)
+    ref.read(restaurantProvider.notifier).markOrderConfirmed(currentTable.id);
+
+    // 2. Atomically persist KOT in local Drift SQLite and queue DISPATCH_KOT in SyncOutbox
+    try {
+      final restRepo = ref.read(localRestaurantRepoProvider);
+      final authState = ref.read(authProvider);
+      final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+      final branchId = authState.activeBranchId ?? 'branch-1';
+      final deviceId = await AppConfig.getDeviceId();
+      final captainName = authState.user?.fullName ?? 'Captain';
+
+      final orderId = 'ord-${currentTable.id}-${DateTime.now().millisecondsSinceEpoch}';
+
+      await restRepo.dispatchKotAtomic(
+        tableId: currentTable.id,
+        orderId: orderId,
+        lines: currentTable.activeOrderLines,
+        captainName: captainName,
+        tenantId: tenantId,
+        branchId: branchId,
+        deviceId: deviceId,
+      );
+
+      // 3. Immediately trigger background sync push to backend & KDS
+      ref.read(syncStateProvider.notifier).syncNow();
+    } catch (e) {
+      debugPrint('[TableOrderSheet] Error queuing KOT: $e');
+    }
+
+    try {
+      final notifier = ref.read(printerProvider.notifier);
+      final kotDoc = _buildKotReceiptDocument(currentTable);
+      await notifier.printReceipt(kotDoc);
+    } catch (_) {}
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Order placed! KOT sent to kitchen for ${currentTable.name}.'),
+          backgroundColor: ShadcnColors.primary,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handlePrintKotOnly(RestaurantTable currentTable) async {
+    final kotDoc = _buildKotReceiptDocument(currentTable);
+    final res = await ref.read(printerProvider.notifier).printReceipt(kotDoc);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             res.success
                 ? 'KOT printed successfully for ${currentTable.name}!'
-                : 'KOT generated! Printer status: ${res.errorMessage ?? "Dispatched to Kitchen"}',
+                : 'Printer status: ${res.errorMessage ?? "Dispatched to Kitchen"}',
           ),
           backgroundColor: ShadcnColors.primary,
         ),
       );
     }
+  }
+
+  void _handlePrintBillAndSettle(RestaurantTable currentTable) {
+    // Generate pre-bill receipt on printer
+    final billDoc = _buildPreBillReceiptDocument(currentTable);
+    ref.read(printerProvider.notifier).printReceipt(billDoc);
+
+    // Launch Settlement Modal
+    _showSettlementModal(currentTable);
+  }
+
+  Future<void> _handlePrintKot(RestaurantTable currentTable) async {
+    await _handleConfirmOrder(currentTable);
   }
 
   void _showInstructionDialog(RestaurantTable currentTable, CartItem line) {
@@ -672,12 +744,19 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (currentTable.activeOrderLines.isNotEmpty)
+                    if (currentTable.activeOrderLines.isNotEmpty) ...[
+                      IconButton(
+                        key: const Key('header_print_kot_btn'),
+                        tooltip: 'Print KOT Ticket',
+                        icon: const Icon(Icons.print, color: ShadcnColors.primary),
+                        onPressed: () => _handlePrintKotOnly(currentTable),
+                      ),
                       IconButton(
                         tooltip: 'Transfer Table',
                         icon: const Icon(Icons.swap_horiz, color: ShadcnColors.primary),
                         onPressed: () => _showTransferTableDialog(currentTable),
                       ),
+                    ],
                     IconButton(
                       icon: const Icon(Icons.close, size: 20),
                       onPressed: () => Navigator.pop(context),
@@ -823,7 +902,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('${currentTable.itemCount} items selected', style: ShadcnTypography.caption),
+                        Text(
+                          currentTable.hasNewItems
+                              ? '${currentTable.newItemsCount} new ${currentTable.newItemsCount == 1 ? 'item' : 'items'} to place'
+                              : '${currentTable.itemCount} items placed',
+                          style: ShadcnTypography.caption,
+                        ),
                         Text(
                           '₹${(currentTable.runningTotalPaisa / 100).toStringAsFixed(2)}',
                           style: ShadcnTypography.currency.copyWith(color: ShadcnColors.primary),
@@ -832,12 +916,22 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ShadcnButton(
-                    text: 'View Order (${currentTable.itemCount})',
-                    leadingIcon: const Icon(Icons.arrow_forward, size: 16),
-                    size: ShadcnButtonSize.sm,
-                    onPressed: () => setState(() => _activeTab = 1),
-                  ),
+                  if (currentTable.hasNewItems)
+                    ShadcnButton(
+                      key: const Key('quick_confirm_order_btn'),
+                      text: 'Place Order (${currentTable.newItemsCount})',
+                      leadingIcon: const Icon(Icons.local_fire_department, size: 16),
+                      size: ShadcnButtonSize.sm,
+                      onPressed: () => _handleConfirmOrder(currentTable),
+                    )
+                  else
+                    ShadcnButton(
+                      key: const Key('quick_print_bill_btn'),
+                      text: 'Print Bill',
+                      leadingIcon: const Icon(Icons.receipt_long, size: 16),
+                      size: ShadcnButtonSize.sm,
+                      onPressed: () => _handlePrintBillAndSettle(currentTable),
+                    ),
                 ],
               ),
             ),
@@ -1135,22 +1229,36 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: ShadcnButton(
-                      key: const Key('print_kot_btn'),
-                      text: 'Print KOT',
-                      variant: ShadcnButtonVariant.outline,
-                      leadingIcon: const Icon(Icons.print, size: 16),
-                      onPressed: currentTable.activeOrderLines.isEmpty ? null : () => _handlePrintKot(currentTable),
-                    ),
+                    flex: 6,
+                    child: currentTable.hasNewItems
+                        ? ShadcnButton(
+                            key: const Key('confirm_order_btn'),
+                            text: 'Place Order (${currentTable.newItemsCount})',
+                            variant: ShadcnButtonVariant.primary,
+                            leadingIcon: const Icon(Icons.local_fire_department, size: 16),
+                            onPressed: () => _handleConfirmOrder(currentTable),
+                          )
+                        : ShadcnButton(
+                            key: const Key('settle_table_btn'),
+                            text: 'Print Bill',
+                            variant: ShadcnButtonVariant.primary,
+                            leadingIcon: const Icon(Icons.receipt_long, size: 16),
+                            onPressed: currentTable.activeOrderLines.isEmpty
+                                ? null
+                                : () => _handlePrintBillAndSettle(currentTable),
+                          ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
+                    flex: 4,
                     child: ShadcnButton(
-                      key: const Key('settle_table_btn'),
-                      text: 'Settle & Bill',
-                      variant: ShadcnButtonVariant.primary,
-                      leadingIcon: const Icon(Icons.check_circle_outline, size: 16),
-                      onPressed: currentTable.activeOrderLines.isEmpty ? null : () => _showSettlementModal(currentTable),
+                      key: const Key('print_kot_btn'),
+                      text: 'KOT Slip',
+                      variant: ShadcnButtonVariant.outline,
+                      leadingIcon: const Icon(Icons.print, size: 14),
+                      onPressed: currentTable.activeOrderLines.isEmpty
+                          ? null
+                          : () => _handlePrintKotOnly(currentTable),
                     ),
                   ),
                 ],

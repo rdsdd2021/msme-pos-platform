@@ -182,8 +182,7 @@ export function filterNavForUser(
 
   const isRestaurantVertical =
     businessType === BusinessType.RESTAURANT ||
-    businessType === 'restaurant' ||
-    activeModules.includes(AppModule.RESTAURANT);
+    businessType === 'restaurant';
 
   return navigationConfig
     .filter((section) => !section.requiredModule || activeModules.includes(section.requiredModule))

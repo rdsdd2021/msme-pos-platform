@@ -231,10 +231,22 @@ export function TableOrderDrawer({
 
   // Fire KOT to Kitchen
   const handleFireKot = async () => {
-    if (!activeOrder || !table || draftItems.length === 0) return;
+    if (!table || draftItems.length === 0) return;
     setIsFiringKot(true);
     setError(null);
     try {
+      let orderId = activeOrder?.id;
+      if (!orderId) {
+        // Automatically seat and open order if table doesn't have an active order yet
+        const newOrder = await apiClient.createRestaurantOrder(table.tenantId, table.branchId, {
+          tableId: table.id,
+          guestCount,
+          notes: captainNotes || undefined,
+        });
+        orderId = newOrder.id;
+        setActiveOrder(newOrder);
+      }
+
       const items: DispatchKotItemRequest[] = draftItems.map((item) => ({
         productId: item.productId,
         quantity: item.quantity.toString(),
@@ -243,7 +255,7 @@ export function TableOrderDrawer({
       }));
 
       await apiClient.dispatchRestaurantKot(table.tenantId, table.branchId, {
-        orderId: activeOrder.id,
+        orderId,
         items,
       });
 
@@ -251,7 +263,7 @@ export function TableOrderDrawer({
       setDraftItems([]);
 
       // Reload fresh order details
-      const refreshedOrder = await apiClient.getRestaurantOrder(table.tenantId, activeOrder.id);
+      const refreshedOrder = await apiClient.getRestaurantOrder(table.tenantId, orderId);
       setActiveOrder(refreshedOrder);
       onRefreshTable();
     } catch (err: any) {
@@ -389,26 +401,48 @@ export function TableOrderDrawer({
               </div>
             </div>
 
-            {/* Actions for occupied table */}
-            {activeOrder && (
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setTransferModalOpen(true)}
-                  className="gap-1.5 text-xs text-slate-700"
+            {/* Actions / Header Right */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200">
+                <Users className="w-3.5 h-3.5 text-slate-500 ml-1" />
+                <span className="text-[11px] font-bold text-slate-600">Pax:</span>
+                <button
+                  type="button"
+                  onClick={() => setGuestCount((prev) => Math.max(1, prev - 1))}
+                  className="w-5 h-5 flex items-center justify-center bg-white rounded border border-slate-200 text-xs font-black text-slate-700 hover:bg-slate-50"
                 >
-                  <ArrowRightLeft className="w-3.5 h-3.5" /> Transfer
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => setSettleModalOpen(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs whitespace-nowrap"
+                  -
+                </button>
+                <span className="w-4 text-center text-xs font-black text-slate-900">{guestCount}</span>
+                <button
+                  type="button"
+                  onClick={() => setGuestCount((prev) => prev + 1)}
+                  className="w-5 h-5 flex items-center justify-center bg-white rounded border border-slate-200 text-xs font-black text-slate-700 hover:bg-slate-50"
                 >
-                  <Receipt className="w-3.5 h-3.5" /> Settle & Bill (₹{parseFloat(activeOrder.grandTotal).toFixed(2)})
-                </Button>
+                  +
+                </button>
               </div>
-            )}
+
+              {activeOrder && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setTransferModalOpen(true)}
+                    className="gap-1.5 text-xs text-slate-700 h-8"
+                  >
+                    <ArrowRightLeft className="w-3.5 h-3.5" /> Transfer
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setSettleModalOpen(true)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs h-8 whitespace-nowrap"
+                  >
+                    <Receipt className="w-3.5 h-3.5" /> Bill
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {error && (
@@ -420,61 +454,8 @@ export function TableOrderDrawer({
 
           {/* Body Content */}
           <div className="flex-1 overflow-hidden flex">
-            {/* If table is VACANT -> Prompt to Seat Guests */}
-            {table.status === TableStatus.VACANT && !activeOrder ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
-                  <UtensilsCrossed className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-900">Seat Guests at Table {table.tableNumber}</h3>
-                <p className="text-sm text-slate-500 mt-1 mb-6">
-                  Table is ready and clean. Specify guest count to open dining session.
-                </p>
-
-                <div className="w-full bg-white p-5 rounded-2xl border shadow-sm space-y-4 text-left">
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">Number of Guests (Pax)</Label>
-                    <div className="grid grid-cols-6 gap-2 mt-2">
-                      {[1, 2, 3, 4, 6, 8].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setGuestCount(num)}
-                          className={`py-2 text-sm font-bold rounded-lg border transition-all ${
-                            guestCount === num
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                              : 'bg-white text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">Captain Notes / Preferences</Label>
-                    <Input
-                      placeholder="e.g. Birthday anniversary, high chair needed"
-                      value={captainNotes}
-                      onChange={(e) => setCaptainNotes(e.target.value)}
-                      className="mt-1.5 text-xs bg-slate-50"
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleSeatGuests}
-                    disabled={loading}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-5 text-sm gap-2"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    {loading ? 'Opening Order...' : 'Confirm Seating & Open Menu'}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              /* Occupied table: Dual pane layout (Menu Picker + KOT Cart / History) */
-              <div className="flex-1 flex overflow-hidden">
+            {/* Direct Dual-Pane Menu & Order Sheet */}
+            <div className="flex-1 flex overflow-hidden">
                 {/* Left Pane: Menu Catalog */}
                 <div className="w-1/2 border-r bg-white flex flex-col">
                   {/* Menu Search & Categories */}
@@ -643,18 +624,6 @@ export function TableOrderDrawer({
                           ))
                         )}
                       </div>
-
-                      {/* Draft Fire Actions */}
-                      <div className="p-3 bg-white border-t space-y-2">
-                        <Button
-                          onClick={handleFireKot}
-                          disabled={draftItems.length === 0 || isFiringKot}
-                          className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs h-10 gap-2 shadow-sm"
-                        >
-                          <Flame className="w-4 h-4 fill-slate-950" />
-                          {isFiringKot ? 'Firing to Kitchen...' : `🔥 Fire KOT to Kitchen (${draftItems.length} items)`}
-                        </Button>
-                      </div>
                     </TabsContent>
 
                     {/* Tab 2: Dispatched KOTs */}
@@ -740,10 +709,51 @@ export function TableOrderDrawer({
                       <span>₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)}</span>
                     </div>
                   </div>
+
+                  {/* Dynamic Action Area: Place Order <-> Print Bill */}
+                  <div className="p-3 bg-white border-t space-y-2">
+                    {draftItems.length > 0 ? (
+                      <Button
+                        onClick={handleFireKot}
+                        disabled={isFiringKot}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm h-11 gap-2 shadow-sm"
+                      >
+                        <Flame className="w-4 h-4 fill-slate-950" />
+                        {isFiringKot ? 'Firing to Kitchen...' : `🔥 Place Order (${draftItems.length} items)`}
+                      </Button>
+                    ) : (activeOrder?.kots?.length || 0) > 0 ? (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            if (activeOrder?.kots && activeOrder.kots.length > 0) {
+                              handlePrintKot(activeOrder.kots[activeOrder.kots.length - 1]);
+                            }
+                          }}
+                          className="flex-1 text-xs font-bold gap-1.5 h-11 border-slate-300"
+                          title="Print latest KOT slip"
+                        >
+                          <Printer className="w-4 h-4 text-slate-600" /> Print KOT
+                        </Button>
+                        <Button
+                          onClick={() => setSettleModalOpen(true)}
+                          className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm h-11 gap-2 shadow-sm"
+                        >
+                          <Receipt className="w-4 h-4" /> Print Bill / Settle (₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)})
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        disabled
+                        className="w-full bg-slate-100 text-slate-400 font-bold text-xs h-10 border border-slate-200 cursor-not-allowed"
+                      >
+                        Select dishes from menu to place order
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
         </SheetContent>
       </Sheet>
 
