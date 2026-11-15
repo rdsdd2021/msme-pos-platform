@@ -57,7 +57,7 @@ class SyncWorker {
   /// Count of unsynced operations pending in local SQLite outbox
   Future<int> getPendingCount([String? tenantId]) async {
     final query = _db.select(_db.syncOutbox)
-      ..where((t) => t.status.isIn(const ['pending', 'failed', 'sending']));
+      ..where((t) => t.status.isIn(const ['pending', 'failed', 'sending', 'rejected']));
     final rows = await query.get();
     return rows.length;
   }
@@ -69,9 +69,11 @@ class SyncWorker {
     required String tenantId,
     required String deviceId,
   }) async {
-    // 1. Fetch pending outbox operations in sequence order
+    // 1. Fetch pending outbox operations in sequence order (retry rejected ops up to 5 times)
     final pendingOps = await (_db.select(_db.syncOutbox)
-          ..where((t) => t.status.isIn(const ['pending', 'failed']))
+          ..where((t) =>
+              t.status.isIn(const ['pending', 'failed']) |
+              (t.status.equals('rejected') & t.retryCount.isSmallerThanValue(5)))
           ..orderBy([(t) => OrderingTerm(expression: t.sequence, mode: OrderingMode.asc)]))
         .get();
 
@@ -105,9 +107,11 @@ class SyncWorker {
               );
               pushedCount++;
             } else {
+              final originalOp = chunk.firstWhere((c) => c.operationId == ack.operationId);
               await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(ack.operationId))).write(
                 SyncOutboxCompanion(
                   status: const Value('rejected'),
+                  retryCount: Value(originalOp.retryCount + 1),
                   lastError: Value(ack.errorMessage ?? 'Rejected by server'),
                 ),
               );
@@ -135,6 +139,7 @@ class SyncWorker {
                   await (_db.update(_db.syncOutbox)..where((t) => t.operationId.equals(singleOp.operationId))).write(
                     SyncOutboxCompanion(
                       status: const Value('rejected'),
+                      retryCount: Value(singleOp.retryCount + 1),
                       lastError: Value(ack?.errorMessage ?? 'Rejected by server'),
                     ),
                   );

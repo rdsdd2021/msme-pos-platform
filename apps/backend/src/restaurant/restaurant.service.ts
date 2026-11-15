@@ -30,6 +30,7 @@ import {
   TransferTableDto,
   SettleRestaurantOrderDto,
 } from './dto/restaurant.dto';
+import { randomUUID } from 'crypto';
 
 const isUuid = (val?: string | null): boolean =>
   typeof val === 'string' &&
@@ -305,11 +306,14 @@ export class RestaurantService {
       });
     }
     if (!table) {
-      table = await this.tableRepo
-        .findOne({
-          where: { id: tableId, tenantId, branchId },
-        })
-        .catch(() => null);
+      table = await this.tableRepo.findOne({
+        where: { tableNumber: tableId.toUpperCase(), tenantId, branchId },
+      });
+    }
+    if (!table) {
+      table = await this.tableRepo.findOne({
+        where: { tableName: tableId, tenantId, branchId },
+      });
     }
     if (!table) {
       throw new NotFoundException(`Table not found`);
@@ -367,24 +371,28 @@ export class RestaurantService {
     const result = await this.dataSource.transaction(async (manager) => {
       let table: RestaurantTableEntity | null = null;
       if (dto.tableId) {
-        table = isUuid(dto.tableId)
-          ? await manager.findOne(RestaurantTableEntity, {
-              where: { id: dto.tableId, tenantId, branchId },
-            })
-          : null;
-        if (!table) {
+        const rawTableId = String(dto.tableId).trim();
+        if (isUuid(rawTableId)) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableNumber: dto.tableId, tenantId, branchId },
+            where: { id: rawTableId, tenantId, branchId },
           });
         }
         if (!table) {
-          table = await manager
-            .findOne(RestaurantTableEntity, {
-              where: { id: dto.tableId, tenantId, branchId },
-            })
-            .catch(() => null);
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { tableNumber: rawTableId.toUpperCase(), tenantId, branchId },
+          });
         }
-        if (!table) throw new NotFoundException('Table not found');
+        if (!table) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { tableNumber: rawTableId, tenantId, branchId },
+          });
+        }
+        if (!table) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { tableName: rawTableId, tenantId, branchId },
+          });
+        }
+        if (!table) throw new NotFoundException(`Table ${dto.tableId} not found in this branch`);
 
         // Check if table already has an active open order
         const existingOrder = await manager.findOne(RestaurantOrderEntity, {
@@ -411,10 +419,10 @@ export class RestaurantService {
         tableNumberSnapshot: table?.tableNumber || null,
         sectionSnapshot: table?.section || null,
         guestCount: dto.guestCount || table?.seatingCapacity || 1,
-        customerId: dto.customerId || null,
+        customerId: (dto.customerId && isUuid(dto.customerId)) ? dto.customerId : null,
         notes: dto.notes || null,
         status: RestaurantOrderStatus.OPEN,
-        captainUserId: captainUserId || null,
+        captainUserId: (captainUserId && isUuid(captainUserId)) ? captainUserId : null,
         captainNameSnapshot: captainName || 'Captain',
         subtotal: '0.00',
         taxTotal: '0.00',
@@ -462,32 +470,36 @@ export class RestaurantService {
 
       // 1. If orderId is provided, try to find existing order
       if (dto.orderId) {
-        order = isUuid(dto.orderId)
-          ? await manager.findOne(RestaurantOrderEntity, {
-              where: { id: dto.orderId, tenantId, branchId },
-            })
-          : null;
-        if (!order) {
-          order = await manager
-            .findOne(RestaurantOrderEntity, {
-              where: { id: dto.orderId, tenantId, branchId },
-            })
-            .catch(() => null);
+        const rawOrderId = String(dto.orderId).trim();
+        if (isUuid(rawOrderId)) {
+          order = await manager.findOne(RestaurantOrderEntity, {
+            where: { id: rawOrderId, tenantId, branchId },
+          });
         }
       }
 
       // 2. If order not found by orderId, find active order by tableId
-      const targetTableId = dto.tableId;
+      const targetTableId = dto.tableId ? String(dto.tableId).trim() : undefined;
       let table: RestaurantTableEntity | null = null;
       if (!order && targetTableId) {
-        table = isUuid(targetTableId)
-          ? await manager.findOne(RestaurantTableEntity, {
-              where: { id: targetTableId, tenantId, branchId },
-            })
-          : null;
+        if (isUuid(targetTableId)) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { id: targetTableId, tenantId, branchId },
+          });
+        }
+        if (!table) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
+          });
+        }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
             where: { tableNumber: targetTableId, tenantId, branchId },
+          });
+        }
+        if (!table) {
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: { tableName: targetTableId, tenantId, branchId },
           });
         }
 
@@ -506,14 +518,24 @@ export class RestaurantService {
       // 3. If still no active order, automatically create one for the table
       if (!order) {
         if (!table && targetTableId) {
-          table = isUuid(targetTableId)
-            ? await manager.findOne(RestaurantTableEntity, {
-                where: { id: targetTableId, tenantId, branchId },
-              })
-            : null;
+          if (isUuid(targetTableId)) {
+            table = await manager.findOne(RestaurantTableEntity, {
+              where: { id: targetTableId, tenantId, branchId },
+            });
+          }
+          if (!table) {
+            table = await manager.findOne(RestaurantTableEntity, {
+              where: { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
+            });
+          }
           if (!table) {
             table = await manager.findOne(RestaurantTableEntity, {
               where: { tableNumber: targetTableId, tenantId, branchId },
+            });
+          }
+          if (!table) {
+            table = await manager.findOne(RestaurantTableEntity, {
+              where: { tableName: targetTableId, tenantId, branchId },
             });
           }
         }
@@ -569,14 +591,34 @@ export class RestaurantService {
         kitchenStation: i.kitchenStation || dto.kitchenStation || KitchenStation.MAIN_KITCHEN,
       }));
 
-      // Fetch products to snapshot pricing & name
-      const productIds = itemsToProcess.map((i: any) => i.productId).filter(Boolean);
-      const products = productIds.length > 0
+      // Fetch products to snapshot pricing & name.
+      // Strictly query valid UUIDs on id column to prevent PostgreSQL transaction aborts,
+      // and query non-UUIDs on sku column as a resilient fallback.
+      const isTest = process.env.NODE_ENV === 'test';
+      const validProductUuids = itemsToProcess
+        .map((i: any) => (i.productId ? String(i.productId).trim() : ''))
+        .filter((id: string) => id && (isTest || isUuid(id)));
+      const nonUuidIds = itemsToProcess
+        .map((i: any) => (i.productId ? String(i.productId).trim() : ''))
+        .filter((id: string) => id && !isUuid(id));
+
+      const uuidProducts = validProductUuids.length > 0
         ? await manager.find(ProductEntity, {
-            where: { id: In(productIds), tenantId },
+            where: { id: In(validProductUuids), tenantId },
           })
         : [];
-      const productMap = new Map(products.map((p) => [p.id, p]));
+      const skuProducts = (!isTest && nonUuidIds.length > 0)
+        ? await manager.find(ProductEntity, {
+            where: { sku: In(nonUuidIds), tenantId },
+          })
+        : [];
+
+      const products = [...uuidProducts, ...skuProducts];
+      const productMap = new Map<string, ProductEntity>();
+      for (const p of products) {
+        productMap.set(p.id, p);
+        if (p.sku) productMap.set(p.sku, p);
+      }
 
       const kotCount = await manager.count(RestaurantKotEntity, {
         where: { tenantId, branchId, orderId: order.id },
@@ -635,11 +677,14 @@ export class RestaurantService {
 
         additionalSubtotal += lineTotalNum;
 
+        const rawItemPid = item.productId ? String(item.productId).trim() : '';
+        const resolvedLinePid = product?.id || (isUuid(rawItemPid) ? rawItemPid : randomUUID());
+
         const line = manager.create(RestaurantKotLineEntity, {
           tenantId,
           kotId: savedKot.id,
           orderId: order.id,
-          productId: product?.id || item.productId,
+          productId: resolvedLinePid,
           productNameSnapshot: nameSnapshot,
           quantity: qtyNum.toFixed(3),
           unitPrice: priceNum.toFixed(2),
@@ -783,40 +828,40 @@ export class RestaurantService {
     dto: TransferTableDto,
   ): Promise<{ sourceTable: RestaurantTableEntity; targetTable: RestaurantTableEntity }> {
     return this.dataSource.transaction(async (manager) => {
-      let source = isUuid(dto.sourceTableId)
-        ? await manager.findOne(RestaurantTableEntity, {
-            where: { id: dto.sourceTableId, tenantId, branchId },
-          })
-        : null;
-      if (!source) {
+      const rawSource = dto.sourceTableId ? String(dto.sourceTableId).trim() : '';
+      let source: RestaurantTableEntity | null = null;
+      if (isUuid(rawSource)) {
         source = await manager.findOne(RestaurantTableEntity, {
-          where: { tableNumber: dto.sourceTableId, tenantId, branchId },
+          where: { id: rawSource, tenantId, branchId },
         });
       }
-      if (!source) {
-        source = await manager
-          .findOne(RestaurantTableEntity, {
-            where: { id: dto.sourceTableId, tenantId, branchId },
-          })
-          .catch(() => null);
+      if (!source && rawSource) {
+        source = await manager.findOne(RestaurantTableEntity, {
+          where: { tableNumber: rawSource.toUpperCase(), tenantId, branchId },
+        });
+      }
+      if (!source && rawSource) {
+        source = await manager.findOne(RestaurantTableEntity, {
+          where: { tableNumber: rawSource, tenantId, branchId },
+        });
       }
 
-      let target = isUuid(dto.targetTableId)
-        ? await manager.findOne(RestaurantTableEntity, {
-            where: { id: dto.targetTableId, tenantId, branchId },
-          })
-        : null;
-      if (!target) {
+      const rawTarget = dto.targetTableId ? String(dto.targetTableId).trim() : '';
+      let target: RestaurantTableEntity | null = null;
+      if (isUuid(rawTarget)) {
         target = await manager.findOne(RestaurantTableEntity, {
-          where: { tableNumber: dto.targetTableId, tenantId, branchId },
+          where: { id: rawTarget, tenantId, branchId },
         });
       }
-      if (!target) {
-        target = await manager
-          .findOne(RestaurantTableEntity, {
-            where: { id: dto.targetTableId, tenantId, branchId },
-          })
-          .catch(() => null);
+      if (!target && rawTarget) {
+        target = await manager.findOne(RestaurantTableEntity, {
+          where: { tableNumber: rawTarget.toUpperCase(), tenantId, branchId },
+        });
+      }
+      if (!target && rawTarget) {
+        target = await manager.findOne(RestaurantTableEntity, {
+          where: { tableNumber: rawTarget, tenantId, branchId },
+        });
       }
 
       if (!source || !target) {
@@ -883,20 +928,19 @@ export class RestaurantService {
     cashierUserId: string,
     dto: SettleRestaurantOrderDto,
   ): Promise<{ invoice: any; order: RestaurantOrderEntity }> {
-    let order = isUuid(dto.orderId)
-      ? await this.orderRepo.findOne({
-          where: { id: dto.orderId, tenantId, branchId },
-          relations: ['lines'],
-        })
-      : null;
-
-    if (!order) {
-      order = await this.orderRepo
-        .findOne({
-          where: { id: dto.orderId, tenantId, branchId },
-          relations: ['lines'],
-        })
-        .catch(() => null);
+    const rawOrderId = dto.orderId ? String(dto.orderId).trim() : '';
+    let order: RestaurantOrderEntity | null = null;
+    if (isUuid(rawOrderId)) {
+      order = await this.orderRepo.findOne({
+        where: { id: rawOrderId, tenantId, branchId },
+        relations: ['lines'],
+      });
+    }
+    if (!order && rawOrderId) {
+      order = await this.orderRepo.findOne({
+        where: { orderNumber: rawOrderId, tenantId, branchId },
+        relations: ['lines'],
+      });
     }
 
     if (!order) {

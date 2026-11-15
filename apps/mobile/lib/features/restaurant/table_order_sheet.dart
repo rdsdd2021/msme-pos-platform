@@ -146,7 +146,9 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       final restRepo = ref.read(localRestaurantRepoProvider);
       final authState = ref.read(authProvider);
       final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
-      final branchId = authState.activeBranchId ?? 'branch-1';
+      final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
+          ? authState.activeBranchId!
+          : (authState.activeMembership?.branchId ?? 'branch-1');
       final deviceId = await AppConfig.getDeviceId();
       final captainName = authState.user?.fullName ?? 'Captain';
 
@@ -212,7 +214,9 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       final restRepo = ref.read(localRestaurantRepoProvider);
       final authState = ref.read(authProvider);
       final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
-      final branchId = authState.activeBranchId ?? 'branch-1';
+      final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
+          ? authState.activeBranchId!
+          : (authState.activeMembership?.branchId ?? 'branch-1');
       final deviceId = await AppConfig.getDeviceId();
 
       await restRepo.markTableBilledAtomic(
@@ -738,7 +742,9 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                             setModalState(() => isSettling = true);
                             final authState = ref.read(authProvider);
                             final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
-                            final branchId = authState.activeBranchId ?? 'branch-1';
+                            final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
+                                ? authState.activeBranchId!
+                                : (authState.activeMembership?.branchId ?? 'branch-1');
                             final deviceId = await AppConfig.getDeviceId();
 
                             final result = await OfflineBillingService.processSale(

@@ -15,6 +15,7 @@ import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingModule } from '../billing/billing.module';
 import { TenantsModule } from '../tenants/tenants.module';
 import { RestaurantModule } from '../restaurant/restaurant.module';
+import { RealtimeModule } from '../realtime/realtime.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { RestaurantModule } from '../restaurant/restaurant.module';
     BillingModule,
     TenantsModule,
     RestaurantModule,
+    RealtimeModule,
   ],
   controllers: [SyncController],
   providers: [SyncService],

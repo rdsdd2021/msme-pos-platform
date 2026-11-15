@@ -83,8 +83,8 @@ export class UpdateTableDto {
 }
 
 export class CreateRestaurantOrderDto {
-  @ApiProperty({ example: 'uuid-of-table', required: false })
-  @IsUUID()
+  @ApiProperty({ example: 'uuid-of-table or table number (e.g. AC-01)', required: false })
+  @IsString()
   @IsOptional()
   tableId?: string;
 
@@ -111,8 +111,8 @@ export class CreateRestaurantOrderDto {
 }
 
 export class DispatchKotItemDto {
-  @ApiProperty({ example: 'uuid-of-product' })
-  @IsUUID()
+  @ApiProperty({ example: 'uuid-of-product or client sku' })
+  @IsString()
   productId!: string;
 
   @ApiProperty({ example: 'Paneer Butter Masala', required: false })

@@ -13,6 +13,7 @@ import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingService } from '../billing/billing.service';
 import { RestaurantService } from '../restaurant/restaurant.service';
+import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateSaleDto } from '../billing/dto/billing.dto';
 import { PushSyncBatchDto, AllocateInvoiceRangeDto } from './dto/sync.dto';
 import {
@@ -54,7 +55,34 @@ export class SyncService {
     private readonly dataSource: DataSource,
     @Optional()
     private readonly restaurantService?: RestaurantService,
+    @Optional()
+    private readonly realtimeService?: RealtimeEventsService,
   ) {}
+
+  private isUuid(val: any): boolean {
+    return (
+      typeof val === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val)
+    );
+  }
+
+  private async resolveBranchId(
+    tenantId: string,
+    inputBranchId?: any,
+    deviceBranchId?: string,
+  ): Promise<string> {
+    if (this.isUuid(inputBranchId)) {
+      return inputBranchId;
+    }
+    if (this.isUuid(deviceBranchId)) {
+      return deviceBranchId!;
+    }
+    const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
+    if (defaultBranch?.id) {
+      return defaultBranch.id;
+    }
+    throw new Error(`Cannot resolve valid branch for tenant ${tenantId}`);
+  }
 
   /**
    * Ingests a push batch from an offline device.
@@ -186,12 +214,8 @@ export class SyncService {
             }
 
             const rawId = raw.id ? String(raw.id).trim() : undefined;
-            const isClientUuid =
-              rawId &&
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-                rawId,
-              );
-            const existingProd = rawId
+            const isClientUuid = this.isUuid(rawId);
+            const existingProd = isClientUuid
               ? await this.productRepo.findOne({
                   where: [{ tenantId, id: rawId }, { tenantId, sku }],
                 })
@@ -258,11 +282,18 @@ export class SyncService {
               serverEntityId = (saved as ProductEntity).id;
             }
 
+            if (serverEntityId) {
+              this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { productId: serverEntityId });
+            }
+
             // Record initial stock balance & ledger entry if opening stock provided
             const initialStockNum = parseFloat(raw.initialStock || '0');
             if (initialStockNum > 0 && serverEntityId) {
-              const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
-              const targetBranchId = raw.branchId || defaultBranch?.id;
+              const targetBranchId = await this.resolveBranchId(
+                tenantId,
+                raw.branchId,
+                device.branchId,
+              ).catch(() => null);
               if (targetBranchId) {
                 let balance = await this.stockBalanceRepo.findOne({
                   where: { tenantId, branchId: targetBranchId, productId: serverEntityId },
@@ -298,7 +329,7 @@ export class SyncService {
           const raw = op.payload as any;
           const sku = raw.sku ? String(raw.sku).trim().toUpperCase() : undefined;
           const prodId = raw.id ? String(raw.id).trim() : undefined;
-          const product = prodId
+          const product = (prodId && this.isUuid(prodId))
             ? await this.productRepo.findOne({ where: { tenantId, id: prodId } })
             : sku
               ? await this.productRepo.findOne({ where: { tenantId, sku } })
@@ -323,6 +354,7 @@ export class SyncService {
             if (raw.trackInventory !== undefined) product.trackInventory = Boolean(raw.trackInventory);
             const saved = await this.productRepo.save(product);
             serverEntityId = (saved as ProductEntity).id;
+            this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { productId: serverEntityId });
           }
         } else if (op.operationType === 'CREATE_SALE') {
           const raw = op.payload as any;
@@ -578,11 +610,11 @@ export class SyncService {
                 rawId,
               );
 
-            let existingCust = await this.customerRepo.findOne({
-              where: rawId
-                ? [{ tenantId, id: rawId }, { tenantId, phone }]
-                : [{ tenantId, phone }],
-            });
+            let existingCust = isClientUuid
+              ? await this.customerRepo.findOne({
+                  where: [{ tenantId, id: rawId }, { tenantId, phone }],
+                })
+              : await this.customerRepo.findOne({ where: { tenantId, phone } });
 
             if (existingCust) {
               existingCust.name = name;
@@ -602,10 +634,10 @@ export class SyncService {
               serverEntityId = saved.id;
             }
           }
-        } else if (op.operationType === 'CREATE_RESTAURANT_ORDER') {
+        } else if (op.operationType === 'CREATE_RESTAURANT_ORDER' || op.operationType === 'OPEN_RESTAURANT_ORDER') {
           if (this.restaurantService) {
             const raw = op.payload as any;
-            const branchId = raw.branchId || device.branchId;
+            const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
             const order = await this.restaurantService.createOrder(
               tenantId,
               branchId,
@@ -614,11 +646,17 @@ export class SyncService {
               raw.captainName || 'Mobile Captain',
             );
             serverEntityId = order.id;
+            this.realtimeService?.emit(
+              tenantId,
+              'RESTAURANT_TABLE_CHANGED',
+              { action: op.operationType, tableId: raw.tableId || raw.id, orderId: order.id },
+              branchId,
+            );
           }
         } else if (op.operationType === 'DISPATCH_KOT') {
           if (this.restaurantService) {
             const raw = op.payload as any;
-            const branchId = raw.branchId || device.branchId;
+            const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
             const res = await this.restaurantService.dispatchKot(
               tenantId,
               branchId,
@@ -631,11 +669,17 @@ export class SyncService {
               raw.captainName || 'Mobile Captain',
             );
             serverEntityId = res.kot.id;
+            this.realtimeService?.emit(
+              tenantId,
+              'RESTAURANT_TABLE_CHANGED',
+              { action: 'DISPATCH_KOT', tableId: raw.tableId, orderId: raw.orderId },
+              branchId,
+            );
           }
         } else if (op.operationType === 'SETTLE_RESTAURANT_ORDER') {
           if (this.restaurantService) {
             const raw = op.payload as any;
-            const branchId = raw.branchId || device.branchId;
+            const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
             const res = await this.restaurantService.settleOrder(
               tenantId,
               branchId,
@@ -643,11 +687,17 @@ export class SyncService {
               raw,
             );
             serverEntityId = res.order.id;
+            this.realtimeService?.emit(
+              tenantId,
+              'RESTAURANT_TABLE_CHANGED',
+              { action: 'SETTLE_RESTAURANT_ORDER', orderId: res.order.id },
+              branchId,
+            );
           }
         } else if (op.operationType === 'UPDATE_TABLE_STATUS') {
           if (this.restaurantService) {
             const raw = op.payload as any;
-            const branchId = raw.branchId || device.branchId;
+            const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
             const table = await this.restaurantService.updateTable(
               tenantId,
               branchId,
@@ -655,17 +705,29 @@ export class SyncService {
               raw,
             );
             serverEntityId = table.id;
+            this.realtimeService?.emit(
+              tenantId,
+              'RESTAURANT_TABLE_CHANGED',
+              { action: 'UPDATE_TABLE_STATUS', tableId: table.id, status: table.status },
+              branchId,
+            );
           }
         } else if (op.operationType === 'TRANSFER_TABLE') {
           if (this.restaurantService) {
             const raw = op.payload as any;
-            const branchId = raw.branchId || device.branchId;
+            const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
             const res = await this.restaurantService.transferTable(
               tenantId,
               branchId,
               raw,
             );
             serverEntityId = res.targetTable.id;
+            this.realtimeService?.emit(
+              tenantId,
+              'RESTAURANT_TABLE_CHANGED',
+              { action: 'TRANSFER_TABLE', sourceTableId: raw.sourceTableId, targetTableId: raw.targetTableId },
+              branchId,
+            );
           }
         }
 
