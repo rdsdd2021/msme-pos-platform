@@ -52,7 +52,7 @@ class RealtimeSyncService {
       }
 
       final serverUrl = await AppConfig.getServerUrl();
-      final url = '$serverUrl/api/v1/tenants/$tenantId/events';
+      final url = '$serverUrl/api/v1/tenants/$tenantId/events?token=${Uri.encodeComponent(token)}';
 
       final response = await _dio.get<ResponseBody>(
         url,

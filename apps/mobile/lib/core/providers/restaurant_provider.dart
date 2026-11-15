@@ -44,6 +44,7 @@ class RestaurantTable {
   final int currentGuestCount;
   final TableStatus status;
   final List<CartItem> activeOrderLines;
+  final List<CartItem> confirmedLines;
   final int confirmedItemCount;
   final DateTime? seatedAt;
   final String? captainNotes;
@@ -56,6 +57,7 @@ class RestaurantTable {
     this.currentGuestCount = 2,
     this.status = TableStatus.vacant,
     this.activeOrderLines = const [],
+    this.confirmedLines = const [],
     this.confirmedItemCount = 0,
     this.seatedAt,
     this.captainNotes,
@@ -64,12 +66,38 @@ class RestaurantTable {
   int get runningTotalPaisa => activeOrderLines.fold(0, (sum, i) => sum + i.totalPaisa);
   int get itemCount => activeOrderLines.fold(0, (sum, i) => sum + i.quantity);
 
+  List<CartItem> get newDeltaLines {
+    if (activeOrderLines.isEmpty) return const [];
+    if (confirmedLines.isEmpty) return activeOrderLines;
+
+    final Map<String, int> confirmedQtyMap = {};
+    for (final c in confirmedLines) {
+      final key = '${c.product.id}_${c.notes ?? ""}';
+      confirmedQtyMap[key] = (confirmedQtyMap[key] ?? 0) + c.quantity;
+    }
+
+    final List<CartItem> delta = [];
+    for (final active in activeOrderLines) {
+      final key = '${active.product.id}_${active.notes ?? ""}';
+      final confirmedQty = confirmedQtyMap[key] ?? 0;
+      final deltaQty = active.quantity - confirmedQty;
+      if (deltaQty > 0) {
+        delta.add(active.copyWith(quantity: deltaQty));
+      }
+    }
+    return delta;
+  }
+
   bool get hasNewItems {
     if (activeOrderLines.isEmpty) return false;
+    if (newDeltaLines.isNotEmpty) return true;
     return itemCount > confirmedItemCount;
   }
 
   int get newItemsCount {
+    if (newDeltaLines.isNotEmpty) {
+      return newDeltaLines.fold<int>(0, (sum, i) => sum + i.quantity);
+    }
     final diff = itemCount - confirmedItemCount;
     return diff > 0 ? diff : 0;
   }
@@ -82,6 +110,7 @@ class RestaurantTable {
     int? currentGuestCount,
     TableStatus? status,
     List<CartItem>? activeOrderLines,
+    List<CartItem>? confirmedLines,
     int? confirmedItemCount,
     DateTime? seatedAt,
     String? captainNotes,
@@ -94,6 +123,7 @@ class RestaurantTable {
       currentGuestCount: currentGuestCount ?? this.currentGuestCount,
       status: status ?? this.status,
       activeOrderLines: activeOrderLines ?? this.activeOrderLines,
+      confirmedLines: confirmedLines ?? this.confirmedLines,
       confirmedItemCount: confirmedItemCount ?? this.confirmedItemCount,
       seatedAt: seatedAt ?? this.seatedAt,
       captainNotes: captainNotes ?? this.captainNotes,
@@ -295,33 +325,51 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       }
 
       List<CartItem> activeLines;
+      List<CartItem> confirmedLines;
       int confirmedCount;
 
       if (parsedStatus == TableStatus.vacant || parsedStatus == TableStatus.dirty) {
         // Table is vacant or dirty: completely reset active lines and confirmed count
         activeLines = const [];
+        confirmedLines = const [];
         confirmedCount = 0;
       } else {
         // Query committed lines from local SQLite (populated by sync pull or local KOT outbox)
         final dbLines = await _repo?.getTableActiveCartItems(tblId) ?? [];
         if (dbLines.isNotEmpty) {
           activeLines = dbLines;
+          confirmedLines = dbLines;
           confirmedCount = dbLines.fold<int>(0, (sum, i) => sum + i.quantity);
 
           // If waiter has uncommitted local draft items added in-memory, preserve the delta
           if (existing != null && existing.hasNewItems) {
-            final committedIds = {for (final l in dbLines) l.product.id};
+            final committedMap = <String, int>{};
+            for (final l in dbLines) {
+              final k = '${l.product.id}_${l.notes ?? ""}';
+              committedMap[k] = (committedMap[k] ?? 0) + l.quantity;
+            }
+            final uncommittedLines = <CartItem>[];
             for (final localLine in existing.activeOrderLines) {
-              if (!committedIds.contains(localLine.product.id)) {
-                activeLines = [...activeLines, localLine];
+              final k = '${localLine.product.id}_${localLine.notes ?? ""}';
+              final committedQty = committedMap[k] ?? 0;
+              final diff = localLine.quantity - committedQty;
+              if (diff > 0) {
+                uncommittedLines.add(localLine.copyWith(quantity: diff));
               }
+            }
+            if (uncommittedLines.isNotEmpty) {
+              activeLines = [...dbLines, ...uncommittedLines];
             }
           }
         } else {
           activeLines = existing?.activeOrderLines ?? [];
+          confirmedLines = existing?.confirmedLines ?? [];
           final isFired = parsedStatus == TableStatus.ordered || parsedStatus == TableStatus.billed;
           confirmedCount = existing?.confirmedItemCount ??
               (isFired ? activeLines.fold<int>(0, (sum, i) => sum + i.quantity) : 0);
+          if (isFired && confirmedLines.isEmpty) {
+            confirmedLines = activeLines;
+          }
         }
       }
 
@@ -334,6 +382,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           currentGuestCount: tbl.currentGuestCount > 0 ? tbl.currentGuestCount : (existing?.currentGuestCount ?? 2),
           status: parsedStatus,
           activeOrderLines: activeLines,
+          confirmedLines: confirmedLines,
           confirmedItemCount: confirmedCount,
           seatedAt: tbl.occupiedAt ?? existing?.seatedAt,
           captainNotes: existing?.captainNotes,
@@ -432,6 +481,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       if (t.id != tableId) return t;
       return t.copyWith(
         status: TableStatus.ordered,
+        confirmedLines: t.activeOrderLines,
         confirmedItemCount: t.itemCount,
       );
     }).toList();
@@ -447,10 +497,16 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       final idx = lines.indexWhere((l) => l.product.id == productId);
 
       if (idx >= 0) {
-        if (lines[idx].quantity > 1) {
-          lines[idx] = lines[idx].copyWith(quantity: lines[idx].quantity - 1);
-        } else {
-          lines.removeAt(idx);
+        final confirmedQty = t.confirmedLines
+            .where((c) => c.product.id == productId)
+            .fold<int>(0, (sum, c) => sum + c.quantity);
+
+        if (lines[idx].quantity > confirmedQty) {
+          if (lines[idx].quantity > 1) {
+            lines[idx] = lines[idx].copyWith(quantity: lines[idx].quantity - 1);
+          } else {
+            lines.removeAt(idx);
+          }
         }
       }
 

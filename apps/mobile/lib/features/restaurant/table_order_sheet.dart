@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/models/cart_item.dart';
 import '../../../core/models/product.dart';
@@ -39,7 +40,15 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     super.dispose();
   }
 
-  ReceiptDocument _buildKotReceiptDocument(RestaurantTable currentTable) {
+  ReceiptDocument _buildKotReceiptDocument(RestaurantTable currentTable, [List<CartItem>? linesToPrint]) {
+    final effectiveLines = (linesToPrint != null && linesToPrint.isNotEmpty)
+        ? linesToPrint
+        : (currentTable.newDeltaLines.isNotEmpty
+            ? currentTable.newDeltaLines
+            : currentTable.activeOrderLines);
+
+    final subtotal = effectiveLines.fold<int>(0, (sum, i) => sum + i.totalPaisa);
+
     return ReceiptDocument(
       header: ReceiptHeader(
         storeName: '*** KITCHEN ORDER TICKET ***',
@@ -52,7 +61,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         paymentMethod: 'KOT',
         customerName: '${currentTable.name} (${currentTable.currentGuestCount} guests)',
       ),
-      lines: currentTable.activeOrderLines.map((i) {
+      lines: effectiveLines.map((i) {
         final lineDesc = i.notes != null && i.notes!.isNotEmpty
             ? '${i.product.name} [NOTE: ${i.notes}]'
             : i.product.name;
@@ -68,10 +77,10 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       }).toList(),
       taxSlabs: const [],
       totals: ReceiptTotals(
-        subtotalPaisa: currentTable.runningTotalPaisa,
+        subtotalPaisa: subtotal,
         cgstTotalPaisa: 0,
         sgstTotalPaisa: 0,
-        grandTotalPaisa: currentTable.runningTotalPaisa,
+        grandTotalPaisa: subtotal,
       ),
     );
   }
@@ -120,7 +129,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
 
     HapticFeedback.mediumImpact();
 
-    // 1. Mark order as confirmed locally (sets confirmedItemCount = itemCount)
+    // Determine strictly the delta lines to fire in this KOT ticket
+    final deltaLines = currentTable.newDeltaLines.isNotEmpty
+        ? currentTable.newDeltaLines
+        : currentTable.activeOrderLines;
+
+    // 1. Mark order as confirmed locally (sets confirmedLines and confirmedItemCount)
     ref.read(restaurantProvider.notifier).markOrderConfirmed(currentTable.id);
 
     // 2. Atomically persist KOT in local Drift SQLite and queue DISPATCH_KOT in SyncOutbox
@@ -132,12 +146,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       final deviceId = await AppConfig.getDeviceId();
       final captainName = authState.user?.fullName ?? 'Captain';
 
-      final orderId = 'ord-${currentTable.id}-${DateTime.now().millisecondsSinceEpoch}';
+      final orderId = const Uuid().v4();
 
       await restRepo.dispatchKotAtomic(
         tableId: currentTable.id,
         orderId: orderId,
-        lines: currentTable.activeOrderLines,
+        lines: deltaLines,
         captainName: captainName,
         tenantId: tenantId,
         branchId: branchId,
@@ -152,14 +166,15 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
 
     try {
       final notifier = ref.read(printerProvider.notifier);
-      final kotDoc = _buildKotReceiptDocument(currentTable);
+      final kotDoc = _buildKotReceiptDocument(currentTable, deltaLines);
       await notifier.printReceipt(kotDoc);
     } catch (_) {}
 
     if (mounted) {
+      final totalFiredQty = deltaLines.fold<int>(0, (s, i) => s + i.quantity);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Order placed! KOT sent to kitchen for ${currentTable.name}.'),
+          content: Text('Order placed! KOT ($totalFiredQty items) sent to kitchen for ${currentTable.name}.'),
           backgroundColor: ShadcnColors.primary,
           duration: const Duration(seconds: 3),
         ),
@@ -213,9 +228,15 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     final billDoc = _buildPreBillReceiptDocument(currentTable);
     ref.read(printerProvider.notifier).printReceipt(billDoc);
 
-    // 4. Launch Settlement Modal
+    // 4. Show confirmation feedback (table transitions to billed; waiter can deliver bill and click Settle Bill later)
     if (mounted) {
-      _showSettlementModal(currentTable);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bill printed! Table ${currentTable.name} marked as Billed. Ready for settlement.'),
+          backgroundColor: ShadcnColors.primary,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 

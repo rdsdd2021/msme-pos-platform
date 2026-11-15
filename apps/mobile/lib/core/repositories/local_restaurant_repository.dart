@@ -46,17 +46,27 @@ class LocalRestaurantRepository {
   /// Get active CartItems for a table from SQLite (hydrates dishes from KOT lines)
   Future<List<CartItem>> getTableActiveCartItems(String tableId) async {
     try {
+      final matchingTable = await (_db.select(_db.localRestaurantTables)
+            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+          .getSingleOrNull();
+
+      final targetIds = {tableId};
+      if (matchingTable != null) {
+        targetIds.add(matchingTable.id);
+        targetIds.add(matchingTable.tableNumber);
+      }
+
       final activeOrders = await (_db.select(_db.localRestaurantOrders)
-            ..where((o) => o.tableId.equals(tableId))
+            ..where((o) => o.tableId.isIn(targetIds) | o.tableNumberSnapshot.isIn(targetIds))
             ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
             ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]))
           .get();
 
       if (activeOrders.isEmpty) return [];
 
-      final activeOrderId = activeOrders.first.id;
+      final activeOrderIds = activeOrders.map((o) => o.id).toList();
       final kotLines = await (_db.select(_db.localRestaurantKotLines)
-            ..where((l) => l.orderId.equals(activeOrderId)))
+            ..where((l) => l.orderId.isIn(activeOrderIds)))
           .get();
 
       if (kotLines.isEmpty) return [];
@@ -123,14 +133,49 @@ class LocalRestaurantRepository {
 
     await _db.transaction(() async {
       // 1. Update table status to ordered
-      await (_db.update(_db.localRestaurantTables)..where((t) => t.id.equals(tableId))).write(
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+          .write(
         LocalRestaurantTablesCompanion(
           status: const Value('ordered'),
           updatedAt: Value(now),
         ),
       );
 
-      // 2. Insert KOT lines into local SQLite
+      // 2. Ensure active order exists in local SQLite
+      final existingOrder = await (_db.select(_db.localRestaurantOrders)
+            ..where((o) => o.id.equals(orderId)))
+          .getSingleOrNull();
+
+      if (existingOrder == null) {
+        final activeOrderForTable = await (_db.select(_db.localRestaurantOrders)
+              ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId))
+              ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
+              ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]))
+            .get();
+
+        if (activeOrderForTable.isEmpty) {
+          final isTakeaway = tableId.startsWith('TAK-') || tableId.toLowerCase().contains('takeaway');
+          await _db.into(_db.localRestaurantOrders).insertOnConflictUpdate(
+            LocalRestaurantOrdersCompanion(
+              id: Value(orderId),
+              tenantId: Value(tenantId),
+              branchId: Value(branchId),
+              orderNumber: Value('ORD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}'),
+              orderType: Value(isTakeaway ? 'takeaway' : 'dine_in'),
+              tableId: Value(tableId),
+              tableNumberSnapshot: Value(tableId),
+              sectionSnapshot: const Value('Main Dining'),
+              guestCount: const Value(2),
+              status: const Value('ordered'),
+              captainNameSnapshot: Value(captainName),
+              openedAt: Value(now),
+            ),
+          );
+        }
+      }
+
+      // 3. Insert KOT lines into local SQLite
       for (final line in lines) {
         await _db.into(_db.localRestaurantKotLines).insert(
           LocalRestaurantKotLinesCompanion.insert(
@@ -186,10 +231,22 @@ class LocalRestaurantRepository {
     };
 
     await _db.transaction(() async {
-      await (_db.update(_db.localRestaurantTables)..where((t) => t.id.equals(tableId))).write(
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+          .write(
         LocalRestaurantTablesCompanion(
           status: const Value('billed'),
           updatedAt: Value(now),
+        ),
+      );
+
+      // Also mark active orders for this table as billed in local SQLite
+      await (_db.update(_db.localRestaurantOrders)
+            ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId))
+            ..where((o) => o.status.isIn(const ['open', 'ordered'])))
+          .write(
+        const LocalRestaurantOrdersCompanion(
+          status: Value('billed'),
         ),
       );
 
@@ -228,7 +285,9 @@ class LocalRestaurantRepository {
 
     await _db.transaction(() async {
       // 1. Update local table to vacant
-      await (_db.update(_db.localRestaurantTables)..where((t) => t.id.equals(tableId))).write(
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+          .write(
         LocalRestaurantTablesCompanion(
           status: const Value('vacant'),
           currentGuestCount: const Value(0),
@@ -237,9 +296,20 @@ class LocalRestaurantRepository {
         ),
       );
 
-      // 2. If active order exists, mark completed
+      // 2. Mark active order(s) completed
       if (orderId != null && orderId.isNotEmpty) {
         await (_db.update(_db.localRestaurantOrders)..where((o) => o.id.equals(orderId))).write(
+          LocalRestaurantOrdersCompanion(
+            status: const Value('completed'),
+            invoiceId: Value(invoiceId),
+            closedAt: Value(now),
+          ),
+        );
+      } else {
+        await (_db.update(_db.localRestaurantOrders)
+              ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId))
+              ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered'])))
+            .write(
           LocalRestaurantOrdersCompanion(
             status: const Value('completed'),
             invoiceId: Value(invoiceId),

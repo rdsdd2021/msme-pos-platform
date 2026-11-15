@@ -381,7 +381,7 @@ class SyncWorker {
 
             final qty = double.tryParse(lineMap['quantity']?.toString() ?? '1') ?? 1.0;
             final unitPricePaisa = ((double.tryParse(lineMap['unitPrice']?.toString() ?? '0') ?? 0) * 100).round();
-            final totalPaisa = ((double.tryParse(lineMap['total']?.toString() ?? '0') ?? 0) * 100).round();
+            final totalPaisa = ((double.tryParse((lineMap['lineTotal'] ?? lineMap['total'])?.toString() ?? '0') ?? 0) * 100).round();
 
             await _db.into(_db.localRestaurantKotLines).insertOnConflictUpdate(
               LocalRestaurantKotLinesCompanion(
@@ -390,7 +390,7 @@ class SyncWorker {
                 orderId: Value(ordId),
                 kotId: Value(lineMap['kotId'] as String?),
                 productId: Value(lineMap['productId'] as String? ?? ''),
-                productName: Value(lineMap['productName'] as String? ?? 'Dish'),
+                productName: Value(lineMap['productNameSnapshot'] as String? ?? lineMap['productName'] as String? ?? 'Dish'),
                 quantity: Value(qty),
                 unitPricePaisa: Value(unitPricePaisa),
                 totalPaisa: Value(totalPaisa),
