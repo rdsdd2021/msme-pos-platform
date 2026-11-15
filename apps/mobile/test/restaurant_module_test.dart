@@ -218,5 +218,31 @@ void main() {
       expect(find.byKey(const Key('settle_table_btn')), findsOneWidget);
       expect(find.text('Print Bill'), findsOneWidget);
     });
+
+    test('Product model supports vertical-aware restaurant culinary attributes', () {
+      final dish = Product(
+        id: 'dish-1',
+        name: 'Butter Chicken',
+        sku: 'DISH-BC-01',
+        category: 'Main Course',
+        unit: 'PORTION',
+        sellingPricePaisa: 34000,
+        purchaseCostPaisa: 0,
+        gstRate: 5,
+        currentStock: 0,
+        foodType: 'non_veg',
+        kitchenStation: 'main_kitchen',
+        prepTimeMinutes: 20,
+        isAvailable: true,
+        isMadeToOrder: true,
+      );
+
+      expect(dish.isNonVeg, isTrue);
+      expect(dish.isVeg, isFalse);
+      expect(dish.isEgg, isFalse);
+      expect(dish.isMadeToOrder, isTrue);
+      expect(dish.isAvailable, isTrue);
+      expect(dish.prepTimeMinutes, 20);
+    });
   });
 }

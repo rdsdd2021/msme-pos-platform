@@ -252,6 +252,42 @@ describe('CatalogService & Inventory Reconciliation', () => {
       expect(res.sku).toBe('FORT-1L');
     });
 
+    it('creates restaurant dish with auto-generated SKU, dietary type and kitchen station', async () => {
+      mockProductRepo.findOne.mockResolvedValue(null);
+
+      const dish = await service.createProduct('tenant-1', {
+        name: 'Paneer Butter Masala',
+        sellingPrice: '280.00',
+        isMadeToOrder: true,
+        foodType: 'veg' as any,
+        kitchenStation: 'main_kitchen' as any,
+        prepTimeMinutes: 15,
+        variants: [
+          { name: 'Half', price: '160.00' },
+          { name: 'Full', price: '280.00' },
+        ],
+      });
+
+      expect(mockProductRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Paneer Butter Masala',
+          sellingPrice: '280.00',
+          purchaseCost: '0.00',
+          mrp: '280.00',
+          isMadeToOrder: true,
+          trackInventory: false,
+          foodType: 'veg',
+          kitchenStation: 'main_kitchen',
+          prepTimeMinutes: 15,
+          variants: [
+            { name: 'Half', price: '160.00' },
+            { name: 'Full', price: '280.00' },
+          ],
+        }),
+      );
+      expect(dish.sku).toMatch(/^DISH-[A-Z0-9]+$/);
+    });
+
     it('updates product and increments version', async () => {
       const existing = {
         id: 'prod-1',

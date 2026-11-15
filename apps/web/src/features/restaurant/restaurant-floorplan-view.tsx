@@ -21,9 +21,11 @@ import {
 import { useAuthStore } from '@/store/auth.store';
 import { TableOrderDrawer } from './table-order-drawer';
 import { SplitBillModal } from './split-bill-modal';
+import { RestaurantMenuModal } from './restaurant-menu-modal';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   UtensilsCrossed,
+  Utensils,
   Users,
   Clock,
   Plus,
@@ -52,6 +54,7 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
   // Selected table for Drawer
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null);
   const [orderDrawerOpen, setOrderDrawerOpen] = useState(false);
+  const [menuModalOpen, setMenuModalOpen] = useState(false);
 
   // Quick Settle Modal
   const [quickSettleOrder, setQuickSettleOrder] = useState<RestaurantOrder | null>(null);
@@ -239,6 +242,15 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setMenuModalOpen(true)}
+            className="gap-1.5 text-xs font-bold text-slate-800 border-amber-300 bg-amber-50/50 hover:bg-amber-100/60"
+          >
+            <Utensils className="w-4 h-4 text-amber-600" /> Menu & Dishes
+          </Button>
+
           {onSwitchToKds && (
             <Button
               variant="outline"
@@ -631,6 +643,13 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
           }}
         />
       )}
+
+      {/* Restaurant Menu & Dishes Modal */}
+      <RestaurantMenuModal
+        open={menuModalOpen}
+        onOpenChange={setMenuModalOpen}
+        tenantId={activeTenant?.tenantId}
+      />
     </div>
   );
 }

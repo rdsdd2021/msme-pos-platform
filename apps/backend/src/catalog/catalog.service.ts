@@ -182,12 +182,19 @@ export class CatalogService {
   // --- Product & SKU Management ---
 
   async createProduct(tenantId: string, dto: CreateProductDto): Promise<ProductEntity> {
+    const isMadeToOrder = dto.isMadeToOrder ?? false;
+    const computedSku = dto.sku && dto.sku.trim()
+      ? dto.sku.trim().toUpperCase()
+      : `DISH-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const purchaseCost = dto.purchaseCost ?? (isMadeToOrder ? '0.00' : '0.00');
+    const mrp = dto.mrp ?? (isMadeToOrder ? dto.sellingPrice : dto.sellingPrice);
+
     // 1. SKU uniqueness validation
     const existingSku = await this.productRepo.findOne({
-      where: { tenantId, sku: dto.sku.toUpperCase() },
+      where: { tenantId, sku: computedSku },
     });
     if (existingSku) {
-      throw new ConflictException(`Product SKU "${dto.sku}" already exists in your store`);
+      throw new ConflictException(`Product SKU "${computedSku}" already exists in your store`);
     }
 
     // 2. Barcode duplicate validation per tenant
@@ -205,10 +212,10 @@ export class CatalogService {
 
     // 3. Price integrity validation: Selling Price cannot exceed MRP
     const sellingPriceNum = parseFloat(dto.sellingPrice);
-    const mrpNum = parseFloat(dto.mrp);
+    const mrpNum = parseFloat(mrp);
     if (mrpNum > 0 && sellingPriceNum > mrpNum) {
       throw new BadRequestException(
-        `Selling price (₹${dto.sellingPrice}) cannot exceed Maximum Retail Price (MRP ₹${dto.mrp})`,
+        `Selling price (₹${dto.sellingPrice}) cannot exceed Maximum Retail Price (MRP ₹${mrp})`,
       );
     }
 
@@ -222,20 +229,26 @@ export class CatalogService {
       const res = await this.dataSource.transaction(async (manager) => {
         const product = manager.create(ProductEntity, {
           tenantId,
-          sku: dto.sku.toUpperCase(),
+          sku: computedSku,
           name: dto.name,
           barcodePrimary: dto.barcodePrimary ? dto.barcodePrimary.trim() : null,
           categoryId: dto.categoryId ?? null,
           baseUnitId: dto.baseUnitId ?? null,
-          purchaseCost: dto.purchaseCost,
+          purchaseCost: purchaseCost,
           sellingPrice: dto.sellingPrice,
-          mrp: dto.mrp,
+          mrp: mrp,
+          foodType: dto.foodType ?? null,
+          kitchenStation: dto.kitchenStation ?? null,
+          prepTimeMinutes: dto.prepTimeMinutes ?? null,
+          isAvailable: dto.isAvailable ?? true,
+          isMadeToOrder: isMadeToOrder,
+          variants: dto.variants ?? null,
           hsnCode: dto.hsnCode ?? null,
           gstRatePercent: dto.gstRatePercent ?? '0.00',
           packageSize: dto.packageSize ?? null,
           imageUrl: dto.imageUrl ?? null,
           productType: dto.productType,
-          trackInventory: dto.trackInventory ?? true,
+          trackInventory: dto.trackInventory ?? (isMadeToOrder ? false : true),
           allowFractionalQuantity: dto.allowFractionalQuantity ?? false,
         });
 
@@ -249,7 +262,7 @@ export class CatalogService {
           productId: savedProduct.id,
           movementType: StockMovementType.OPENING,
           quantityDelta: openingStockQty,
-          unitCost: dto.purchaseCost,
+          unitCost: purchaseCost,
           sourceType: 'opening_stock',
           sourceId: savedProduct.id,
           idempotencyKey: randomUUID(),
@@ -297,20 +310,26 @@ export class CatalogService {
     // Direct product creation without opening stock
     const product = this.productRepo.create({
       tenantId,
-      sku: dto.sku.toUpperCase(),
+      sku: computedSku,
       name: dto.name,
       barcodePrimary: dto.barcodePrimary ? dto.barcodePrimary.trim() : null,
       categoryId: dto.categoryId ?? null,
       baseUnitId: dto.baseUnitId ?? null,
-      purchaseCost: dto.purchaseCost,
+      purchaseCost: purchaseCost,
       sellingPrice: dto.sellingPrice,
-      mrp: dto.mrp,
+      mrp: mrp,
+      foodType: dto.foodType ?? null,
+      kitchenStation: dto.kitchenStation ?? null,
+      prepTimeMinutes: dto.prepTimeMinutes ?? null,
+      isAvailable: dto.isAvailable ?? true,
+      isMadeToOrder: isMadeToOrder,
+      variants: dto.variants ?? null,
       hsnCode: dto.hsnCode ?? null,
       gstRatePercent: dto.gstRatePercent ?? '0.00',
       packageSize: dto.packageSize ?? null,
       imageUrl: dto.imageUrl ?? null,
       productType: dto.productType,
-      trackInventory: dto.trackInventory ?? true,
+      trackInventory: dto.trackInventory ?? (isMadeToOrder ? false : true),
       allowFractionalQuantity: dto.allowFractionalQuantity ?? false,
     });
 
@@ -397,6 +416,12 @@ export class CatalogService {
     if (dto.gstRatePercent !== undefined) product.gstRatePercent = dto.gstRatePercent;
     if (dto.packageSize !== undefined) product.packageSize = dto.packageSize;
     if (dto.imageUrl !== undefined) product.imageUrl = dto.imageUrl;
+    if (dto.foodType !== undefined) product.foodType = dto.foodType;
+    if (dto.kitchenStation !== undefined) product.kitchenStation = dto.kitchenStation;
+    if (dto.prepTimeMinutes !== undefined) product.prepTimeMinutes = dto.prepTimeMinutes;
+    if (dto.isAvailable !== undefined) product.isAvailable = dto.isAvailable;
+    if (dto.isMadeToOrder !== undefined) product.isMadeToOrder = dto.isMadeToOrder;
+    if (dto.variants !== undefined) product.variants = dto.variants;
     if (dto.productType !== undefined) product.productType = dto.productType;
     if (dto.trackInventory !== undefined) product.trackInventory = dto.trackInventory;
     if (dto.allowFractionalQuantity !== undefined)

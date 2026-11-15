@@ -177,3 +177,10 @@ export enum KitchenStation {
   BEVERAGE_BAR = 'beverage_bar',
   BAKERY_DESSERT = 'bakery_dessert',
 }
+
+export enum FoodDietaryType {
+  VEG = 'veg',
+  NON_VEG = 'non_veg',
+  EGG = 'egg',
+  VEGAN = 'vegan',
+}

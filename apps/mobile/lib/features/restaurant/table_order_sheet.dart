@@ -1088,6 +1088,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                     itemCount: filteredMenuItems.length,
                     itemBuilder: (ctx, idx) {
                       final item = filteredMenuItems[idx];
+                      final isSoldOut = !item.isAvailable;
                       final existingLine = currentTable.activeOrderLines.firstWhere(
                         (l) => l.product.id == item.id,
                         orElse: () => CartItem(product: item, quantity: 0),
@@ -1098,30 +1099,100 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: Row(
                           children: [
+                            // Dietary indicator
+                            Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: item.isNonVeg
+                                      ? const Color(0xFFDC2626)
+                                      : item.isEgg
+                                          ? const Color(0xFFD97706)
+                                          : const Color(0xFF16A34A),
+                                  width: 1.2,
+                                ),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                              child: Center(
+                                child: item.isNonVeg
+                                    ? const Icon(Icons.change_history, size: 8, color: Color(0xFFDC2626))
+                                    : Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: item.isEgg ? const Color(0xFFD97706) : const Color(0xFF16A34A),
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             _buildItemThumbnail(item.imageUrl),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    item.name,
-                                    style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          item.name,
+                                          style: ShadcnTypography.bodySemibold.copyWith(
+                                            fontSize: 13,
+                                            decoration: isSoldOut ? TextDecoration.lineThrough : null,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isSoldOut)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: ShadcnColors.destructive.withOpacity(0.12),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'SOLD OUT',
+                                            style: TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.w900,
+                                              color: ShadcnColors.destructive,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(
-                                    '₹${(item.sellingPricePaisa / 100).toStringAsFixed(1)}',
-                                    style: ShadcnTypography.currency.copyWith(
-                                      fontSize: 13,
-                                      color: ShadcnColors.primary,
-                                    ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '₹${(item.sellingPricePaisa / 100).toStringAsFixed(1)}',
+                                        style: ShadcnTypography.currency.copyWith(
+                                          fontSize: 13,
+                                          color: ShadcnColors.primary,
+                                        ),
+                                      ),
+                                      if (item.kitchenStation != null && item.kitchenStation != 'main_kitchen') ...[
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '• ${item.kitchenStation == 'tandoor' ? 'Tandoor' : item.kitchenStation == 'beverage_bar' ? 'Bar' : 'Bakery'}',
+                                          style: const TextStyle(fontSize: 10, color: ShadcnColors.mutedForeground),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ],
                               ),
                             ),
-                            if (existingLine.quantity > 0)
+                            if (isSoldOut)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 8),
+                                child: Text('86\'d', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ShadcnColors.destructive)),
+                              )
+                            else if (existingLine.quantity > 0)
                               ShadcnQuantityStepper(
                                 quantity: existingLine.quantity,
                                 height: 30,

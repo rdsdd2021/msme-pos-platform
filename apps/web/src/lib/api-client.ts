@@ -8,6 +8,7 @@ import {
   RestaurantOrderStatus,
   KotStatus,
   KitchenStation,
+  FoodDietaryType,
 } from '@pos/shared-types';
 
 export interface ApiErrorResponse {
@@ -120,6 +121,12 @@ export interface Product {
   gstRatePercent?: string;
   packageSize?: string | null;
   imageUrl?: string | null;
+  foodType?: FoodDietaryType | string | null;
+  kitchenStation?: KitchenStation | string | null;
+  prepTimeMinutes?: number | null;
+  isAvailable?: boolean;
+  isMadeToOrder?: boolean;
+  variants?: Array<{ name: string; price: string }> | null;
   currentStock?: string;
 }
 
@@ -224,17 +231,23 @@ export interface ReceivePurchaseOrderRequest {
 
 export interface CreateProductRequest {
   name: string;
-  sku: string;
+  sku?: string;
   barcodePrimary?: string;
   categoryId?: string;
   baseUnitId?: string;
-  purchaseCost: string;
+  purchaseCost?: string;
   sellingPrice: string;
-  mrp: string;
+  mrp?: string;
   hsnCode?: string;
   gstRatePercent?: string;
   packageSize?: string;
   imageUrl?: string;
+  foodType?: FoodDietaryType | string;
+  kitchenStation?: KitchenStation | string;
+  prepTimeMinutes?: number;
+  isAvailable?: boolean;
+  isMadeToOrder?: boolean;
+  variants?: Array<{ name: string; price: string }>;
   productType?: string;
   trackInventory?: boolean;
   allowFractionalQuantity?: boolean;
@@ -255,6 +268,12 @@ export interface UpdateProductRequest {
   gstRatePercent?: string;
   packageSize?: string;
   imageUrl?: string;
+  foodType?: FoodDietaryType | string;
+  kitchenStation?: KitchenStation | string;
+  prepTimeMinutes?: number;
+  isAvailable?: boolean;
+  isMadeToOrder?: boolean;
+  variants?: Array<{ name: string; price: string }>;
   productType?: string;
   trackInventory?: boolean;
   allowFractionalQuantity?: boolean;

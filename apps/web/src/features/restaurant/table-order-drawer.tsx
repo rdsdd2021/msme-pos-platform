@@ -30,6 +30,7 @@ import {
   TableStatus,
   KitchenStation,
   KotStatus,
+  FoodDietaryType,
 } from '@pos/shared-types';
 import {
   RestaurantTable,
@@ -39,6 +40,7 @@ import {
   apiClient,
 } from '@/lib/api-client';
 import { SplitBillModal } from './split-bill-modal';
+import { RestaurantDishModal } from './restaurant-dish-modal';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   Flame,
@@ -93,6 +95,7 @@ export function TableOrderDrawer({
   const [products, setProducts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [addDishModalOpen, setAddDishModalOpen] = useState(false);
 
   // Draft KOT items
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
@@ -600,7 +603,7 @@ export function TableOrderDrawer({
                       />
                     </div>
 
-                    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none items-center">
                       <button
                         type="button"
                         onClick={() => setSelectedCategory('all')}
@@ -626,19 +629,31 @@ export function TableOrderDrawer({
                           {cat}
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => setAddDishModalOpen(true)}
+                        className="px-2.5 py-1 text-xs rounded-full whitespace-nowrap font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 flex items-center gap-1 shrink-0 ml-auto"
+                      >
+                        <Plus className="w-3 h-3 stroke-[3]" /> Add Dish
+                      </button>
                     </div>
                   </div>
 
                   {/* Menu Product Grid */}
                   <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2 content-start">
                     {filteredProducts.map((p) => {
+                      const isSoldOut = p.isAvailable === false;
                       const inDraft = draftItems.find((i) => i.productId === p.id);
                       return (
                         <div
                           key={p.id}
-                          onClick={() => handleAddProductToDraft(p)}
-                          className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between hover:border-slate-400 relative select-none ${
-                            inDraft ? 'border-emerald-500 bg-emerald-50/30' : 'bg-white'
+                          onClick={() => !isSoldOut && handleAddProductToDraft(p)}
+                          className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative select-none ${
+                            isSoldOut
+                              ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                              : inDraft
+                              ? 'border-emerald-500 bg-emerald-50/30 cursor-pointer hover:border-slate-400'
+                              : 'bg-white cursor-pointer hover:border-slate-400'
                           }`}
                         >
                           {inDraft && (
@@ -647,16 +662,65 @@ export function TableOrderDrawer({
                             </span>
                           )}
                           <div>
-                            <p className="font-bold text-xs text-slate-900 leading-tight">{p.name}</p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{p.category || 'Kitchen'}</p>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              {p.foodType === 'non_veg' ? (
+                                <span
+                                  className="w-3.5 h-3.5 rounded border border-rose-600 flex items-center justify-center shrink-0 bg-white"
+                                  title="Non-Veg"
+                                >
+                                  <span className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-rose-600" />
+                                </span>
+                              ) : p.foodType === 'egg' ? (
+                                <span
+                                  className="w-3.5 h-3.5 rounded border border-amber-500 flex items-center justify-center shrink-0 bg-white"
+                                  title="Egg"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                </span>
+                              ) : (
+                                <span
+                                  className="w-3.5 h-3.5 rounded border border-emerald-600 flex items-center justify-center shrink-0 bg-white"
+                                  title="Pure Veg"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                                </span>
+                              )}
+                              <p className="font-bold text-xs text-slate-900 leading-tight truncate">
+                                {p.name}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="text-[10px] text-slate-400">
+                                {p.category || 'Kitchen'}
+                              </span>
+                              {p.kitchenStation && p.kitchenStation !== 'main_kitchen' && (
+                                <span className="text-[9px] font-bold px-1 rounded bg-amber-100 text-amber-800">
+                                  {p.kitchenStation === 'tandoor'
+                                    ? 'Tandoor'
+                                    : p.kitchenStation === 'beverage_bar'
+                                    ? 'Bar'
+                                    : 'Bakery'}
+                                </span>
+                              )}
+                              {isSoldOut && (
+                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 uppercase">
+                                  Sold Out
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
                             <span className="font-black text-xs text-slate-900">
                               ₹{parseFloat(p.sellingPrice || p.retailPrice || '0').toFixed(2)}
                             </span>
-                            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
-                              <Plus className="w-3 h-3" /> Add
-                            </span>
+                            {isSoldOut ? (
+                              <span className="text-[10px] text-rose-600 font-bold">86&apos;d</span>
+                            ) : (
+                              <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                                <Plus className="w-3 h-3" /> Add
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -955,6 +1019,23 @@ export function TableOrderDrawer({
           }}
         />
       )}
+
+      {/* Quick Add Restaurant Dish Modal */}
+      <RestaurantDishModal
+        open={addDishModalOpen}
+        onOpenChange={setAddDishModalOpen}
+        tenantId={table?.tenantId}
+        onSuccess={async () => {
+          if (table?.tenantId) {
+            try {
+              const res = await apiClient.getProducts(table.tenantId);
+              setProducts(res || []);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }}
+      />
     </>
   );
 }

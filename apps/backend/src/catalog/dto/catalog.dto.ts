@@ -14,7 +14,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
-import { ProductType, StockMovementType } from '@pos/shared-types';
+import { ProductType, StockMovementType, FoodDietaryType, KitchenStation } from '@pos/shared-types';
 import { PurchaseOrderStatus } from '../entities/purchase-order.entity';
 
 export class CreateCategoryDto {
@@ -91,10 +91,10 @@ export class CreateProductDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty({ example: 'GROC-001' })
+  @ApiProperty({ example: 'GROC-001', required: false })
   @IsString()
-  @IsNotEmpty()
-  sku!: string;
+  @IsOptional()
+  sku?: string;
 
   @ApiProperty({ example: '890103000001', required: false })
   @IsString()
@@ -111,20 +111,55 @@ export class CreateProductDto {
   @IsOptional()
   baseUnitId?: string;
 
-  @ApiProperty({ example: '210.00' })
+  @ApiProperty({ example: '210.00', required: false })
   @IsString()
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'purchaseCost must be a valid decimal string' })
-  purchaseCost!: string;
+  @IsOptional()
+  purchaseCost?: string;
 
   @ApiProperty({ example: '240.00' })
   @IsString()
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'sellingPrice must be a valid decimal string' })
   sellingPrice!: string;
 
-  @ApiProperty({ example: '250.00' })
+  @ApiProperty({ example: '250.00', required: false })
   @IsString()
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'mrp must be a valid decimal string' })
-  mrp!: string;
+  @IsOptional()
+  mrp?: string;
+
+  @ApiProperty({ enum: FoodDietaryType, required: false })
+  @IsEnum(FoodDietaryType)
+  @IsOptional()
+  foodType?: FoodDietaryType;
+
+  @ApiProperty({ enum: KitchenStation, required: false })
+  @IsEnum(KitchenStation)
+  @IsOptional()
+  kitchenStation?: KitchenStation;
+
+  @ApiProperty({ example: 15, required: false })
+  @IsInt()
+  @IsOptional()
+  prepTimeMinutes?: number;
+
+  @ApiProperty({ default: true, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isAvailable?: boolean;
+
+  @ApiProperty({ default: false, required: false })
+  @IsBoolean()
+  @IsOptional()
+  isMadeToOrder?: boolean;
+
+  @ApiProperty({
+    example: [{ name: 'Half', price: '120.00' }, { name: 'Full', price: '220.00' }],
+    required: false,
+  })
+  @IsArray()
+  @IsOptional()
+  variants?: Array<{ name: string; price: string }>;
 
   @ApiProperty({ example: '11010000', required: false })
   @IsString()
@@ -275,6 +310,39 @@ export class UpdateProductDto {
   @IsBoolean()
   @IsOptional()
   allowFractionalQuantity?: boolean;
+
+  @ApiProperty({ enum: FoodDietaryType, required: false })
+  @IsEnum(FoodDietaryType)
+  @IsOptional()
+  foodType?: FoodDietaryType;
+
+  @ApiProperty({ enum: KitchenStation, required: false })
+  @IsEnum(KitchenStation)
+  @IsOptional()
+  kitchenStation?: KitchenStation;
+
+  @ApiProperty({ example: 15, required: false })
+  @IsInt()
+  @IsOptional()
+  prepTimeMinutes?: number;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  isAvailable?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsBoolean()
+  @IsOptional()
+  isMadeToOrder?: boolean;
+
+  @ApiProperty({
+    example: [{ name: 'Half', price: '120.00' }, { name: 'Full', price: '220.00' }],
+    required: false,
+  })
+  @IsArray()
+  @IsOptional()
+  variants?: Array<{ name: string; price: string }>;
 
   @ApiProperty({ required: false })
   @IsBoolean()

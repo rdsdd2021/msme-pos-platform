@@ -134,6 +134,11 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     String unit = 'PCS',
     double initialStock = 0.0,
     String? imageUrl,
+    String? foodType,
+    String? kitchenStation,
+    int? prepTimeMinutes,
+    bool isAvailable = true,
+    bool isMadeToOrder = false,
     String tenantId = 'tenant-1',
   }) async {
     final newProduct = await _repo.createProduct(
@@ -149,6 +154,11 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       unit: unit,
       initialStock: initialStock,
       imageUrl: imageUrl,
+      foodType: foodType,
+      kitchenStation: kitchenStation,
+      prepTimeMinutes: prepTimeMinutes,
+      isAvailable: isAvailable,
+      isMadeToOrder: isMadeToOrder,
       tenantId: tenantId,
     );
     state = state.copyWith(allProducts: [newProduct, ...state.allProducts]);

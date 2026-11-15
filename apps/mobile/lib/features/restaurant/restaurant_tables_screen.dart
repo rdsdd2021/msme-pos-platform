@@ -9,6 +9,7 @@ import '../../core/widgets/shadcn_badge.dart';
 import '../../core/widgets/shadcn_button.dart';
 import '../../core/widgets/shadcn_card.dart';
 import 'table_order_sheet.dart';
+import 'widgets/restaurant_menu_sheet.dart';
 
 class RestaurantTablesScreen extends ConsumerWidget {
   const RestaurantTablesScreen({super.key});
@@ -199,7 +200,8 @@ class RestaurantTablesScreen extends ConsumerWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
-                children: restState.sections.map((sec) {
+                children: [
+                  ...restState.sections.map((sec) {
                   final isSelected = restState.selectedSection == sec;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -226,8 +228,48 @@ class RestaurantTablesScreen extends ConsumerWidget {
                       ),
                     ),
                   );
-                }).toList(),
-              ),
+                }),
+                const SizedBox(width: 4),
+                InkWell(
+                  key: const Key('open_restaurant_menu_btn'),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (ctx) => const RestaurantMenuSheet(),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ShadcnColors.warning.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: ShadcnColors.warning.withOpacity(0.5),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.restaurant_menu, size: 14, color: ShadcnColors.warning),
+                        SizedBox(width: 5),
+                        Text(
+                          'Menu & Dishes',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: ShadcnColors.warning,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
             ),
           ),
 

@@ -7,7 +7,7 @@ import {
   Unique,
   Index,
 } from 'typeorm';
-import { ProductType } from '@pos/shared-types';
+import { ProductType, FoodDietaryType, KitchenStation } from '@pos/shared-types';
 
 @Entity('products')
 @Unique(['tenantId', 'sku'])
@@ -66,6 +66,24 @@ export class ProductEntity {
 
   @Column({ name: 'package_size', type: 'varchar', length: 64, nullable: true })
   packageSize!: string | null;
+
+  @Column({ name: 'food_type', type: 'varchar', length: 32, nullable: true })
+  foodType!: FoodDietaryType | null;
+
+  @Column({ name: 'kitchen_station', type: 'varchar', length: 64, nullable: true })
+  kitchenStation!: KitchenStation | null;
+
+  @Column({ name: 'prep_time_minutes', type: 'integer', nullable: true })
+  prepTimeMinutes!: number | null;
+
+  @Column({ name: 'is_available', type: 'boolean', default: true })
+  isAvailable!: boolean;
+
+  @Column({ name: 'is_made_to_order', type: 'boolean', default: false })
+  isMadeToOrder!: boolean;
+
+  @Column({ type: 'jsonb', nullable: true })
+  variants!: Array<{ name: string; price: string }> | null;
 
   @Column({ name: 'image_url', type: 'text', nullable: true })
   imageUrl!: string | null;
