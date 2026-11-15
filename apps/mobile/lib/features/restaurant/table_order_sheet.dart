@@ -184,13 +184,39 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     }
   }
 
-  void _handlePrintBillAndSettle(RestaurantTable currentTable) {
-    // Generate pre-bill receipt on printer
+  Future<void> _handlePrintBillAndSettle(RestaurantTable currentTable) async {
+    // 1. Mark table as billed in local state
+    ref.read(restaurantProvider.notifier).markTableBilled(currentTable.id);
+
+    // 2. Queue UPDATE_TABLE_STATUS outbox mutation so server table status updates to BILLED and emits SSE
+    try {
+      final restRepo = ref.read(localRestaurantRepoProvider);
+      final authState = ref.read(authProvider);
+      final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+      final branchId = authState.activeBranchId ?? 'branch-1';
+      final deviceId = await AppConfig.getDeviceId();
+
+      await restRepo.markTableBilledAtomic(
+        tableId: currentTable.id,
+        tenantId: tenantId,
+        branchId: branchId,
+        deviceId: deviceId,
+      );
+
+      // Trigger sync push to notify backend & Web floorplan
+      ref.read(syncStateProvider.notifier).syncNow();
+    } catch (e) {
+      debugPrint('[TableOrderSheet] Error marking table billed: $e');
+    }
+
+    // 3. Generate pre-bill receipt on printer
     final billDoc = _buildPreBillReceiptDocument(currentTable);
     ref.read(printerProvider.notifier).printReceipt(billDoc);
 
-    // Launch Settlement Modal
-    _showSettlementModal(currentTable);
+    // 4. Launch Settlement Modal
+    if (mounted) {
+      _showSettlementModal(currentTable);
+    }
   }
 
   Future<void> _handlePrintKot(RestaurantTable currentTable) async {

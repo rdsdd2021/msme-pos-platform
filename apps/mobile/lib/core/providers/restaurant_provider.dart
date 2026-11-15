@@ -230,14 +230,26 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   dynamic _tablesSubscription;
 
   static final List<RestaurantTable> _defaultTables = [
-    const RestaurantTable(id: 't-1', name: 'Table 1', section: 'AC Dining', capacity: 4),
-    const RestaurantTable(id: 't-2', name: 'Table 2', section: 'AC Dining', capacity: 2),
-    const RestaurantTable(id: 't-3', name: 'Table 3', section: 'Main Hall', capacity: 6),
-    const RestaurantTable(id: 't-4', name: 'Table 4', section: 'Main Hall', capacity: 4),
-    const RestaurantTable(id: 't-5', name: 'Table 5', section: 'Terrace', capacity: 4),
-    const RestaurantTable(id: 't-6', name: 'Table 6', section: 'Terrace', capacity: 2),
-    const RestaurantTable(id: 'takeaway-1', name: 'Takeaway 1', section: 'Takeaway', capacity: 1),
-    const RestaurantTable(id: 'takeaway-2', name: 'Takeaway 2', section: 'Takeaway', capacity: 1),
+    // Main Dining (8 tables)
+    const RestaurantTable(id: 'T-01', name: 'Table 1', section: 'Main Dining', capacity: 2),
+    const RestaurantTable(id: 'T-02', name: 'Table 2', section: 'Main Dining', capacity: 4),
+    const RestaurantTable(id: 'T-03', name: 'Table 3', section: 'Main Dining', capacity: 4),
+    const RestaurantTable(id: 'T-04', name: 'Table 4 (Window)', section: 'Main Dining', capacity: 4),
+    const RestaurantTable(id: 'T-05', name: 'Table 5 (Corner)', section: 'Main Dining', capacity: 6),
+    const RestaurantTable(id: 'T-06', name: 'Table 6', section: 'Main Dining', capacity: 6),
+    const RestaurantTable(id: 'T-07', name: 'Table 7', section: 'Main Dining', capacity: 8),
+    const RestaurantTable(id: 'T-08', name: 'Table 8', section: 'Main Dining', capacity: 2),
+    // AC Hall (4 tables)
+    const RestaurantTable(id: 'AC-01', name: 'AC Table 1', section: 'AC Hall', capacity: 4),
+    const RestaurantTable(id: 'AC-02', name: 'AC Table 2', section: 'AC Hall', capacity: 4),
+    const RestaurantTable(id: 'AC-03', name: 'AC Table 3', section: 'AC Hall', capacity: 6),
+    const RestaurantTable(id: 'AC-04', name: 'AC Table 4', section: 'AC Hall', capacity: 8),
+    // Terrace (2 tables)
+    const RestaurantTable(id: 'TR-01', name: 'Terrace 1', section: 'Terrace', capacity: 4),
+    const RestaurantTable(id: 'TR-02', name: 'Terrace 2', section: 'Terrace', capacity: 4),
+    // Takeaway / Delivery Counters (2 counters)
+    const RestaurantTable(id: 'TAK-01', name: 'Takeaway Counter 1', section: 'Takeaway', capacity: 1),
+    const RestaurantTable(id: 'TAK-02', name: 'Takeaway Counter 2', section: 'Takeaway', capacity: 1),
   ];
 
   RestaurantNotifier([this._repo]) : super(RestaurantState(tables: _defaultTables)) {
@@ -327,10 +339,11 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         final decoded = jsonDecode(cachedJson) as List<dynamic>;
         final loaded = decoded.map((e) => RestaurantTable.fromJson(e as Map<String, dynamic>)).toList();
         if (loaded.isNotEmpty) {
-          // Merge any default tables that may be missing from an older cache version
-          final loadedIds = {for (final t in loaded) t.id};
+          // Filter out legacy tables (e.g. 't-1' or 'takeaway-1') so defaults are unified with backend
+          final validLoaded = loaded.where((t) => !t.id.startsWith('t-') && t.id != 'takeaway-1' && t.id != 'takeaway-2').toList();
+          final loadedIds = {for (final t in validLoaded) t.id};
           final missing = _defaultTables.where((t) => !loadedIds.contains(t.id)).toList();
-          state = state.copyWith(tables: [...loaded, ...missing]);
+          state = state.copyWith(tables: [...validLoaded, ...missing]);
         }
       }
     } catch (_) {}

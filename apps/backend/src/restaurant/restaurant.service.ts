@@ -59,6 +59,11 @@ export class RestaurantService {
     branchId: string,
     section?: string,
   ): Promise<Array<RestaurantTableEntity & { activeOrder?: RestaurantOrderEntity | null }>> {
+    const totalCount = await this.tableRepo.count({ where: { tenantId, branchId } });
+    if (totalCount === 0) {
+      await this.seedDefaultTables(tenantId, branchId);
+    }
+
     const qb = this.tableRepo
       .createQueryBuilder('table')
       .where('table.tenantId = :tenantId', { tenantId })

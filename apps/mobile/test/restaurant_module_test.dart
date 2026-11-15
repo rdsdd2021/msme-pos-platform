@@ -96,33 +96,33 @@ void main() {
       final notifier = RestaurantNotifier();
 
       // 1. Initially vacant
-      final initialT1 = notifier.state.tables.firstWhere((t) => t.id == 't-1');
+      final initialT1 = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
       expect(initialT1.status, TableStatus.vacant);
       expect(initialT1.activeOrderLines, isEmpty);
 
       // 2. Add dish with cooking note
-      notifier.addItemToTable('t-1', testProductPaneer, qty: 2, notes: 'Extra crisp');
-      var t1 = notifier.state.tables.firstWhere((t) => t.id == 't-1');
+      notifier.addItemToTable('T-01', testProductPaneer, qty: 2, notes: 'Extra crisp');
+      var t1 = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
       expect(t1.status, TableStatus.seated);
       expect(t1.activeOrderLines.length, 1);
       expect(t1.activeOrderLines.first.notes, 'Extra crisp');
 
       // 3. Update guest count
-      notifier.setGuestCount('t-1', 4);
-      t1 = notifier.state.tables.firstWhere((t) => t.id == 't-1');
+      notifier.setGuestCount('T-01', 4);
+      t1 = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
       expect(t1.currentGuestCount, 4);
 
       // 4. Update cooking note
-      notifier.updateLineNotes('t-1', testProductPaneer.id, 'Medium spicy, extra crisp');
-      t1 = notifier.state.tables.firstWhere((t) => t.id == 't-1');
+      notifier.updateLineNotes('T-01', testProductPaneer.id, 'Medium spicy, extra crisp');
+      t1 = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
       expect(t1.activeOrderLines.first.notes, 'Medium spicy, extra crisp');
 
-      // 5. Transfer Table to Table 2 (t-2)
-      final transferSuccess = notifier.transferTable('t-1', 't-2');
+      // 5. Transfer Table to Table 2 (T-02)
+      final transferSuccess = notifier.transferTable('T-01', 'T-02');
       expect(transferSuccess, isTrue);
 
-      final t1AfterTransfer = notifier.state.tables.firstWhere((t) => t.id == 't-1');
-      final t2AfterTransfer = notifier.state.tables.firstWhere((t) => t.id == 't-2');
+      final t1AfterTransfer = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
+      final t2AfterTransfer = notifier.state.tables.firstWhere((t) => t.id == 'T-02');
       expect(t1AfterTransfer.status, TableStatus.vacant);
       expect(t1AfterTransfer.activeOrderLines, isEmpty);
       expect(t2AfterTransfer.status, TableStatus.seated);
@@ -131,14 +131,14 @@ void main() {
       expect(t2AfterTransfer.currentGuestCount, 4);
 
       // 6. Bill settled -> Table marked dirty for cleaning
-      notifier.clearAndVacateTable('t-2', markDirty: true);
-      final t2Dirty = notifier.state.tables.firstWhere((t) => t.id == 't-2');
+      notifier.clearAndVacateTable('T-02', markDirty: true);
+      final t2Dirty = notifier.state.tables.firstWhere((t) => t.id == 'T-02');
       expect(t2Dirty.status, TableStatus.dirty);
       expect(t2Dirty.activeOrderLines, isEmpty);
 
       // 7. Busser marks clean -> Vacant again
-      notifier.markTableClean('t-2');
-      final t2Clean = notifier.state.tables.firstWhere((t) => t.id == 't-2');
+      notifier.markTableClean('T-02');
+      final t2Clean = notifier.state.tables.firstWhere((t) => t.id == 'T-02');
       expect(t2Clean.status, TableStatus.vacant);
     });
   });
@@ -161,10 +161,10 @@ void main() {
 
       // Check section chips
       expect(find.text('All'), findsOneWidget);
-      expect(find.text('AC Dining'), findsOneWidget);
+      expect(find.text('Main Dining'), findsOneWidget);
 
       // Check table cards
-      expect(find.byKey(const Key('table_card_t-1')), findsOneWidget);
+      expect(find.byKey(const Key('table_card_T-01')), findsOneWidget);
       expect(find.text('Table 1'), findsOneWidget);
     });
 
@@ -175,7 +175,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final notifier = RestaurantNotifier();
-      notifier.addItemToTable('t-1', testProductPaneer, qty: 1);
+      notifier.addItemToTable('T-01', testProductPaneer, qty: 1);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -185,7 +185,7 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: TableOrderSheet(
-                table: notifier.state.tables.firstWhere((t) => t.id == 't-1'),
+                table: notifier.state.tables.firstWhere((t) => t.id == 'T-01'),
               ),
             ),
           ),

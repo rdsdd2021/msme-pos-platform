@@ -184,9 +184,10 @@ void main() {
       final notifier = RestaurantNotifier();
       var state = notifier.state;
 
-      expect(state.tables.length, 8);
+      expect(state.tables.length, 16);
       final t1 = state.tables.first;
       expect(t1.status, TableStatus.vacant);
+      expect(t1.id, 'T-01');
 
       const foodItem = Product(
         id: 'food-1',

@@ -170,6 +170,45 @@ class LocalRestaurantRepository {
     return kotId;
   }
 
+  /// Atomically marks a table as billed in local SQLite and queues UPDATE_TABLE_STATUS outbox mutation
+  Future<void> markTableBilledAtomic({
+    required String tableId,
+    required String tenantId,
+    required String branchId,
+    required String deviceId,
+  }) async {
+    final now = DateTime.now();
+
+    final statusPayload = {
+      'tableId': tableId,
+      'status': 'billed',
+      'branchId': branchId,
+    };
+
+    await _db.transaction(() async {
+      await (_db.update(_db.localRestaurantTables)..where((t) => t.id.equals(tableId))).write(
+        LocalRestaurantTablesCompanion(
+          status: const Value('billed'),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: deviceId,
+          sequence: _outboxSequence++,
+          operationType: 'UPDATE_TABLE_STATUS',
+          schemaVersion: const Value(1),
+          payload: jsonEncode(statusPayload),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(now),
+        ),
+      );
+    });
+  }
+
   /// Atomically settle a restaurant table: marks table vacant, closes order, enqueues UPDATE_TABLE_STATUS
   Future<void> settleTableAtomic({
     required String tableId,

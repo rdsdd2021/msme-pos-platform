@@ -377,6 +377,109 @@ export function TableOrderDrawer({
     printWindow.print();
   };
 
+  // Print Customer Bill & update table status to BILLED
+  const handlePrintBill = async () => {
+    if (!table || !activeOrder) return;
+
+    // 1. Mark table as BILLED on server so floorplan and mobile update via SSE
+    try {
+      await apiClient.updateRestaurantTable(table.tenantId, table.branchId, table.id, {
+        status: TableStatus.BILLED,
+      });
+      onRefreshTable();
+    } catch (_) {}
+
+    // 2. Open printable receipt window
+    const printWindow = window.open('', '_blank', 'width=380,height=600');
+    if (!printWindow) return;
+
+    const subtotal = parseFloat(activeOrder.subtotal || '0');
+    const taxTotal = parseFloat(activeOrder.taxTotal || '0');
+    const cgst = taxTotal / 2;
+    const sgst = taxTotal / 2;
+    const grandTotal = parseFloat(activeOrder.grandTotal || '0');
+
+    // Aggregate line items from order lines or kots
+    const lines = activeOrder.lines || [];
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Bill - ${table.tableNumber}</title>
+          <style>
+            body { font-family: monospace; font-size: 13px; padding: 12px; margin: 0; }
+            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
+            .title { font-size: 16px; font-weight: bold; }
+            .subtitle { font-size: 12px; margin-top: 2px; }
+            .meta { font-size: 11px; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+            th { text-align: left; border-bottom: 1px solid #000; padding: 4px 0; font-size: 11px; }
+            td { padding: 4px 0; vertical-align: top; font-size: 12px; }
+            .qty { width: 30px; font-weight: bold; }
+            .price { text-align: right; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            .totals-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+            .grand-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 6px 0; margin-top: 6px; }
+            .footer { margin-top: 12px; padding-top: 8px; text-align: center; font-size: 11px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">*** RESTAURANT DINE-IN BILL ***</div>
+            <div class="subtitle">Table: ${table.tableNumber} (${table.section})</div>
+            <div class="meta">Order: ${activeOrder.orderNumber} | Guests: ${activeOrder.guestCount} Pax</div>
+            <div class="meta">Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="qty">QTY</th>
+                <th>ITEM</th>
+                <th class="price">AMOUNT</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lines
+                .map(
+                  (l) => `
+                <tr>
+                  <td class="qty">${parseFloat(l.quantity).toFixed(0)}</td>
+                  <td>${l.productNameSnapshot}</td>
+                  <td class="price">₹${parseFloat(l.lineTotal).toFixed(2)}</td>
+                </tr>`,
+                )
+                .join('')}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          <div class="totals-row">
+            <span>Subtotal:</span>
+            <span>₹${subtotal.toFixed(2)}</span>
+          </div>
+          <div class="totals-row">
+            <span>CGST (2.5%):</span>
+            <span>₹${cgst.toFixed(2)}</span>
+          </div>
+          <div class="totals-row">
+            <span>SGST (2.5%):</span>
+            <span>₹${sgst.toFixed(2)}</span>
+          </div>
+          <div class="grand-total">
+            <span>GRAND TOTAL:</span>
+            <span>₹${grandTotal.toFixed(2)}</span>
+          </div>
+          <div class="footer">
+            <p>Scan UPI QR to pay or pay at cashier</p>
+            <p>Thank you for dining with us! Please visit again.</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
   if (!table) return null;
 
   return (
@@ -763,10 +866,18 @@ export function TableOrderDrawer({
                           <Printer className="w-4 h-4 text-slate-600" /> Print KOT
                         </Button>
                         <Button
-                          onClick={() => setSettleModalOpen(true)}
-                          className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm h-11 gap-2 shadow-sm"
+                          variant="outline"
+                          onClick={handlePrintBill}
+                          className="flex-1 text-xs font-bold gap-1.5 h-11 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
+                          title="Print Customer Bill Receipt & Mark Table Billed"
                         >
-                          <Receipt className="w-4 h-4" /> Print Bill / Settle (₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)})
+                          <Receipt className="w-4 h-4 text-emerald-700" /> Print Bill
+                        </Button>
+                        <Button
+                          onClick={() => setSettleModalOpen(true)}
+                          className="flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm h-11 gap-1.5 shadow-sm"
+                        >
+                          <CheckCircle2 className="w-4 h-4" /> Settle (₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)})
                         </Button>
                       </div>
                     ) : (
