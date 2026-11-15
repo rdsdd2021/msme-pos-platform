@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,7 +166,7 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
         final first = barcodes.barcodes.first.rawValue?.trim();
         if (first != null && first.isNotEmpty) {
           _hasScanned = true;
-          ref.read(permissionServiceProvider.notifier).triggerHaptic(type: 'success');
+          await ref.read(permissionServiceProvider.notifier).triggerHaptic(type: 'success');
           widget.onBarcodeScanned(first);
           return;
         }
@@ -368,124 +369,112 @@ class _CameraBarcodeScannerModalState extends ConsumerState<CameraBarcodeScanner
       return _buildErrorView(_scannerError);
     }
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Camera Stream
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: MobileScanner(
-            controller: _scannerController,
-            onDetect: _onDetect,
-            errorBuilder: (ctx, err, child) {
-              return _buildErrorView(err);
-            },
-          ),
-        ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boxSize = math.min(constraints.maxWidth * 0.72, 260.0);
 
-        // Reticle and overlay only shown when there is no error
-        if (_scannerError == null) ...[
-          // Dark Vignette Backdrop Cutout
-          ColorFiltered(
-            colorFilter: ColorFilter.mode(
-              Colors.black.withValues(alpha: 0.55),
-              BlendMode.srcOut,
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Camera Stream
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: MobileScanner(
+                controller: _scannerController,
+                onDetect: _onDetect,
+                errorBuilder: (ctx, err, child) {
+                  return _buildErrorView(err);
+                },
+              ),
             ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    backgroundBlendMode: BlendMode.dstOut,
+
+            // Reticle and overlay only shown when there is no error
+            if (_scannerError == null) ...[
+              // Dark Vignette Backdrop Cutout with transparent center reticle
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _ScannerOverlayPainter(
+                    windowSize: boxSize,
+                    borderRadius: 20.0,
+                    overlayColor: Colors.black.withValues(alpha: 0.55),
                   ),
                 ),
-                Center(
-                  child: Container(
-                    width: 250,
-                    height: 250,
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(20),
+              ),
+
+              // Scanning Reticle & Corner Brackets
+              Center(
+                child: SizedBox(
+                  width: boxSize,
+                  height: boxSize,
+                  child: Stack(
+                    children: [
+                      // Corner Reticle Decorator
+                      CustomPaint(
+                        size: Size(boxSize, boxSize),
+                        painter: _ScannerReticlePainter(),
+                      ),
+
+                      // Animated Laser Scanline
+                      AnimatedBuilder(
+                        animation: _laserAnimation,
+                        builder: (ctx, child) {
+                          return Positioned(
+                            top: boxSize * _laserAnimation.value,
+                            left: 12,
+                            right: 12,
+                            child: Container(
+                              height: 2.5,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Colors.transparent,
+                                    ShadcnColors.primary,
+                                    Colors.white,
+                                    ShadcnColors.primary,
+                                    Colors.transparent,
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: ShadcnColors.primary.withValues(alpha: 0.7),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Helper instruction text
+              Positioned(
+                bottom: 30,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: Text(
+                    widget.promptText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Scanning Reticle & Corner Brackets
-          Center(
-            child: SizedBox(
-              width: 250,
-              height: 250,
-              child: Stack(
-                children: [
-                  // Corner Reticle Decorator
-                  CustomPaint(
-                    size: const Size(250, 250),
-                    painter: _ScannerReticlePainter(),
-                  ),
-
-                  // Animated Laser Scanline
-                  AnimatedBuilder(
-                    animation: _laserAnimation,
-                    builder: (ctx, child) {
-                      return Positioned(
-                        top: 250 * _laserAnimation.value,
-                        left: 12,
-                        right: 12,
-                        child: Container(
-                          height: 2.5,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Colors.transparent,
-                                ShadcnColors.primary,
-                                Colors.white,
-                                ShadcnColors.primary,
-                                Colors.transparent,
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: ShadcnColors.primary.withValues(alpha: 0.7),
-                                blurRadius: 8,
-                                spreadRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
               ),
-            ),
-          ),
-
-          // Helper instruction text
-          Positioned(
-            bottom: 30,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Text(
-                widget.promptText,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
+            ],
+          ],
+        );
+      },
     );
   }
 
@@ -793,4 +782,46 @@ class _ScannerReticlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Custom Painter to draw a dark translucent overlay with a transparent rounded cutout
+class _ScannerOverlayPainter extends CustomPainter {
+  final double windowSize;
+  final double borderRadius;
+  final Color overlayColor;
+
+  _ScannerOverlayPainter({
+    required this.windowSize,
+    this.borderRadius = 20.0,
+    required this.overlayColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final left = (size.width - windowSize) / 2;
+    final top = (size.height - windowSize) / 2;
+    final scanRect = Rect.fromLTWH(left, top, windowSize, windowSize);
+
+    final path = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          scanRect,
+          Radius.circular(borderRadius),
+        ),
+      );
+
+    final paint = Paint()
+      ..color = overlayColor
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScannerOverlayPainter oldDelegate) =>
+      oldDelegate.windowSize != windowSize ||
+      oldDelegate.borderRadius != borderRadius ||
+      oldDelegate.overlayColor != overlayColor;
 }
