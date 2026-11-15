@@ -125,8 +125,27 @@ export class BillingService {
           }
         }
 
-        // Server authoritative unit price
-        const unitPriceNum = parseFloat(product.sellingPrice);
+        // Server authoritative unit price & variant validation (Rule 7)
+        let unitPriceNum = parseFloat(product.sellingPrice);
+        let effectiveName = item.customName || product.name;
+
+        if (item.unitPrice !== undefined) {
+          const requestedPrice = parseFloat(item.unitPrice);
+          const matchingVariant = product.variants?.find(
+            (v) => Math.abs(parseFloat(v.price) - requestedPrice) < 0.01,
+          );
+          if (matchingVariant) {
+            unitPriceNum = parseFloat(matchingVariant.price);
+            effectiveName = item.customName || `${product.name} (${matchingVariant.name})`;
+          } else if (product.isMadeToOrder && !isNaN(requestedPrice) && requestedPrice > 0) {
+            unitPriceNum = requestedPrice;
+            effectiveName = item.customName || product.name;
+          } else if (Math.abs(parseFloat(product.sellingPrice) - requestedPrice) < 0.01) {
+            unitPriceNum = parseFloat(product.sellingPrice);
+            effectiveName = item.customName || product.name;
+          }
+        }
+
         const itemGrossCents = Math.round(unitPriceNum * qty * 100);
         const discountCents = Math.round(parseFloat(item.discountAmount ?? '0') * 100);
 
@@ -162,11 +181,11 @@ export class BillingService {
 
         calculatedLines.push({
           productId: product.id,
-          name: product.name,
+          name: effectiveName,
           sku: product.sku,
           hsn: product.hsnCode,
           quantity: item.quantity,
-          unitPrice: product.sellingPrice,
+          unitPrice: unitPriceNum.toFixed(2),
           discountAmount: (discountCents / 100).toFixed(2),
           taxableValue: (taxableCents / 100).toFixed(2),
           gstRatePercent: item.gstRatePercent,

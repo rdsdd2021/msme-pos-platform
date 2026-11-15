@@ -13,6 +13,7 @@ import {
   TableStatus,
   RestaurantOrderType,
   RestaurantOrderStatus,
+  KotStatus,
   KitchenStation,
   PaymentMethod,
 } from '@pos/shared-types';
@@ -216,6 +217,64 @@ describe('RestaurantService', () => {
       expect(result.order.taxTotal).toBe('25.00'); // 5% GST
       expect(result.order.grandTotal).toBe('525.00');
     });
+
+    it('dispatches KOT with portion variant, calculates variant line total and snapshots portion name', async () => {
+      const mockOrder = {
+        id: 'order-variant-1',
+        tableId: 'table-1',
+        tableNumberSnapshot: 'T-01',
+        status: RestaurantOrderStatus.OPEN,
+        subtotal: '0.00',
+        taxTotal: '0.00',
+        grandTotal: '0.00',
+      };
+      const mockProduct = {
+        id: 'd19c3e41-0000-4000-8000-000000000001',
+        name: 'Dal Makhani',
+        sellingPrice: '280.00',
+        variants: [
+          { name: 'Half', price: '160.00' },
+          { name: 'Full', price: '280.00' },
+        ],
+      };
+
+      let savedLines: any[] = [];
+      mockDataSource.transaction.mockImplementation(async (cb) => {
+        const manager = {
+          findOne: jest.fn().mockImplementation((entity) => {
+            if (entity === RestaurantOrderEntity) return Promise.resolve(mockOrder);
+            return Promise.resolve(null);
+          }),
+          find: jest.fn().mockResolvedValue([mockProduct]),
+          count: jest.fn().mockResolvedValue(0),
+          create: jest.fn().mockImplementation((entity, dto) => ({ id: 'mock-id', ...dto })),
+          save: jest.fn().mockImplementation((obj) => {
+            if (Array.isArray(obj)) savedLines = obj;
+            return Promise.resolve(obj);
+          }),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return cb(manager);
+      });
+
+      const result = await service.dispatchKot('tenant-1', 'branch-1', {
+        orderId: 'order-variant-1',
+        items: [
+          {
+            productId: 'd19c3e41-0000-4000-8000-000000000001',
+            variantName: 'Half',
+            quantity: '2.000', // 2 x 160 = 320.00
+          },
+        ],
+      });
+
+      expect(savedLines[0].productNameSnapshot).toBe('Dal Makhani (Half)');
+      expect(savedLines[0].unitPrice).toBe('160.00');
+      expect(savedLines[0].lineTotal).toBe('320.00');
+      expect(result.order.subtotal).toBe('320.00');
+      expect(result.order.taxTotal).toBe('16.00'); // 5% GST
+      expect(result.order.grandTotal).toBe('336.00');
+    });
   });
 
   describe('Table Settlement', () => {
@@ -248,6 +307,64 @@ describe('RestaurantService', () => {
         { id: 'table-1' },
         expect.objectContaining({ status: TableStatus.VACANT }),
       );
+    });
+
+    it('excludes cancelled KOT lines and passes verified unitPrice and customName to BillingService', async () => {
+      const mockOrder = {
+        id: 'order-with-cancelled-1',
+        tableId: 'table-1',
+        status: RestaurantOrderStatus.OPEN,
+        grandTotal: '525.00',
+        lines: [
+          {
+            productId: 'd19c3e41-0000-4000-8000-000000000001',
+            productNameSnapshot: 'Paneer Butter Masala (Half)',
+            quantity: '1.000',
+            unitPrice: '180.00',
+            lineTotal: '180.00',
+            status: KotStatus.SERVED,
+          },
+          {
+            productId: 'd19c3e41-0000-4000-8000-000000000002',
+            productNameSnapshot: 'Cold Coffee (Cancelled)',
+            quantity: '1.000',
+            unitPrice: '120.00',
+            lineTotal: '120.00',
+            status: KotStatus.CANCELLED, // Voided item!
+          },
+        ],
+      };
+
+      mockOrderRepo.findOne.mockResolvedValue(mockOrder);
+
+      const result = await service.settleOrder('tenant-1', 'branch-1', 'user-1', {
+        orderId: 'order-with-cancelled-1',
+        paymentMethod: PaymentMethod.CASH,
+      });
+
+      expect(mockBillingService.createSale).toHaveBeenCalledWith(
+        'tenant-1',
+        'user-1',
+        expect.objectContaining({
+          items: [
+            {
+              productId: 'd19c3e41-0000-4000-8000-000000000001',
+              customName: 'Paneer Butter Masala (Half)',
+              unitPrice: '180.00',
+              quantity: '1.000',
+              discountAmount: undefined,
+              gstRatePercent: '5.00',
+            },
+          ],
+          payments: [
+            {
+              paymentMethod: PaymentMethod.CASH,
+              amount: '189.00', // 180 + 5% GST (9.00) = 189.00 (Cancelled Cold Coffee excluded!)
+            },
+          ],
+        }),
+      );
+      expect(result.order.status).toBe(RestaurantOrderStatus.COMPLETED);
     });
   });
 });

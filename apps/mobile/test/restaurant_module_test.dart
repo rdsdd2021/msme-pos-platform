@@ -275,14 +275,20 @@ void main() {
       expect(dish.variants?[1].name, 'Full');
       expect(dish.variants?[1].pricePaisa, 32000);
 
-      // Create variant-specific portion item
-      final halfPortion = dish.copyWith(
-        id: '${dish.id}__Half',
-        name: '${dish.name} (Half)',
-        sellingPricePaisa: variants[0].pricePaisa,
+      // Verify CartItem with portion variant retains pristine base product UUID
+      final cartItemHalf = CartItem(
+        product: dish,
+        quantity: 2,
+        variantName: 'Half',
+        variantPricePaisa: variants[0].pricePaisa,
       );
-      expect(halfPortion.name, 'Paneer Butter Masala (Half)');
-      expect(halfPortion.sellingPricePaisa, 18000);
+      expect(cartItemHalf.product.id, dish.id); // Pristine UUID/ID!
+      expect(cartItemHalf.lineKey, '${dish.id}__Half');
+      expect(cartItemHalf.displayName, 'Paneer Butter Masala (Half)');
+      expect(cartItemHalf.unitPricePaisa, 18000);
+      expect(cartItemHalf.subtotalPaisa, 36000);
+      expect(cartItemHalf.taxPaisa, 1800); // 5% GST on 36000 = 1800
+      expect(cartItemHalf.totalPaisa, 37800);
     });
 
     test('LocalCatalogRepository persists and retrieves restaurant dish culinary fields in SQLite', () async {

@@ -562,6 +562,7 @@ export class RestaurantService {
       const itemsToProcess = rawItems.map((i: any) => ({
         productId: i.productId || i.id,
         productName: i.productName || i.name,
+        variantName: i.variantName,
         quantity: String(i.quantity || '1'),
         unitPrice: i.unitPrice ? String(i.unitPrice) : undefined,
         specialInstructions: i.specialInstructions || i.notes,
@@ -600,10 +601,35 @@ export class RestaurantService {
 
       for (const item of itemsToProcess) {
         const product = productMap.get(item.productId);
-        const nameSnapshot = product?.name || item.productName || 'Dish Item';
-        const priceNum = product
+        let nameSnapshot = item.productName || product?.name || 'Dish Item';
+        let priceNum = product
           ? parseFloat(product.sellingPrice)
           : parseFloat(item.unitPrice || '0') || 0;
+
+        if (product) {
+          // Authoritatively validate variant or custom portion pricing
+          if (item.variantName) {
+            const v = product.variants?.find(
+              (varItem) => varItem.name.toLowerCase() === item.variantName!.toLowerCase(),
+            );
+            if (v) {
+              priceNum = parseFloat(v.price);
+              nameSnapshot = `${product.name} (${v.name})`;
+            }
+          } else if (item.unitPrice !== undefined) {
+            const requestedPrice = parseFloat(item.unitPrice);
+            const v = product.variants?.find(
+              (varItem) => Math.abs(parseFloat(varItem.price) - requestedPrice) < 0.01,
+            );
+            if (v) {
+              priceNum = parseFloat(v.price);
+              nameSnapshot = `${product.name} (${v.name})`;
+            } else if (product.isMadeToOrder && !isNaN(requestedPrice) && requestedPrice > 0) {
+              priceNum = requestedPrice;
+            }
+          }
+        }
+
         const qtyNum = parseFloat(item.quantity) || 1;
         const lineTotalNum = Math.round(qtyNum * priceNum * 100) / 100;
 
@@ -881,17 +907,34 @@ export class RestaurantService {
       throw new BadRequestException('Cannot settle order with no items');
     }
 
+    // Exclude cancelled / voided KOT items from bill settlement
+    const activeLines = order.lines.filter((l) => l.status !== KotStatus.CANCELLED);
+    if (activeLines.length === 0) {
+      throw new BadRequestException('Cannot settle order with no active items (all lines cancelled)');
+    }
+
     if (order.status === RestaurantOrderStatus.COMPLETED) {
       throw new BadRequestException('Order has already been settled and completed');
     }
 
-    // Convert restaurant order lines into cart lines for createSale
-    const items = order.lines.map((l) => ({
+    // Convert restaurant order lines into cart lines for createSale with verified portion prices
+    const items = activeLines.map((l) => ({
       productId: l.productId,
+      customName: l.productNameSnapshot,
+      unitPrice: l.unitPrice,
       quantity: l.quantity,
       discountAmount: undefined,
       gstRatePercent: '5.00', // Standard restaurant GST rate
     }));
+
+    // Recalculate active totals to match settled lines exactly
+    const settledSubtotal = activeLines.reduce(
+      (sum, l) => sum + parseFloat(l.lineTotal || '0'),
+      0,
+    );
+    const settledTax = Math.round(settledSubtotal * 0.05 * 100) / 100;
+    const settledGrandTotal = Math.round((settledSubtotal + settledTax) * 100) / 100;
+    const settledGrandTotalStr = settledGrandTotal.toFixed(2);
 
     // Payments setup (Single or Split)
     let payments: Array<{
@@ -909,7 +952,7 @@ export class RestaurantService {
       payments = [
         {
           paymentMethod: dto.paymentMethod || PaymentMethod.CASH,
-          amount: order.grandTotal,
+          amount: settledGrandTotalStr,
         },
       ];
     }

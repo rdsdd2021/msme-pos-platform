@@ -72,13 +72,13 @@ class RestaurantTable {
 
     final Map<String, int> confirmedQtyMap = {};
     for (final c in confirmedLines) {
-      final key = '${c.product.id}_${c.notes ?? ""}';
+      final key = '${c.lineKey}_${c.notes ?? ""}';
       confirmedQtyMap[key] = (confirmedQtyMap[key] ?? 0) + c.quantity;
     }
 
     final List<CartItem> delta = [];
     for (final active in activeOrderLines) {
-      final key = '${active.product.id}_${active.notes ?? ""}';
+      final key = '${active.lineKey}_${active.notes ?? ""}';
       final confirmedQty = confirmedQtyMap[key] ?? 0;
       final deltaQty = active.quantity - confirmedQty;
       if (deltaQty > 0) {
@@ -144,6 +144,8 @@ class RestaurantTable {
       'activeOrderLines': activeOrderLines.map((line) => {
         'quantity': line.quantity,
         'notes': line.notes,
+        'variantName': line.variantName,
+        'variantPricePaisa': line.variantPricePaisa,
         'product': {
           'id': line.product.id,
           'name': line.product.name,
@@ -157,6 +159,12 @@ class RestaurantTable {
           'currentStock': line.product.currentStock,
           'hsnCode': line.product.hsnCode,
           'imageUrl': line.product.imageUrl,
+          'foodType': line.product.foodType,
+          'kitchenStation': line.product.kitchenStation,
+          'prepTimeMinutes': line.product.prepTimeMinutes,
+          'isAvailable': line.product.isAvailable,
+          'isMadeToOrder': line.product.isMadeToOrder,
+          'variants': line.product.variants?.map((v) => v.toJson()).toList(),
         },
       }).toList(),
     };
@@ -179,6 +187,14 @@ class RestaurantTable {
     final lines = rawLines.map((l) {
       final lineMap = l as Map<String, dynamic>;
       final pMap = lineMap['product'] as Map<String, dynamic>;
+      List<ProductVariant>? variants;
+      if (pMap['variants'] != null) {
+        try {
+          variants = (pMap['variants'] as List<dynamic>)
+              .map((v) => ProductVariant.fromJson(v as Map<String, dynamic>))
+              .toList();
+        } catch (_) {}
+      }
       final product = Product(
         id: pMap['id'] as String,
         name: pMap['name'] as String,
@@ -192,11 +208,19 @@ class RestaurantTable {
         currentStock: (pMap['currentStock'] as num?)?.toDouble() ?? 100.0,
         hsnCode: pMap['hsnCode'] as String?,
         imageUrl: pMap['imageUrl'] as String?,
+        foodType: pMap['foodType'] as String?,
+        kitchenStation: pMap['kitchenStation'] as String?,
+        prepTimeMinutes: pMap['prepTimeMinutes'] as int?,
+        isAvailable: pMap['isAvailable'] as bool? ?? true,
+        isMadeToOrder: pMap['isMadeToOrder'] as bool? ?? false,
+        variants: variants,
       );
       return CartItem(
         product: product,
         quantity: lineMap['quantity'] as int? ?? 1,
         notes: lineMap['notes'] as String?,
+        variantName: lineMap['variantName'] as String?,
+        variantPricePaisa: lineMap['variantPricePaisa'] as int?,
       );
     }).toList();
 
@@ -449,12 +473,20 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     _saveToCache();
   }
 
-  void addItemToTable(String tableId, Product product, {int qty = 1, String? notes}) {
+  void addItemToTable(
+    String tableId,
+    Product product, {
+    int qty = 1,
+    String? notes,
+    String? variantName,
+    int? variantPricePaisa,
+  }) {
     final updated = state.tables.map((t) {
       if (t.id != tableId) return t;
 
       final lines = List<CartItem>.from(t.activeOrderLines);
-      final idx = lines.indexWhere((l) => l.product.id == product.id);
+      final targetKey = variantName != null ? '${product.id}__$variantName' : product.id;
+      final idx = lines.indexWhere((l) => l.lineKey == targetKey);
 
       if (idx >= 0) {
         lines[idx] = lines[idx].copyWith(
@@ -462,7 +494,13 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           notes: notes ?? lines[idx].notes,
         );
       } else {
-        lines.add(CartItem(product: product, quantity: qty, notes: notes));
+        lines.add(CartItem(
+          product: product,
+          quantity: qty,
+          notes: notes,
+          variantName: variantName,
+          variantPricePaisa: variantPricePaisa,
+        ));
       }
 
       return t.copyWith(
@@ -489,16 +527,17 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     _saveToCache();
   }
 
-  void removeItemFromTable(String tableId, String productId) {
+  void removeItemFromTable(String tableId, String targetKey) {
     final updated = state.tables.map((t) {
       if (t.id != tableId) return t;
 
       final lines = List<CartItem>.from(t.activeOrderLines);
-      final idx = lines.indexWhere((l) => l.product.id == productId);
+      final idx = lines.indexWhere((l) => l.lineKey == targetKey || l.product.id == targetKey);
 
       if (idx >= 0) {
+        final lineKeyToMatch = lines[idx].lineKey;
         final confirmedQty = t.confirmedLines
-            .where((c) => c.product.id == productId)
+            .where((c) => c.lineKey == lineKeyToMatch || c.product.id == targetKey)
             .fold<int>(0, (sum, c) => sum + c.quantity);
 
         if (lines[idx].quantity > confirmedQty) {
@@ -521,12 +560,12 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     _saveToCache();
   }
 
-  void updateLineNotes(String tableId, String productId, String notes) {
+  void updateLineNotes(String tableId, String targetKey, String notes) {
     final updated = state.tables.map((t) {
       if (t.id != tableId) return t;
 
       final lines = List<CartItem>.from(t.activeOrderLines);
-      final idx = lines.indexWhere((l) => l.product.id == productId);
+      final idx = lines.indexWhere((l) => l.lineKey == targetKey || l.product.id == targetKey);
       if (idx >= 0) {
         lines[idx] = lines[idx].copyWith(notes: notes.trim().isEmpty ? null : notes.trim());
       }

@@ -71,6 +71,7 @@ interface DraftItem {
   itemKey?: string;
   productId: string;
   productName: string;
+  variantName?: string;
   unitPrice: number;
   quantity: number;
   specialInstructions: string;
@@ -262,6 +263,7 @@ export function TableOrderDrawer({
           itemKey,
           productId: product.id,
           productName: displayName,
+          variantName: variant.name,
           unitPrice: price,
           quantity: 1,
           specialInstructions: '',
@@ -323,6 +325,9 @@ export function TableOrderDrawer({
 
       const items: DispatchKotItemRequest[] = draftItems.map((item) => ({
         productId: item.productId,
+        productName: item.productName,
+        variantName: (item as any).variantName,
+        unitPrice: item.unitPrice ? item.unitPrice.toFixed(2) : undefined,
         quantity: item.quantity.toString(),
         specialInstructions: item.specialInstructions || undefined,
         kitchenStation: item.kitchenStation,

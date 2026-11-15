@@ -1046,6 +1046,9 @@ export interface CreateRestaurantOrderRequest {
 
 export interface DispatchKotItemRequest {
   productId: string;
+  productName?: string;
+  variantName?: string;
+  unitPrice?: string;
   quantity: string;
   specialInstructions?: string;
   kitchenStation?: KitchenStation;

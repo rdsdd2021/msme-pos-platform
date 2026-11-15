@@ -153,6 +153,66 @@ describe('BillingService — GST & Financial Calculations', () => {
     expect(result.grandTotal).toBe('1062.00');
   });
 
+  it('authoritatively validates portion variant unit price and snapshots portion name in InvoiceLine', async () => {
+    const mockDish = {
+      id: 'd19c3e41-0000-4000-8000-000000000001',
+      tenantId: 'tenant-1',
+      name: 'Paneer Butter Masala',
+      sku: 'DISH-PBM',
+      sellingPrice: '320.00',
+      variants: [
+        { name: 'Half', price: '180.00' },
+        { name: 'Full', price: '320.00' },
+      ],
+      hsnCode: '9963',
+    };
+
+    const savedEntities: any[] = [];
+    const mockManager = {
+      findOne: jest.fn().mockResolvedValue(null),
+      findByIds: jest.fn().mockResolvedValueOnce([mockDish]),
+      create: jest.fn((entity, data) => ({ id: 'mock-line-id', ...data })),
+      save: jest.fn(async (data) => {
+        savedEntities.push(data);
+        return data;
+      }),
+    };
+
+    mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
+
+    const result = await service.createSale('tenant-1', 'cashier-1', {
+      branchId: 'branch-1',
+      idempotencyKey: 'sale-variant-1',
+      isInterstate: false,
+      items: [
+        {
+          productId: 'd19c3e41-0000-4000-8000-000000000001',
+          customName: 'Paneer Butter Masala (Half)',
+          unitPrice: '180.00',
+          quantity: '1.000',
+          discountAmount: '0.00',
+          gstRatePercent: '5.00',
+        },
+      ],
+      payments: [
+        {
+          paymentMethod: PaymentMethod.CASH,
+          amount: '189.00', // 180 + 5% GST (9.00) = 189.00
+        },
+      ],
+    });
+
+    expect(result.subtotal).toBe('180.00');
+    expect(result.cgstTotal).toBe('4.50');
+    expect(result.sgstTotal).toBe('4.50');
+    expect(result.grandTotal).toBe('189.00');
+
+    const savedLine = savedEntities.find((e) => e.productNameSnapshot === 'Paneer Butter Masala (Half)');
+    expect(savedLine).toBeDefined();
+    expect(savedLine.unitPrice).toBe('180.00');
+    expect(savedLine.productId).toBe('d19c3e41-0000-4000-8000-000000000001');
+  });
+
   it('rejects sale when total payment amount is insufficient', async () => {
     const mockProduct = {
       id: 'prod-1',

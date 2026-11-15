@@ -68,12 +68,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
             ? ' [${i.product.kitchenStation == 'tandoor' ? 'Tandoor' : i.product.kitchenStation == 'beverage_bar' ? 'Bar' : 'Bakery'}]'
             : '';
         final noteTag = i.notes != null && i.notes!.isNotEmpty ? ' [NOTE: ${i.notes}]' : '';
-        final lineDesc = '$dietTag ${i.product.name}$stationTag$noteTag'.trim();
+        final lineDesc = '$dietTag ${i.displayName}$stationTag$noteTag'.trim();
         return ReceiptLineItem(
           name: lineDesc,
           quantity: i.quantity,
           unit: i.product.unit,
-          unitPricePaisa: i.product.sellingPricePaisa,
+          unitPricePaisa: i.unitPricePaisa,
           taxRatePercent: 0,
           taxPaisa: 0,
           totalPaisa: i.totalPaisa,
@@ -109,10 +109,10 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       ),
       lines: currentTable.activeOrderLines.map((i) {
         return ReceiptLineItem(
-          name: i.product.name,
+          name: i.displayName,
           quantity: i.quantity,
           unit: i.product.unit,
-          unitPricePaisa: i.product.sellingPricePaisa,
+          unitPricePaisa: i.unitPricePaisa,
           taxRatePercent: 5,
           taxPaisa: (i.totalPaisa * 0.05).round(),
           totalPaisa: i.totalPaisa,
@@ -459,12 +459,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                       size: ShadcnButtonSize.sm,
                       onPressed: () {
                         HapticFeedback.selectionClick();
-                        final variantProduct = product.copyWith(
-                          id: '${product.id}__${variant.name}',
-                          name: '${product.name} (${variant.name})',
-                          sellingPricePaisa: variant.pricePaisa,
+                        ref.read(restaurantProvider.notifier).addItemToTable(
+                          currentTable.id,
+                          product,
+                          variantName: variant.name,
+                          variantPricePaisa: variant.pricePaisa,
                         );
-                        ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, variantProduct);
                         Navigator.pop(ctx);
                       },
                     ),
@@ -1326,6 +1326,16 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                                 padding: EdgeInsets.symmetric(horizontal: 8),
                                 child: Text('86\'d', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: ShadcnColors.destructive)),
                               )
+                            else if (item.variants != null && item.variants!.isNotEmpty)
+                              ShadcnButton(
+                                text: 'Portions',
+                                leadingIcon: const Icon(Icons.restaurant_menu, size: 14),
+                                size: ShadcnButtonSize.sm,
+                                variant: ShadcnButtonVariant.outline,
+                                onPressed: () {
+                                  _showPortionPickerSheet(currentTable, item);
+                                },
+                              )
                             else if (existingLine.quantity > 0)
                               ShadcnQuantityStepper(
                                 quantity: existingLine.quantity,
@@ -1340,20 +1350,13 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                               )
                             else
                               ShadcnButton(
-                                text: item.variants != null && item.variants!.isNotEmpty ? 'Portions' : 'Add',
-                                leadingIcon: Icon(
-                                  item.variants != null && item.variants!.isNotEmpty ? Icons.restaurant_menu : Icons.add,
-                                  size: 14,
-                                ),
+                                text: 'Add',
+                                leadingIcon: const Icon(Icons.add, size: 14),
                                 size: ShadcnButtonSize.sm,
                                 variant: ShadcnButtonVariant.outline,
                                 onPressed: () {
-                                  if (item.variants != null && item.variants!.isNotEmpty) {
-                                    _showPortionPickerSheet(currentTable, item);
-                                  } else {
-                                    HapticFeedback.selectionClick();
-                                    ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, item);
-                                  }
+                                  HapticFeedback.selectionClick();
+                                  ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, item);
                                 },
                               ),
                           ],
@@ -1423,11 +1426,11 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      line.product.name,
+                                      line.displayName,
                                       style: ShadcnTypography.bodySemibold.copyWith(fontSize: 13),
                                     ),
                                     Text(
-                                      '₹${(line.product.sellingPricePaisa / 100).toStringAsFixed(1)} each',
+                                      '₹${(line.unitPricePaisa / 100).toStringAsFixed(1)} each',
                                       style: ShadcnTypography.caption,
                                     ),
                                   ],
@@ -1438,10 +1441,15 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                                 height: 30,
                                 isDestructiveOnZero: true,
                                 onIncrement: () {
-                                  ref.read(restaurantProvider.notifier).addItemToTable(currentTable.id, line.product);
+                                  ref.read(restaurantProvider.notifier).addItemToTable(
+                                    currentTable.id,
+                                    line.product,
+                                    variantName: line.variantName,
+                                    variantPricePaisa: line.variantPricePaisa,
+                                  );
                                 },
                                 onDecrement: () {
-                                  ref.read(restaurantProvider.notifier).removeItemFromTable(currentTable.id, line.product.id);
+                                  ref.read(restaurantProvider.notifier).removeItemFromTable(currentTable.id, line.lineKey);
                                 },
                               ),
                               const SizedBox(width: 8),

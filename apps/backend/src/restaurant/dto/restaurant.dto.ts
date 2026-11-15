@@ -115,6 +115,22 @@ export class DispatchKotItemDto {
   @IsUUID()
   productId!: string;
 
+  @ApiProperty({ example: 'Paneer Butter Masala', required: false })
+  @IsString()
+  @IsOptional()
+  productName?: string;
+
+  @ApiProperty({ example: 'Half', required: false })
+  @IsString()
+  @IsOptional()
+  variantName?: string;
+
+  @ApiProperty({ example: '180.00', required: false })
+  @IsString()
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,2})?$/, { message: 'unitPrice must be a valid decimal string' })
+  unitPrice?: string;
+
   @ApiProperty({ example: '2.000' })
   @IsString()
   @Matches(/^\d+(\.\d{1,3})?$/, { message: 'quantity must be a valid positive quantity string' })

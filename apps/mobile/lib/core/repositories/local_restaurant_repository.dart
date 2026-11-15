@@ -73,16 +73,21 @@ class LocalRestaurantRepository {
 
       final Map<String, CartItem> itemsMap = {};
       for (final line in kotLines) {
-        final key = '${line.productId}_${line.specialInstructions ?? ""}';
+        final key = '${line.productId}_${line.productName}_${line.unitPricePaisa}_${line.specialInstructions ?? ""}';
         final qty = line.quantity.round();
         if (itemsMap.containsKey(key)) {
           final existing = itemsMap[key]!;
           itemsMap[key] = existing.copyWith(quantity: existing.quantity + qty);
         } else {
+          String? variantName;
+          final match = RegExp(r'^(.*?)\s*\(([^)]+)\)$').firstMatch(line.productName);
+          if (match != null) {
+            variantName = match.group(2);
+          }
           itemsMap[key] = CartItem(
             product: Product(
               id: line.productId,
-              name: line.productName,
+              name: match != null ? match.group(1)! : line.productName,
               sku: line.productId,
               category: 'Kitchen',
               unit: 'PCS',
@@ -93,6 +98,8 @@ class LocalRestaurantRepository {
             ),
             quantity: qty,
             notes: line.specialInstructions,
+            variantName: variantName,
+            variantPricePaisa: line.unitPricePaisa,
           );
         }
       }
@@ -123,9 +130,10 @@ class LocalRestaurantRepository {
       'captainName': captainName,
       'lines': lines.map((i) => {
         'productId': i.product.id,
-        'productName': i.product.name,
+        'productName': i.displayName,
+        'variantName': i.variantName,
         'quantity': i.quantity,
-        'unitPrice': (i.product.sellingPricePaisa / 100).toStringAsFixed(2),
+        'unitPrice': (i.unitPricePaisa / 100).toStringAsFixed(2),
         'kitchenStation': i.product.kitchenStation ?? 'main_kitchen',
         'specialInstructions': i.notes,
       }).toList(),
@@ -184,9 +192,9 @@ class LocalRestaurantRepository {
             orderId: orderId,
             kotId: Value(kotId),
             productId: line.product.id,
-            productName: line.product.name,
+            productName: line.displayName,
             quantity: Value(line.quantity.toDouble()),
-            unitPricePaisa: Value(line.product.sellingPricePaisa),
+            unitPricePaisa: Value(line.unitPricePaisa),
             totalPaisa: Value(line.totalPaisa),
             kitchenStation: Value(line.product.kitchenStation ?? 'main_kitchen'),
             specialInstructions: Value(line.notes),

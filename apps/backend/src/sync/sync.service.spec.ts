@@ -223,6 +223,51 @@ describe('SyncService — Offline Push, Pull & Idempotent Ingestion', () => {
       expect(mockProductRepo.save).toHaveBeenCalled();
     });
 
+    it('ingests CREATE_PRODUCT with culinary fields and portion variants, setting trackInventory to false for made-to-order dishes', async () => {
+      let createdProductPayload: any;
+      mockProductRepo.create.mockImplementationOnce((dto: any) => {
+        createdProductPayload = dto;
+        return { id: 'dish-uuid-created', ...dto };
+      });
+
+      const response = await service.ingestBatch('tenant-1', 'owner-1', {
+        deviceId: 'device-pos-001',
+        operations: [
+          {
+            operationId: 'op-dish-create-1',
+            deviceId: 'device-pos-001',
+            sequence: 1,
+            operationType: 'CREATE_PRODUCT',
+            schemaVersion: 1,
+            occurredAt: '2026-10-31T12:00:00.000Z',
+            payload: {
+              name: 'Paneer Butter Masala',
+              sku: 'DISH-PBM',
+              category: 'Main Course',
+              sellingPrice: '320.00',
+              foodType: 'veg',
+              kitchenStation: 'main_kitchen',
+              prepTimeMinutes: 20,
+              isAvailable: true,
+              isMadeToOrder: true,
+              variants: [
+                { name: 'Half', price: '180.00' },
+                { name: 'Full', price: '320.00' },
+              ],
+            },
+          },
+        ],
+      });
+
+      expect(response.processedCount).toBe(1);
+      expect(response.results[0].status).toBe('accepted');
+      expect(createdProductPayload.foodType).toBe('veg');
+      expect(createdProductPayload.kitchenStation).toBe('main_kitchen');
+      expect(createdProductPayload.isMadeToOrder).toBe(true);
+      expect(createdProductPayload.trackInventory).toBe(false); // Made-to-order does not deduct raw stock of dish
+      expect(createdProductPayload.variants?.length).toBe(2);
+    });
+
     it('ingests CREATE_SALE with mobile lines and branch-1 fallback gracefully', async () => {
       const response = await service.ingestBatch('tenant-1', 'cashier-1', {
         deviceId: 'device-pos-001',

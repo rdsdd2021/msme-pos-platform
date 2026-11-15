@@ -206,6 +206,13 @@ export class SyncService {
             const barcode = raw.barcode ? String(raw.barcode).trim() : null;
             const hsnCode = raw.hsnCode ? String(raw.hsnCode).trim() : null;
             const imageUrl = raw.imageUrl ? String(raw.imageUrl) : null;
+            const foodType = raw.foodType || null;
+            const kitchenStation = raw.kitchenStation || null;
+            const prepTimeMinutes = raw.prepTimeMinutes ? parseInt(String(raw.prepTimeMinutes), 10) : null;
+            const isAvailable = raw.isAvailable !== undefined ? Boolean(raw.isAvailable) : true;
+            const isMadeToOrder = raw.isMadeToOrder !== undefined ? Boolean(raw.isMadeToOrder) : false;
+            const variants = Array.isArray(raw.variants) ? raw.variants : null;
+            const trackInventory = raw.trackInventory !== undefined ? Boolean(raw.trackInventory) : (isMadeToOrder ? false : true);
 
             if (existingProd) {
               existingProd.name = name;
@@ -216,6 +223,13 @@ export class SyncService {
               if (hsnCode) existingProd.hsnCode = hsnCode;
               if (imageUrl) existingProd.imageUrl = imageUrl;
               existingProd.categoryId = category.id;
+              existingProd.foodType = foodType;
+              existingProd.kitchenStation = kitchenStation;
+              existingProd.prepTimeMinutes = prepTimeMinutes;
+              existingProd.isAvailable = isAvailable;
+              existingProd.isMadeToOrder = isMadeToOrder;
+              existingProd.variants = variants;
+              existingProd.trackInventory = trackInventory;
               const saved = await this.productRepo.save(existingProd);
               serverEntityId = saved.id;
             } else {
@@ -231,6 +245,13 @@ export class SyncService {
                 gstRatePercent: taxRate,
                 hsnCode,
                 imageUrl,
+                foodType,
+                kitchenStation,
+                prepTimeMinutes,
+                isAvailable,
+                isMadeToOrder,
+                variants,
+                trackInventory,
                 isActive: true,
               });
               const saved = await this.productRepo.save(newProd);
@@ -293,6 +314,13 @@ export class SyncService {
             if (raw.barcode) product.barcodePrimary = String(raw.barcode).trim();
             if (raw.hsnCode) product.hsnCode = String(raw.hsnCode).trim();
             if (raw.imageUrl) product.imageUrl = String(raw.imageUrl);
+            if (raw.foodType !== undefined) product.foodType = raw.foodType || null;
+            if (raw.kitchenStation !== undefined) product.kitchenStation = raw.kitchenStation || null;
+            if (raw.prepTimeMinutes !== undefined) product.prepTimeMinutes = raw.prepTimeMinutes ? parseInt(String(raw.prepTimeMinutes), 10) : null;
+            if (raw.isAvailable !== undefined) product.isAvailable = Boolean(raw.isAvailable);
+            if (raw.isMadeToOrder !== undefined) product.isMadeToOrder = Boolean(raw.isMadeToOrder);
+            if (raw.variants !== undefined) product.variants = Array.isArray(raw.variants) ? raw.variants : null;
+            if (raw.trackInventory !== undefined) product.trackInventory = Boolean(raw.trackInventory);
             const saved = await this.productRepo.save(product);
             serverEntityId = (saved as ProductEntity).id;
           }
@@ -346,6 +374,8 @@ export class SyncService {
                 quantity: String(item.quantity || '1'),
                 discountAmount: item.discountAmount ? String(item.discountAmount) : '0.00',
                 gstRatePercent: String(item.gstRatePercent || item.gstRate || '0.00'),
+                unitPrice: item.unitPrice ? String(item.unitPrice) : undefined,
+                customName: item.customName || item.productName || undefined,
               };
             }),
           );
@@ -357,7 +387,16 @@ export class SyncService {
               const prod = await this.productRepo.findOne({ where: { id: item.productId, tenantId } });
               if (prod) {
                 const qty = parseFloat(item.quantity);
-                const price = parseFloat(prod.sellingPrice);
+                let price = parseFloat(prod.sellingPrice);
+                if (item.unitPrice) {
+                  const reqPrice = parseFloat(item.unitPrice);
+                  const matchingVariant = prod.variants?.find(
+                    (v) => Math.abs(parseFloat(v.price) - reqPrice) < 0.01,
+                  );
+                  if (matchingVariant || prod.isMadeToOrder) {
+                    price = reqPrice;
+                  }
+                }
                 const gst = parseFloat(item.gstRatePercent || prod.gstRatePercent || '0');
                 const lineNet = price * qty;
                 const lineTax = (lineNet * gst) / 100;

@@ -34,6 +34,17 @@ export class CartLineItemDto {
   @IsString()
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'gstRatePercent must be a valid percentage string' })
   gstRatePercent!: string;
+
+  @ApiProperty({ example: '180.00', required: false, description: 'Verified portion variant unit price' })
+  @IsString()
+  @IsOptional()
+  @Matches(/^\d+(\.\d{1,2})?$/, { message: 'unitPrice must be a valid decimal string' })
+  unitPrice?: string;
+
+  @ApiProperty({ example: 'Paneer Butter Masala (Half)', required: false })
+  @IsString()
+  @IsOptional()
+  customName?: string;
 }
 
 export class PaymentSplitDto {

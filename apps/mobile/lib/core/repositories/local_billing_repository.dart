@@ -61,11 +61,11 @@ class LocalBillingRepository {
     receiptBuffer.writeln('--------------------------------');
 
     for (final item in items) {
-      final name = item.product.name.length > 13
-          ? item.product.name.substring(0, 13)
-          : item.product.name.padRight(13);
+      final name = item.displayName.length > 13
+          ? item.displayName.substring(0, 13)
+          : item.displayName.padRight(13);
       final qty = item.quantity.toString().padRight(4);
-      final rate = (item.product.sellingPricePaisa / 100).toStringAsFixed(1).padLeft(6);
+      final rate = (item.unitPricePaisa / 100).toStringAsFixed(1).padLeft(6);
       final total = (item.totalPaisa / 100).toStringAsFixed(1).padLeft(7);
       receiptBuffer.writeln('$name $qty$rate$total');
     }
@@ -92,6 +92,8 @@ class LocalBillingRepository {
               'productId': i.product.id,
               'sku': i.product.sku,
               'barcode': i.product.barcode,
+              'customName': i.variantName != null ? i.displayName : null,
+              'unitPrice': (i.unitPricePaisa / 100.0).toStringAsFixed(2),
               'quantity': i.quantity.toString(),
               'discountAmount': '0.00',
               'gstRatePercent': i.product.gstRate.toString(),
@@ -102,8 +104,10 @@ class LocalBillingRepository {
           .map(
             (i) => {
               'productId': i.product.id,
+              'productName': i.displayName,
+              'customName': i.variantName != null ? i.displayName : null,
               'quantity': i.quantity.toString(),
-              'unitPrice': (i.product.sellingPricePaisa / 100.0).toStringAsFixed(2),
+              'unitPrice': (i.unitPricePaisa / 100.0).toStringAsFixed(2),
               'gstRate': i.product.gstRate.toString(),
               'hsnCode': i.product.hsnCode,
             },
@@ -147,11 +151,11 @@ class LocalBillingRepository {
             id: const Uuid().v4(),
             invoiceId: invoiceId,
             productId: item.product.id,
-            productName: item.product.name,
+            productName: item.displayName,
             hsnCode: Value(item.product.hsnCode),
             gstRatePercent: Value(item.product.gstRate.toDouble()),
             quantity: item.quantity.toDouble(),
-            unitPricePaisa: item.product.sellingPricePaisa,
+            unitPricePaisa: item.unitPricePaisa,
             taxPaisa: item.taxPaisa,
             totalPaisa: item.totalPaisa,
           ),
