@@ -48,6 +48,7 @@ class MockSyncRepository extends SyncRepository {
   Future<SyncPullDeltaResult> pullDeltas(
     String tenantId, {
     String? cursor,
+    String? branchId,
   }) async {
     if (shouldFailPull) {
       throw Exception('Pull network timeout');

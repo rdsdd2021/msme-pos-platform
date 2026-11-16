@@ -68,6 +68,7 @@ class SyncWorker {
   Future<SyncCycleResult> synchronize({
     required String tenantId,
     required String deviceId,
+    String? branchId,
   }) async {
     // 1. Fetch pending outbox operations in sequence order (retry rejected ops up to 5 times)
     final pendingOps = await (_db.select(_db.syncOutbox)
@@ -179,7 +180,11 @@ class SyncWorker {
 
     try {
       final currentCursor = await getSyncCursor(tenantId);
-      final pullResult = await _syncRepo.pullDeltas(tenantId, cursor: currentCursor);
+      final pullResult = await _syncRepo.pullDeltas(
+        tenantId,
+        cursor: currentCursor,
+        branchId: branchId,
+      );
       newCursor = pullResult.cursor;
 
       // Rule 14: Pull cursor advances ONLY after local SQLite transaction commits!

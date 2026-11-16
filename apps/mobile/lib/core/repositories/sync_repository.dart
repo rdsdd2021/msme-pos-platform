@@ -163,13 +163,14 @@ class SyncRepository {
   Future<SyncPullDeltaResult> pullDeltas(
     String tenantId, {
     String? cursor,
+    String? branchId,
   }) async {
     final token = await _authRepo.getAccessToken();
 
     // Fast-path demo mode if offline or simulated JWT
     if (token?.startsWith('demo-jwt-') == true && _baseUrl.contains('10.0.2.2')) {
       try {
-        return await _executePullHttp(tenantId, cursor, token, timeoutSeconds: 2);
+        return await _executePullHttp(tenantId, cursor, token, branchId: branchId, timeoutSeconds: 2);
       } catch (_) {
         // Return simulated empty deltas
         return SyncPullDeltaResult(
@@ -182,19 +183,23 @@ class SyncRepository {
       }
     }
 
-    return _executePullHttp(tenantId, cursor, token);
+    return _executePullHttp(tenantId, cursor, token, branchId: branchId);
   }
 
   Future<SyncPullDeltaResult> _executePullHttp(
     String tenantId,
     String? cursor,
     String? token, {
+    String? branchId,
     int timeoutSeconds = 12,
     bool isRetry = false,
   }) async {
     final queryParams = <String, dynamic>{};
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
+    }
+    if (branchId != null && branchId.isNotEmpty) {
+      queryParams['branchId'] = branchId;
     }
 
     try {
@@ -220,6 +225,7 @@ class SyncRepository {
             tenantId,
             cursor,
             refreshedToken,
+            branchId: branchId,
             timeoutSeconds: timeoutSeconds,
             isRetry: true,
           );

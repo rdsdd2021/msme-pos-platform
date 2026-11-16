@@ -782,8 +782,15 @@ export class SyncService {
   /**
    * Pulls catalog deltas created or updated after the given ISO timestamp cursor.
    */
-  async pullDeltas(tenantId: string, cursor?: string): Promise<SyncPullDeltaResponse> {
+  async pullDeltas(
+    tenantId: string,
+    cursor?: string,
+    branchId?: string,
+  ): Promise<SyncPullDeltaResponse> {
     const cursorDate = cursor ? new Date(cursor) : new Date(0);
+    const resolvedBranchId = (branchId && this.isUuid(branchId))
+      ? branchId
+      : (await this.branchRepo.findOne({ where: { tenantId } }))?.id;
 
     const [categories, products, customers, stockBalances, allCategories, rawInvoices] = await Promise.all([
       this.categoryRepo.find({
@@ -805,12 +812,12 @@ export class SyncService {
         order: { updatedAt: 'ASC' },
       }),
       this.stockBalanceRepo.find({
-        where: { tenantId },
+        where: resolvedBranchId ? { tenantId, branchId: resolvedBranchId } : { tenantId },
       }),
       this.categoryRepo.find({
         where: { tenantId },
       }),
-      this.billingService.getInvoices(tenantId),
+      this.billingService.getInvoices(tenantId, resolvedBranchId),
     ]);
 
     const stockMap = new Map<string, string>();
@@ -881,20 +888,17 @@ export class SyncService {
 
     let restaurantTables: any[] = [];
     let restaurantOrders: any[] = [];
-    if (this.restaurantService) {
+    if (this.restaurantService && resolvedBranchId) {
       try {
-        const defaultBranch = await this.branchRepo.findOne({ where: { tenantId } });
-        if (defaultBranch) {
-          const tables = await this.restaurantService.getTables(tenantId, defaultBranch.id);
-          if (tables.length === 0) {
-            restaurantTables = await this.restaurantService.seedDefaultTables(tenantId, defaultBranch.id);
-          } else {
-            restaurantTables = tables;
-          }
-          restaurantOrders = tables
-            .map((t: any) => t.activeOrder)
-            .filter((o: any) => Boolean(o));
+        const tables = await this.restaurantService.getTables(tenantId, resolvedBranchId);
+        if (tables.length === 0) {
+          restaurantTables = await this.restaurantService.seedDefaultTables(tenantId, resolvedBranchId);
+        } else {
+          restaurantTables = tables;
         }
+        restaurantOrders = tables
+          .map((t: any) => t.activeOrder)
+          .filter((o: any) => Boolean(o));
       } catch (err: any) {
         this.logger.warn(`Failed pulling restaurant deltas for tenant ${tenantId}: ${err.message}`);
       }

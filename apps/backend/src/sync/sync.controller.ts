@@ -46,11 +46,18 @@ export class SyncController {
     required: false,
     description: 'ISO timestamp cursor',
   })
+  @ApiQuery({
+    name: 'branchId',
+    type: 'string',
+    required: false,
+    description: 'Target branch UUID',
+  })
   async pullDeltas(
     @Param('tenantId', ParseUUIDPipe) tenantId: string,
     @Query('cursor') cursor?: string,
+    @Query('branchId') branchId?: string,
   ) {
-    return this.syncService.pullDeltas(tenantId, cursor);
+    return this.syncService.pullDeltas(tenantId, cursor, branchId);
   }
 
   @Post('invoice-ranges/allocate')

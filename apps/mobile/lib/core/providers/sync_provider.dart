@@ -96,11 +96,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
     final resolvedDeviceId = deviceId ?? await AppConfig.getDeviceId();
     final authState = _ref.read(authProvider);
     final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+    final branchId = authState.activeMembership?.branchId;
 
     try {
       final result = await _worker.synchronize(
         tenantId: tenantId,
         deviceId: resolvedDeviceId,
+        branchId: branchId,
       );
 
       final count = await _worker.getPendingCount();
