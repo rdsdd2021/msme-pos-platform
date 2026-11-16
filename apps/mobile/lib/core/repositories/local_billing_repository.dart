@@ -85,6 +85,7 @@ class LocalBillingRepository {
       'invoiceNumber': invoiceNumber,
       'idempotencyKey': invoiceId,
       'customerId': customerId,
+      'customerName': customerName,
       'branchId': branchId,
       'items': items
           .map(
@@ -339,13 +340,46 @@ class LocalBillingRepository {
     );
   }
 
+  /// Deduplicate any pairing where both a local named bill (e.g. Dine-In) and a Walk-in server duplicate exist for the exact same amount and timestamp
+  static List<LocalInvoice> _deduplicateInvoices(List<LocalInvoice> rawInvoices) {
+    final seen = <String, LocalInvoice>{};
+    final result = <LocalInvoice>[];
+
+    for (final inv in rawInvoices) {
+      final minuteStamp = '${inv.createdAt.year}-${inv.createdAt.month}-${inv.createdAt.day}-${inv.createdAt.hour}-${inv.createdAt.minute}';
+      final matchKey = '${inv.grandTotalPaisa}_$minuteStamp';
+
+      if (seen.containsKey(matchKey)) {
+        final existing = seen[matchKey]!;
+        final isCurrNamed = inv.customerName != null &&
+            inv.customerName!.isNotEmpty &&
+            inv.customerName != 'Walk-in Customer';
+        final isExistNamed = existing.customerName != null &&
+            existing.customerName!.isNotEmpty &&
+            existing.customerName != 'Walk-in Customer';
+
+        if (isCurrNamed && !isExistNamed) {
+          result.remove(existing);
+          result.add(inv);
+          seen[matchKey] = inv;
+        }
+        continue;
+      }
+
+      seen[matchKey] = inv;
+      result.add(inv);
+    }
+    return result;
+  }
+
   /// Retrieve all invoices stored locally, optionally filtered by tenant
-  Future<List<LocalInvoice>> getAllInvoices({String? tenantId}) {
+  Future<List<LocalInvoice>> getAllInvoices({String? tenantId}) async {
     final query = _db.select(_db.localInvoices);
     if (tenantId != null && tenantId.isNotEmpty) {
       query.where((i) => i.tenantId.equals(tenantId));
     }
-    return (query..orderBy([(i) => OrderingTerm.desc(i.createdAt)])).get();
+    final all = await (query..orderBy([(i) => OrderingTerm.desc(i.createdAt)])).get();
+    return _deduplicateInvoices(all);
   }
 
   /// Reactive stream of local invoices, optionally filtered by tenant
@@ -354,7 +388,9 @@ class LocalBillingRepository {
     if (tenantId != null && tenantId.isNotEmpty) {
       query.where((i) => i.tenantId.equals(tenantId));
     }
-    return (query..orderBy([(i) => OrderingTerm.desc(i.createdAt)])).watch();
+    return (query..orderBy([(i) => OrderingTerm.desc(i.createdAt)]))
+        .watch()
+        .map(_deduplicateInvoices);
   }
 
   /// Retrieve all lines for an invoice

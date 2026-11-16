@@ -517,9 +517,18 @@ export class SyncService implements OnModuleInit {
             }];
           }
 
+          const isInvoiceUuid =
+            typeof raw.invoiceId === 'string' &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              raw.invoiceId,
+            );
+
           const saleDto: CreateSaleDto = {
             branchId: saleBranchId,
-            idempotencyKey: raw.idempotencyKey || raw.invoiceNumber || op.operationId,
+            idempotencyKey: raw.idempotencyKey || raw.invoiceId || raw.invoiceNumber || op.operationId,
+            invoiceId: isInvoiceUuid ? raw.invoiceId : undefined,
+            invoiceNumber: raw.invoiceNumber ? String(raw.invoiceNumber) : undefined,
+            customerName: raw.customerName ? String(raw.customerName) : undefined,
             isInterstate: Boolean(raw.isInterstate),
             customerId:
               raw.customerId &&
@@ -903,13 +912,17 @@ export class SyncService implements OnModuleInit {
 
     const formattedInvoices = rawInvoices.map((inv) => {
       const paymentMethod = inv.payments?.[0]?.paymentMethod || 'cash';
+      const custName =
+        (inv.branchSnapshot as any)?.customerName ||
+        (inv.customerGstinSnapshot ? `GST: ${inv.customerGstinSnapshot}` : 'Walk-in Customer');
       return {
         id: inv.id,
         tenantId: inv.tenantId,
         branchId: inv.branchId,
         invoiceNumber: inv.invoiceNumber,
+        idempotencyKey: inv.idempotencyKey,
         customerId: inv.customerId,
-        customerName: inv.customerGstinSnapshot ? `GST: ${inv.customerGstinSnapshot}` : 'Walk-in Customer',
+        customerName: custName,
         subtotal: inv.subtotal,
         taxTotal: inv.taxableTotal ? (parseFloat(inv.grandTotal) - parseFloat(inv.subtotal)).toFixed(2) : '0.00',
         grandTotal: inv.grandTotal,

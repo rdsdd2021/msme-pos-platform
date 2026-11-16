@@ -73,6 +73,25 @@ export class CreateSaleDto {
   @IsNotEmpty()
   idempotencyKey!: string;
 
+  @ApiProperty({ required: false, description: 'Client UUID for offline sale reconciliation' })
+  @IsUUID()
+  @IsOptional()
+  invoiceId?: string;
+
+  @ApiProperty({ required: false, description: 'Client-assigned sequential invoice number' })
+  @IsString()
+  @IsOptional()
+  invoiceNumber?: string;
+
+  @ApiProperty({ required: false, description: 'Guest name or table reference for Dine-In / Walk-in' })
+  @IsString()
+  @IsOptional()
+  customerName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  branchSnapshot?: Record<string, unknown>;
+
   @ApiProperty({
     example: false,
     default: false,

@@ -239,6 +239,7 @@ class SyncWorker {
           if (invId.isEmpty) continue;
 
           final invNumber = inv['invoiceNumber'] as String? ?? 'INV';
+          final idempotencyKey = inv['idempotencyKey'] as String?;
           final custName = inv['customerName'] as String?;
           final paymentMethod = (inv['paymentMethod'] as String? ?? 'cash').toLowerCase();
           final subtotalPaisa = ((double.tryParse(inv['subtotal']?.toString() ?? '0') ?? 0) * 100).round();
@@ -248,6 +249,30 @@ class SyncWorker {
           final postedAtStr = inv['postedAt'] ?? inv['createdAt'];
           final createdAt = DateTime.tryParse(postedAtStr?.toString() ?? '') ?? DateTime.now();
 
+          // Deduplicate local offline invoice if server assigned or synced under a different ID
+          LocalInvoice? existingConflict;
+          if (idempotencyKey != null && idempotencyKey.isNotEmpty && idempotencyKey != invId) {
+            existingConflict = await (_db.select(_db.localInvoices)
+                  ..where((i) => i.id.equals(idempotencyKey)))
+                .getSingleOrNull();
+          }
+          if (existingConflict == null) {
+            existingConflict = await (_db.select(_db.localInvoices)
+                  ..where((i) => i.invoiceNumber.equals(invNumber) & i.id.equals(invId).not()))
+                .getSingleOrNull();
+          }
+
+          if (existingConflict != null) {
+            final oldId = existingConflict.id;
+            await (_db.delete(_db.localInvoiceLines)..where((l) => l.invoiceId.equals(oldId))).go();
+            await (_db.delete(_db.localPayments)..where((p) => p.invoiceId.equals(oldId))).go();
+            await (_db.delete(_db.localInvoices)..where((i) => i.id.equals(oldId))).go();
+          }
+
+          final resolvedCustomerName = (custName != null && custName.isNotEmpty && custName != 'Walk-in Customer')
+              ? custName
+              : (existingConflict?.customerName ?? custName);
+
           await _db.into(_db.localInvoices).insertOnConflictUpdate(
             LocalInvoicesCompanion(
               id: Value(invId),
@@ -256,7 +281,7 @@ class SyncWorker {
               deviceId: Value(inv['deviceId'] as String? ?? 'cloud-web'),
               invoiceNumber: Value(invNumber),
               customerId: Value(inv['customerId'] as String?),
-              customerName: Value(custName),
+              customerName: Value(resolvedCustomerName),
               subtotalPaisa: Value(subtotalPaisa),
               taxPaisa: Value(taxPaisa),
               grandTotalPaisa: Value(grandTotalPaisa),

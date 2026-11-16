@@ -72,10 +72,17 @@ export class BillingService {
     cashierUserId: string,
     dto: CreateSaleDto,
   ): Promise<InvoiceEntity> {
+    const isClientUuid =
+      dto.invoiceId &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dto.invoiceId);
+
     const invoice = await this.dataSource.transaction(async (manager) => {
       // 1. Idempotency Check
       const existing = await manager.findOne(InvoiceEntity, {
-        where: { tenantId, idempotencyKey: dto.idempotencyKey },
+        where: [
+          { tenantId, idempotencyKey: dto.idempotencyKey },
+          ...(isClientUuid ? [{ tenantId, id: dto.invoiceId }] : []),
+        ],
         relations: ['lines'],
       });
       if (existing) {
@@ -245,10 +252,19 @@ export class BillingService {
         }
       }
 
-      // 4. Generate sequential invoice number (e.g. INV-YYYYMMDD-UUID)
+      // 4. Resolve sequential invoice number (preserve offline client terminal number if provided)
       const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
       const uniqueSuffix = Math.floor(1000 + Math.random() * 9000);
-      const invoiceNumber = `INV-${datePrefix}-${uniqueSuffix}`;
+      let invoiceNumber = `INV-${datePrefix}-${uniqueSuffix}`;
+
+      if (dto.invoiceNumber && /^INV-\d{8}-/i.test(dto.invoiceNumber)) {
+        const conflict = await manager.findOne(InvoiceEntity, {
+          where: { tenantId, branchId: dto.branchId, invoiceNumber: dto.invoiceNumber },
+        });
+        if (!conflict) {
+          invoiceNumber = dto.invoiceNumber;
+        }
+      }
 
       // Resolve GSTIN and POS snapshots
       let resolvedCustomerGstin = dto.customerGstin?.trim() || null;
@@ -271,8 +287,14 @@ export class BillingService {
         dto.placeOfSupply?.trim() ||
         (dto.isInterstate && resolvedCustomerGstin ? resolvedCustomerGstin.slice(0, 2) : branchPos);
 
+      const branchSnapshotData: Record<string, unknown> = {
+        ...(dto.branchSnapshot || {}),
+        ...(dto.customerName ? { customerName: dto.customerName } : {}),
+      };
+
       // 5. Persist Invoice
       const invoice = manager.create(InvoiceEntity, {
+        ...(isClientUuid ? { id: dto.invoiceId } : {}),
         tenantId,
         branchId: dto.branchId,
         invoiceNumber,
@@ -283,6 +305,7 @@ export class BillingService {
         placeOfSupply: resolvedPos,
         cashierUserId,
         currency: 'INR',
+        branchSnapshot: branchSnapshotData,
         subtotal: (subtotalCents / 100).toFixed(2),
         discountTotal: (discountTotalCents / 100).toFixed(2),
         taxableTotal: (taxableTotalCents / 100).toFixed(2),
