@@ -267,8 +267,8 @@ export default function LoginScreen({
                 </div>
               </div>
               <a
-                href="/downloads/kirana-pos-arm64.apk?v=1.0.16"
-                download="kirana-pos-arm64.apk"
+                href="/downloads/kirana-pos.apk"
+                download="kirana-pos.apk"
                 className="shrink-0 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer"
               >
                 <Download className="h-3.5 w-3.5" />

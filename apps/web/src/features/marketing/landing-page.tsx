@@ -488,6 +488,15 @@ export function LandingPage() {
 
           {/* Right Action CTA Buttons */}
           <div className="flex items-center gap-2.5">
+            <a
+              href="/downloads/kirana-pos.apk"
+              download="kirana-pos.apk"
+              title="Download Android Mobile POS APK"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-800 text-xs font-bold cursor-pointer shadow-xs transition"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Download APK</span>
+            </a>
             <Button
               variant="outline"
               size="sm"
@@ -545,6 +554,15 @@ export function LandingPage() {
               <span>Launch POS Terminal</span>
               <ArrowRight className="w-4 h-4" />
             </Button>
+            <a
+              href="/downloads/kirana-pos.apk"
+              download="kirana-pos.apk"
+              className="w-full sm:w-auto h-12 px-6 rounded-xl border border-emerald-300/80 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 text-sm font-bold cursor-pointer flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.02]"
+            >
+              <Smartphone className="w-4 h-4 text-emerald-600" />
+              <span>Download Android APK</span>
+              <span className="text-[10px] font-mono bg-emerald-200/70 text-emerald-900 px-1.5 py-0.5 rounded font-bold">v1.0.16</span>
+            </a>
             <Button
               size="lg"
               variant="outline"
