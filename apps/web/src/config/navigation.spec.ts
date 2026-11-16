@@ -27,6 +27,7 @@ describe('Navigation Filtering by Role and Enabled Module', () => {
 
     const allItemIds = nav.flatMap((s) => s.items.map((i) => i.id));
     expect(allItemIds).toContain('restaurant-floorplan');
+    expect(allItemIds).toContain('restaurant-menu');
     expect(allItemIds).toContain('kitchen-display');
     expect(allItemIds).not.toContain('pos-terminal');
   });

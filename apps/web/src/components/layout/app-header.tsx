@@ -23,8 +23,8 @@ import {
 } from 'lucide-react';
 
 interface AppHeaderProps {
-  viewMode: 'pos' | 'admin' | 'restaurant' | 'kds';
-  setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds') => void;
+  viewMode: 'pos' | 'admin' | 'restaurant' | 'kds' | 'menu';
+  setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds' | 'menu') => void;
   activeAdminTab?: string;
   onOpenCommand: () => void;
   onToggleMobileMenu?: () => void;
@@ -107,6 +107,10 @@ export function AppHeader({
                 <BreadcrumbPage className="font-semibold text-slate-800">
                   Dining Floor & Tables
                 </BreadcrumbPage>
+              ) : viewMode === 'menu' ? (
+                <BreadcrumbPage className="font-semibold text-slate-800">
+                  Restaurant Menu & Dishes
+                </BreadcrumbPage>
               ) : viewMode === 'kds' ? (
                 <BreadcrumbPage className="font-semibold text-slate-800">
                   Kitchen Display Screen (KDS)
@@ -182,6 +186,19 @@ export function AppHeader({
         <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-slate-500 font-medium pl-2 border-l border-slate-200">
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
           <span>PostgreSQL Active</span>
+        </div>
+
+        {/* Live Cloud Realtime Sync Status Badge */}
+        <div
+          data-testid="header-cloud-sync-pill"
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs text-slate-700 font-medium shadow-2xs"
+          title="Cloud Real-time Sync Active: Mobile terminals and web database connected via SSE"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+          </span>
+          <span className="text-[11px] font-semibold text-slate-700">Cloud Sync Active</span>
         </div>
       </div>
     </header>

@@ -12,12 +12,13 @@ import { AppHeader } from '@/components/layout/app-header';
 import { CommandMenu } from '@/components/layout/command-menu';
 import { RestaurantFloorplanView } from '@/features/restaurant/restaurant-floorplan-view';
 import { KitchenDisplayView } from '@/features/restaurant/kitchen-display-view';
+import { RestaurantMenuView } from '@/features/restaurant/restaurant-menu-view';
 import { OnboardingWizard } from '@/features/onboarding/onboarding-wizard';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 export default function HomePage() {
   const { user, status, checkAuth, isOwner, isBranchManager, isCashier, isSuperAdmin, activeTenant } = useAuthStore();
-  const [viewMode, setViewMode] = useState<'pos' | 'admin' | 'superadmin' | 'restaurant' | 'kds'>('pos');
+  const [viewMode, setViewMode] = useState<'pos' | 'admin' | 'superadmin' | 'restaurant' | 'kds' | 'menu'>('pos');
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('inventory');
   const [activeInventorySubTab, setActiveInventorySubTab] = useState<InventorySubTab>('products');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -148,6 +149,8 @@ export default function HomePage() {
             <RestaurantFloorplanView onSwitchToKds={() => setViewMode('kds')} />
           ) : viewMode === 'kds' ? (
             <KitchenDisplayView />
+          ) : viewMode === 'menu' ? (
+            <RestaurantMenuView />
           ) : (
             <AdminDashboard
               activeTab={activeAdminTab}

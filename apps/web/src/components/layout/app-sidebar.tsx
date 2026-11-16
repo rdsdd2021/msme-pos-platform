@@ -22,8 +22,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 
 interface AppSidebarProps {
-  viewMode: 'pos' | 'admin' | 'restaurant' | 'kds';
-  setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds') => void;
+  viewMode: 'pos' | 'admin' | 'restaurant' | 'kds' | 'menu';
+  setViewMode: (mode: 'pos' | 'admin' | 'restaurant' | 'kds' | 'menu') => void;
   activeAdminTab?: string;
   setActiveAdminTab?: (tab: any) => void;
   activeInventorySubTab?: string;
@@ -129,6 +129,8 @@ export function AppSidebar({
       setViewMode('restaurant');
     } else if (item.target === 'kds') {
       setViewMode('kds');
+    } else if (item.target === 'menu') {
+      setViewMode('menu');
     } else {
       setViewMode('admin');
       if (item.adminTab && setActiveAdminTab) {
@@ -355,6 +357,9 @@ export function AppSidebar({
                   const isActive =
                     item.target === viewMode &&
                     (item.target === 'pos' ||
+                      item.target === 'restaurant' ||
+                      item.target === 'kds' ||
+                      item.target === 'menu' ||
                       ((!item.adminTab || item.adminTab === activeAdminTab) &&
                         (!item.adminSubTab || item.adminSubTab === activeInventorySubTab)));
 

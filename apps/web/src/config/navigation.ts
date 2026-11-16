@@ -13,6 +13,7 @@ import {
   CreditCard,
   Receipt,
   UtensilsCrossed,
+  Utensils,
   ChefHat,
   Sliders,
   LucideIcon,
@@ -22,7 +23,7 @@ export interface NavItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  target: 'pos' | 'admin' | 'restaurant' | 'kds';
+  target: 'pos' | 'admin' | 'restaurant' | 'kds' | 'menu';
   adminTab?: 'analytics' | 'inventory' | 'khata' | 'shifts' | 'devices' | 'subscription' | 'gst' | 'branches' | 'invoices' | 'settings';
   adminSubTab?: 'products' | 'stock' | 'suppliers' | 'purchases' | 'categories' | 'transfers';
   allowedRoles: Role[];
@@ -75,6 +76,16 @@ export const navigationConfig: NavSection[] = [
         allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
         badge: 'Dine-In',
         testId: 'nav-restaurant-floorplan',
+      },
+      {
+        id: 'restaurant-menu',
+        title: 'Menu & Dishes',
+        icon: Utensils,
+        target: 'menu',
+        requiredModule: AppModule.RESTAURANT,
+        allowedRoles: [Role.OWNER, Role.BRANCH_MANAGER, Role.CASHIER],
+        badge: 'Menu',
+        testId: 'nav-restaurant-menu',
       },
       {
         id: 'kitchen-display',
@@ -188,15 +199,28 @@ export function filterNavForUser(
     .filter((section) => !section.requiredModule || activeModules.includes(section.requiredModule))
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => {
-        // For restaurant vertical, Dine-In table management is the primary POS; hide retail grocery POS
-        if (isRestaurantVertical && item.id === 'pos-terminal') {
-          return false;
-        }
-        const hasRole = isOwner || item.allowedRoles.some((r) => roles.includes(r));
-        const hasModule = !item.requiredModule || activeModules.includes(item.requiredModule);
-        return hasRole && hasModule;
-      }),
+      title: (isRestaurantVertical && section.title === 'Catalogue & Stock')
+        ? 'Raw Stock & Ingredients'
+        : section.title,
+      items: section.items
+        .filter((item) => {
+          // For restaurant vertical, Dine-In table management is the primary POS; hide retail grocery POS
+          if (isRestaurantVertical && item.id === 'pos-terminal') {
+            return false;
+          }
+          const hasRole = isOwner || item.allowedRoles.some((r) => roles.includes(r));
+          const hasModule = !item.requiredModule || activeModules.includes(item.requiredModule);
+          return hasRole && hasModule;
+        })
+        .map((item) => {
+          if (isRestaurantVertical && item.id === 'inventory-hub') {
+            return {
+              ...item,
+              title: 'Ingredients & Raw Stock',
+            };
+          }
+          return item;
+        }),
     }))
     .filter((section) => section.items.length > 0);
 }

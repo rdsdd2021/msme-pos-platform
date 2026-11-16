@@ -15,6 +15,7 @@ import {
   CreditCard,
   Receipt,
   UtensilsCrossed,
+  Utensils,
   ChefHat,
   LogOut,
   PlusCircle,
@@ -35,7 +36,7 @@ import { useAuthStore } from '@/store/auth.store';
 interface CommandMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelectAction: (target: 'pos' | 'admin' | 'restaurant' | 'kds', adminTab?: string, adminSubTab?: string) => void;
+  onSelectAction: (target: 'pos' | 'admin' | 'restaurant' | 'kds' | 'menu', adminTab?: string, adminSubTab?: string) => void;
 }
 
 export function CommandMenu({ open, onOpenChange, onSelectAction }: CommandMenuProps) {
@@ -85,6 +86,14 @@ export function CommandMenu({ open, onOpenChange, onSelectAction }: CommandMenuP
                     <UtensilsCrossed className="mr-2 h-4 w-4 text-amber-500" />
                     <span>Restaurant Dining Floor & Tables</span>
                     <CommandShortcut>F2</CommandShortcut>
+                  </CommandItem>
+
+                  <CommandItem
+                    onSelect={() => handleSelect(() => onSelectAction('menu'))}
+                    className="cursor-pointer"
+                  >
+                    <Utensils className="mr-2 h-4 w-4 text-emerald-500" />
+                    <span>Restaurant Menu & Dishes</span>
                   </CommandItem>
 
                   <CommandItem

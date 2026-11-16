@@ -128,6 +128,8 @@ export interface Product {
   isMadeToOrder?: boolean;
   variants?: Array<{ name: string; price: string }> | null;
   currentStock?: string;
+  category?: string | null;
+  categoryName?: string | null;
 }
 
 export interface Category {
