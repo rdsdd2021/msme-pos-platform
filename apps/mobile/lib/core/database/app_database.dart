@@ -25,7 +25,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -36,30 +36,30 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(localRestaurantOrders);
             await m.createTable(localRestaurantKotLines);
           }
-          if (from < 4) {
+          if (from < 5) {
             final pragmaRows = await customSelect("PRAGMA table_info('local_products')").get();
             final cols = pragmaRows.map((r) => r.read<String>('name')).toSet();
 
             if (!cols.contains('image_url')) {
-              await m.addColumn(localProducts, localProducts.imageUrl);
+              await customStatement('ALTER TABLE local_products ADD COLUMN image_url TEXT');
             }
             if (!cols.contains('food_type')) {
-              await m.addColumn(localProducts, localProducts.foodType);
+              await customStatement('ALTER TABLE local_products ADD COLUMN food_type TEXT');
             }
             if (!cols.contains('kitchen_station')) {
-              await m.addColumn(localProducts, localProducts.kitchenStation);
+              await customStatement('ALTER TABLE local_products ADD COLUMN kitchen_station TEXT');
             }
             if (!cols.contains('prep_time_minutes')) {
-              await m.addColumn(localProducts, localProducts.prepTimeMinutes);
+              await customStatement('ALTER TABLE local_products ADD COLUMN prep_time_minutes INTEGER');
             }
             if (!cols.contains('is_available')) {
-              await m.addColumn(localProducts, localProducts.isAvailable);
+              await customStatement('ALTER TABLE local_products ADD COLUMN is_available INTEGER NOT NULL DEFAULT 1');
             }
             if (!cols.contains('is_made_to_order')) {
-              await m.addColumn(localProducts, localProducts.isMadeToOrder);
+              await customStatement('ALTER TABLE local_products ADD COLUMN is_made_to_order INTEGER NOT NULL DEFAULT 0');
             }
             if (!cols.contains('variants_json')) {
-              await m.addColumn(localProducts, localProducts.variantsJson);
+              await customStatement('ALTER TABLE local_products ADD COLUMN variants_json TEXT');
             }
           }
         },

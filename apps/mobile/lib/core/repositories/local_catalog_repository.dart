@@ -151,33 +151,42 @@ class LocalCatalogRepository {
     final now = DateTime.now();
 
     await _db.transaction(() async {
-      await _db.into(_db.localProducts).insert(
-        LocalProductsCompanion.insert(
-          id: id,
-          tenantId: tenantId,
-          sku: sku.trim().toUpperCase(),
-          name: name.trim(),
-          barcode: Value(barcode?.trim()),
-          sellingPricePaisa: sellingPricePaisa,
-          purchaseCostPaisa: Value(purchaseCostPaisa),
-          mrpPaisa: Value(mrpPaisa > 0 ? mrpPaisa : sellingPricePaisa),
-          gstRatePercent: Value(gstRate),
-          hsnCode: Value(hsnCode?.trim()),
-          categoryName: Value(category.trim()),
-          unit: Value(unit),
-          stockQuantity: Value(initialStock),
-          imageUrl: Value(imageUrl),
-          foodType: Value(foodType),
-          kitchenStation: Value(kitchenStation),
-          prepTimeMinutes: Value(prepTimeMinutes),
-          isAvailable: Value(isAvailable),
-          isMadeToOrder: Value(isMadeToOrder),
-          variantsJson: Value(variants != null && variants.isNotEmpty
-              ? jsonEncode(variants.map((v) => {'name': v.name, 'price': v.price}).toList())
-              : null),
-          updatedAt: Value(now),
-        ),
+      final companion = LocalProductsCompanion.insert(
+        id: id,
+        tenantId: tenantId,
+        sku: sku.trim().toUpperCase(),
+        name: name.trim(),
+        barcode: Value(barcode?.trim()),
+        sellingPricePaisa: sellingPricePaisa,
+        purchaseCostPaisa: Value(purchaseCostPaisa),
+        mrpPaisa: Value(mrpPaisa > 0 ? mrpPaisa : sellingPricePaisa),
+        gstRatePercent: Value(gstRate),
+        hsnCode: Value(hsnCode?.trim()),
+        categoryName: Value(category.trim()),
+        unit: Value(unit),
+        stockQuantity: Value(initialStock),
+        imageUrl: Value(imageUrl),
+        foodType: Value(foodType),
+        kitchenStation: Value(kitchenStation),
+        prepTimeMinutes: Value(prepTimeMinutes),
+        isAvailable: Value(isAvailable),
+        isMadeToOrder: Value(isMadeToOrder),
+        variantsJson: Value(variants != null && variants.isNotEmpty
+            ? jsonEncode(variants.map((v) => {'name': v.name, 'price': v.price}).toList())
+            : null),
+        updatedAt: Value(now),
       );
+
+      try {
+        await _db.into(_db.localProducts).insert(companion);
+      } catch (e) {
+        if (e.toString().contains('no column named')) {
+          await _ensureColumnsExist();
+          await _db.into(_db.localProducts).insert(companion);
+        } else {
+          rethrow;
+        }
+      }
 
       if (initialStock > 0) {
         await _db.into(_db.localStockMovements).insert(
@@ -379,6 +388,35 @@ class LocalCatalogRepository {
           ..orderBy([(p) => OrderingTerm(expression: p.stockQuantity, mode: OrderingMode.asc)]))
         .get();
     return rows.map(_mapToModel).toList();
+  }
+
+  /// Self-healing migration for missing columns
+  Future<void> _ensureColumnsExist() async {
+    try {
+      final pragmaRows = await _db.customSelect("PRAGMA table_info('local_products')").get();
+      final cols = pragmaRows.map((r) => r.read<String>('name')).toSet();
+      if (!cols.contains('image_url')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN image_url TEXT');
+      }
+      if (!cols.contains('food_type')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN food_type TEXT');
+      }
+      if (!cols.contains('kitchen_station')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN kitchen_station TEXT');
+      }
+      if (!cols.contains('prep_time_minutes')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN prep_time_minutes INTEGER');
+      }
+      if (!cols.contains('is_available')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN is_available INTEGER NOT NULL DEFAULT 1');
+      }
+      if (!cols.contains('is_made_to_order')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN is_made_to_order INTEGER NOT NULL DEFAULT 0');
+      }
+      if (!cols.contains('variants_json')) {
+        await _db.customStatement('ALTER TABLE local_products ADD COLUMN variants_json TEXT');
+      }
+    } catch (_) {}
   }
 }
 

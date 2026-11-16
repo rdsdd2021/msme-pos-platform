@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, MoreThan } from 'typeorm';
 import { SyncIngestedOperationEntity } from './entities/sync-ingested-operation.entity';
@@ -27,7 +27,7 @@ import {
 } from '@pos/shared-types';
 
 @Injectable()
-export class SyncService {
+export class SyncService implements OnModuleInit {
   private readonly logger = new Logger(SyncService.name);
 
   constructor(
@@ -58,6 +58,30 @@ export class SyncService {
     @Optional()
     private readonly realtimeService?: RealtimeEventsService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.ensureRestaurantColumns();
+    } catch (err: any) {
+      this.logger.warn(`SyncService startup schema verify: ${err.message}`);
+    }
+  }
+
+  public async ensureRestaurantColumns(): Promise<void> {
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE "products"
+        ADD COLUMN IF NOT EXISTS "food_type" VARCHAR(32) NULL,
+        ADD COLUMN IF NOT EXISTS "kitchen_station" VARCHAR(64) NULL,
+        ADD COLUMN IF NOT EXISTS "prep_time_minutes" INTEGER NULL,
+        ADD COLUMN IF NOT EXISTS "is_available" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "is_made_to_order" BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "variants" JSONB NULL;
+      `);
+    } catch (e: any) {
+      this.logger.warn(`Could not run ALTER TABLE products: ${e.message}`);
+    }
+  }
 
   private isUuid(val: any): boolean {
     return (
@@ -254,7 +278,17 @@ export class SyncService {
               existingProd.isMadeToOrder = isMadeToOrder;
               existingProd.variants = variants;
               existingProd.trackInventory = trackInventory;
-              const saved = await this.productRepo.save(existingProd);
+              let saved: ProductEntity;
+              try {
+                saved = await this.productRepo.save(existingProd);
+              } catch (saveErr: any) {
+                if (saveErr.message?.includes('column') && saveErr.message?.includes('does not exist')) {
+                  await this.ensureRestaurantColumns();
+                  saved = await this.productRepo.save(existingProd);
+                } else {
+                  throw saveErr;
+                }
+              }
               serverEntityId = saved.id;
             } else {
               const newProd = this.productRepo.create({
@@ -278,7 +312,17 @@ export class SyncService {
                 trackInventory,
                 isActive: true,
               });
-              const saved = await this.productRepo.save(newProd);
+              let saved: ProductEntity;
+              try {
+                saved = await this.productRepo.save(newProd);
+              } catch (saveErr: any) {
+                if (saveErr.message?.includes('column') && saveErr.message?.includes('does not exist')) {
+                  await this.ensureRestaurantColumns();
+                  saved = await this.productRepo.save(newProd);
+                } else {
+                  throw saveErr;
+                }
+              }
               serverEntityId = (saved as ProductEntity).id;
             }
 
@@ -352,7 +396,17 @@ export class SyncService {
             if (raw.isMadeToOrder !== undefined) product.isMadeToOrder = Boolean(raw.isMadeToOrder);
             if (raw.variants !== undefined) product.variants = Array.isArray(raw.variants) ? raw.variants : null;
             if (raw.trackInventory !== undefined) product.trackInventory = Boolean(raw.trackInventory);
-            const saved = await this.productRepo.save(product);
+            let saved: ProductEntity;
+            try {
+              saved = await this.productRepo.save(product);
+            } catch (saveErr: any) {
+              if (saveErr.message?.includes('column') && saveErr.message?.includes('does not exist')) {
+                await this.ensureRestaurantColumns();
+                saved = await this.productRepo.save(product);
+              } else {
+                throw saveErr;
+              }
+            }
             serverEntityId = (saved as ProductEntity).id;
             this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { productId: serverEntityId });
           }

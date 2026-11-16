@@ -45,6 +45,7 @@ import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   Flame,
   UtensilsCrossed,
+  Utensils,
   Clock,
   Users,
   Search,
@@ -57,6 +58,7 @@ import {
   Printer,
   ChefHat,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 
 interface TableOrderDrawerProps {
@@ -120,19 +122,25 @@ export function TableOrderDrawer({
       if (table.activeOrder?.id) {
         const orderRes = await apiClient.getRestaurantOrder(table.tenantId, table.activeOrder.id);
         setActiveOrder(orderRes);
-      } else {
-        // Query server tables to check if an order was just created by mobile
-        const tables = await apiClient.getRestaurantTables(table.tenantId, table.branchId);
-        const currentTable = tables.find((t) => t.id === table.id);
-        if (currentTable?.activeOrder?.id) {
-          const orderRes = await apiClient.getRestaurantOrder(table.tenantId, currentTable.activeOrder.id);
-          setActiveOrder(orderRes);
-        } else {
-          setActiveOrder(null);
+      } else if (table.branchId) {
+        try {
+          const tables = await apiClient.getRestaurantTables(table.tenantId, table.branchId);
+          const currentTable = tables.find((t) => t.id === table.id);
+          if (currentTable?.activeOrder?.id) {
+            const orderRes = await apiClient.getRestaurantOrder(table.tenantId, currentTable.activeOrder.id);
+            setActiveOrder(orderRes);
+            return;
+          }
+        } catch {
+          // Ignore background table check errors
         }
+        setActiveOrder(null);
+      } else {
+        setActiveOrder(null);
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to load restaurant data.');
+      console.warn('Could not load active order:', err);
+      setActiveOrder(table.activeOrder || null);
     }
   }, [open, table]);
 
@@ -142,15 +150,25 @@ export function TableOrderDrawer({
 
     setError(null);
     setDraftItems([]);
+    if (table.currentGuestCount && table.currentGuestCount > 0) {
+      setGuestCount(table.currentGuestCount);
+    }
 
     const loadInitialData = async () => {
       setLoading(true);
       try {
-        const prodRes = await apiClient.getProducts(table.tenantId);
-        setProducts(prodRes || []);
-        await loadOrderData();
+        const [prodResult] = await Promise.allSettled([
+          apiClient.getProducts(table.tenantId),
+          loadOrderData(),
+        ]);
+        if (prodResult.status === 'fulfilled') {
+          setProducts(prodResult.value || []);
+        } else {
+          console.warn('Could not load products:', prodResult.reason);
+          setProducts([]);
+        }
       } catch (err: any) {
-        setError(err?.message || 'Failed to load restaurant data.');
+        console.warn('Failed to load restaurant initial data:', err);
       } finally {
         setLoading(false);
       }
@@ -537,44 +555,48 @@ export function TableOrderDrawer({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-4xl p-0 flex flex-col h-full bg-slate-50">
+        <SheetContent side="right" className="w-full sm:max-w-5xl lg:max-w-6xl p-0 flex flex-col h-full bg-slate-50 border-l shadow-2xl">
           {/* Header */}
-          <div className="bg-white border-b px-6 py-4 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-lg shrink-0">
+          <div className="bg-white border-b px-6 py-3.5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              <div className="w-11 h-11 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xl shrink-0 shadow-sm border border-slate-700">
                 {table.tableNumber}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-lg font-black text-slate-900 truncate">{table.tableName || `Table ${table.tableNumber}`}</h2>
-                  <Badge variant="outline" className="text-xs font-semibold shrink-0">
+                  <h2 className="text-lg font-black text-slate-900 truncate tracking-tight">
+                    {table.tableName || `Table ${table.tableNumber}`}
+                  </h2>
+                  <Badge variant="outline" className="text-xs font-semibold shrink-0 bg-slate-50">
                     {table.section}
                   </Badge>
                   <Badge
                     className={`text-xs uppercase font-bold shrink-0 ${
                       table.status === TableStatus.VACANT
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                         : table.status === TableStatus.SEATED
-                        ? 'bg-amber-100 text-amber-800'
+                        ? 'bg-amber-100 text-amber-800 border-amber-200'
                         : table.status === TableStatus.ORDERED
-                        ? 'bg-sky-100 text-sky-800'
-                        : 'bg-purple-100 text-purple-800'
+                        ? 'bg-sky-100 text-sky-800 border-sky-200'
+                        : 'bg-purple-100 text-purple-800 border-purple-200'
                     }`}
                   >
                     {table.status}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5 truncate">
-                  <span className="flex items-center gap-1 shrink-0">
-                    <Users className="w-3.5 h-3.5" /> Cap: {table.seatingCapacity}
+                  <span className="flex items-center gap-1 shrink-0 font-medium">
+                    <Users className="w-3.5 h-3.5 text-slate-400" /> Max Cap: {table.seatingCapacity}
                   </span>
                   {activeOrder && (
                     <>
-                      <span>•</span>
-                      <span className="truncate">Order #{activeOrder.orderNumber}</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1 shrink-0">
-                        <Clock className="w-3.5 h-3.5" />{' '}
+                      <span className="text-slate-300">•</span>
+                      <span className="truncate font-mono font-medium text-slate-600">
+                        Order #{activeOrder.orderNumber}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="flex items-center gap-1 shrink-0 text-slate-500">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />{' '}
                         {new Date(activeOrder.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </>
@@ -583,26 +605,46 @@ export function TableOrderDrawer({
               </div>
             </div>
 
-            {/* Actions / Header Right */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 border border-slate-200">
-                <Users className="w-3.5 h-3.5 text-slate-500 ml-1" />
-                <span className="text-[11px] font-bold text-slate-600">Pax:</span>
-                <button
-                  type="button"
-                  onClick={() => setGuestCount((prev) => Math.max(1, prev - 1))}
-                  className="w-5 h-5 flex items-center justify-center bg-white rounded border border-slate-200 text-xs font-black text-slate-700 hover:bg-slate-50"
-                >
-                  -
-                </button>
-                <span className="w-4 text-center text-xs font-black text-slate-900">{guestCount}</span>
-                <button
-                  type="button"
-                  onClick={() => setGuestCount((prev) => prev + 1)}
-                  className="w-5 h-5 flex items-center justify-center bg-white rounded border border-slate-200 text-xs font-black text-slate-700 hover:bg-slate-50"
-                >
-                  +
-                </button>
+            {/* Actions / Header Right: 1-Click Pax Pills & Actions */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* 1-Click Pax Selector */}
+              <div className="flex items-center gap-1.5 bg-slate-100/80 rounded-xl p-1 border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-500 pl-1.5 flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-slate-400" /> Pax:
+                </span>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 6].map((pax) => (
+                    <button
+                      key={pax}
+                      type="button"
+                      onClick={() => setGuestCount(pax)}
+                      className={`w-6 h-6 rounded-lg text-xs font-bold transition-all ${
+                        guestCount === pax
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-white text-slate-600 hover:bg-slate-200/60 border border-slate-200/60'
+                      }`}
+                    >
+                      {pax}
+                    </button>
+                  ))}
+                  <div className="flex items-center pl-0.5 border-l border-slate-200 ml-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setGuestCount((prev) => Math.max(1, prev - 1))}
+                      className="w-5 h-6 flex items-center justify-center text-xs font-bold text-slate-500 hover:text-slate-900"
+                    >
+                      -
+                    </button>
+                    <span className="w-4 text-center text-xs font-black text-slate-900">{guestCount}</span>
+                    <button
+                      type="button"
+                      onClick={() => setGuestCount((prev) => prev + 1)}
+                      className="w-5 h-6 flex items-center justify-center text-xs font-bold text-slate-500 hover:text-slate-900"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {activeOrder && (
@@ -611,16 +653,16 @@ export function TableOrderDrawer({
                     size="sm"
                     variant="outline"
                     onClick={() => setTransferModalOpen(true)}
-                    className="gap-1.5 text-xs text-slate-700 h-8"
+                    className="gap-1.5 text-xs text-slate-700 h-8 rounded-lg border-slate-200 hover:bg-slate-100"
                   >
                     <ArrowRightLeft className="w-3.5 h-3.5" /> Transfer
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => setSettleModalOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs h-8 whitespace-nowrap"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 text-xs h-8 rounded-lg whitespace-nowrap shadow-xs"
                   >
-                    <Receipt className="w-3.5 h-3.5" /> Bill
+                    <Receipt className="w-3.5 h-3.5" /> Settle
                   </Button>
                 </>
               )}
@@ -628,9 +670,18 @@ export function TableOrderDrawer({
           </div>
 
           {error && (
-            <div className="bg-red-50 border-b border-red-200 text-red-800 text-xs px-6 py-2.5 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+            <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-xs px-6 py-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span className="font-medium">{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="text-amber-700 hover:text-amber-950 font-bold p-1 rounded"
+              >
+                ✕
+              </button>
             </div>
           )}
 
@@ -638,65 +689,90 @@ export function TableOrderDrawer({
           <div className="flex-1 overflow-hidden flex">
             {/* Direct Dual-Pane Menu & Order Sheet */}
             <div className="flex-1 flex overflow-hidden">
-                {/* Left Pane: Menu Catalog */}
-                <div className="w-1/2 border-r bg-white flex flex-col">
+                {/* Left Pane: Menu Catalog (58% width for comfortable reading and spacious cards) */}
+                <div className="w-[58%] border-r bg-white flex flex-col">
                   {/* Menu Search & Categories */}
-                  <div className="p-3 border-b space-y-2 bg-slate-50/50">
+                  <div className="p-3.5 border-b space-y-2.5 bg-slate-50/70">
                     <div className="relative">
                       <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                       <Input
-                        placeholder="Search menu items or scan barcode..."
+                        placeholder="Search dishes by name, category or scan barcode..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 h-9 text-xs bg-white"
+                        className="pl-9 pr-8 h-9 text-xs bg-white rounded-xl border-slate-200 focus:border-emerald-500 shadow-2xs"
                       />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2.5 top-2.5 text-xs text-slate-400 hover:text-slate-700 w-4 h-4 flex items-center justify-center font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
 
+                    {/* Course Categories with Visual Emojis */}
                     <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none items-center">
                       <button
                         type="button"
                         onClick={() => setSelectedCategory('all')}
-                        className={`px-3 py-1 text-xs rounded-full whitespace-nowrap font-medium transition-all ${
+                        className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap font-bold transition-all shadow-2xs ${
                           selectedCategory === 'all'
-                            ? 'bg-slate-900 text-white font-bold'
-                            : 'bg-white border text-slate-600 hover:bg-slate-100'
+                            ? 'bg-slate-900 text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         }`}
                       >
-                        All Items
+                        All Courses
                       </button>
-                      {categories.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setSelectedCategory(cat)}
-                          className={`px-3 py-1 text-xs rounded-full whitespace-nowrap font-medium transition-all ${
-                            selectedCategory === cat
-                              ? 'bg-slate-900 text-white font-bold'
-                              : 'bg-white border text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
+                      {categories.map((cat) => {
+                        const icon =
+                          cat.toLowerCase().includes('starter') || cat.toLowerCase().includes('appetizer')
+                            ? '🥟'
+                            : cat.toLowerCase().includes('main')
+                            ? '🍛'
+                            : cat.toLowerCase().includes('bread') || cat.toLowerCase().includes('roti') || cat.toLowerCase().includes('rice')
+                            ? '🍚'
+                            : cat.toLowerCase().includes('dessert') || cat.toLowerCase().includes('sweet')
+                            ? '🍰'
+                            : cat.toLowerCase().includes('drink') || cat.toLowerCase().includes('beverage') || cat.toLowerCase().includes('bar')
+                            ? '🥤'
+                            : '🍽️';
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-3 py-1.5 text-xs rounded-xl whitespace-nowrap font-bold transition-all flex items-center gap-1.5 shadow-2xs ${
+                              selectedCategory === cat
+                                ? 'bg-slate-900 text-white shadow-xs'
+                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                            }`}
+                          >
+                            <span>{icon}</span>
+                            <span>{cat}</span>
+                          </button>
+                        );
+                      })}
                       <button
                         type="button"
                         onClick={() => setAddDishModalOpen(true)}
-                        className="px-2.5 py-1 text-xs rounded-full whitespace-nowrap font-bold bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 flex items-center gap-1 shrink-0 ml-auto"
+                        className="px-3 py-1.5 text-xs rounded-xl whitespace-nowrap font-black bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100/80 flex items-center gap-1 shrink-0 ml-auto shadow-2xs"
                       >
-                        <Plus className="w-3 h-3 stroke-[3]" /> Add Dish
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" /> Add Dish
                       </button>
                     </div>
 
-                    {/* Quick Dietary Filters */}
-                    <div className="flex gap-1.5 items-center pt-1 border-t border-slate-200/60 overflow-x-auto pb-0.5">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">Diet:</span>
+                    {/* Quick FSSAI Dietary Segmented Filter */}
+                    <div className="flex gap-1.5 items-center pt-1.5 border-t border-slate-200/80">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mr-1 shrink-0">Diet:</span>
                       <button
                         type="button"
                         onClick={() => setSelectedDietary('all')}
-                        className={`px-2.5 py-0.5 text-[11px] rounded-lg transition-all shrink-0 ${
+                        className={`px-3 py-1 text-xs rounded-lg transition-all font-bold shrink-0 ${
                           selectedDietary === 'all'
-                            ? 'bg-slate-800 text-white font-bold'
-                            : 'bg-white border text-slate-600 hover:bg-slate-100'
+                            ? 'bg-slate-800 text-white shadow-2xs'
+                            : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                         }`}
                       >
                         All
@@ -704,141 +780,178 @@ export function TableOrderDrawer({
                       <button
                         type="button"
                         onClick={() => setSelectedDietary('veg')}
-                        className={`px-2.5 py-0.5 text-[11px] rounded-lg transition-all flex items-center gap-1 shrink-0 ${
+                        className={`px-3 py-1 text-xs rounded-lg transition-all flex items-center gap-1.5 font-bold shrink-0 ${
                           selectedDietary === 'veg'
-                            ? 'bg-emerald-600 text-white font-bold'
-                            : 'bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100'
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'bg-emerald-50/70 border border-emerald-200 text-emerald-800 hover:bg-emerald-100'
                         }`}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block border border-white" />
                         Pure Veg
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedDietary('non_veg')}
-                        className={`px-2.5 py-0.5 text-[11px] rounded-lg transition-all flex items-center gap-1 shrink-0 ${
+                        className={`px-3 py-1 text-xs rounded-lg transition-all flex items-center gap-1.5 font-bold shrink-0 ${
                           selectedDietary === 'non_veg'
-                            ? 'bg-rose-600 text-white font-bold'
-                            : 'bg-rose-50 border border-rose-200 text-rose-800 hover:bg-rose-100'
+                            ? 'bg-rose-600 text-white shadow-2xs'
+                            : 'bg-rose-50/70 border border-rose-200 text-rose-800 hover:bg-rose-100'
                         }`}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-rose-500 inline-block border border-white" />
                         Non-Veg
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedDietary('egg')}
-                        className={`px-2.5 py-0.5 text-[11px] rounded-lg transition-all flex items-center gap-1 shrink-0 ${
+                        className={`px-3 py-1 text-xs rounded-lg transition-all flex items-center gap-1.5 font-bold shrink-0 ${
                           selectedDietary === 'egg'
-                            ? 'bg-amber-600 text-white font-bold'
-                            : 'bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100'
+                            ? 'bg-amber-600 text-white shadow-2xs'
+                            : 'bg-amber-50/70 border border-amber-200 text-amber-800 hover:bg-amber-100'
                         }`}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                        <span className="w-2 h-2 rounded-full bg-amber-500 inline-block border border-white" />
                         Egg
                       </button>
                     </div>
                   </div>
 
-                  {/* Menu Product Grid */}
-                  <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2 content-start">
-                    {filteredProducts.map((p) => {
-                      const isSoldOut = p.isAvailable === false;
-                      const inDraft = draftItems.find((i) => i.productId === p.id);
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => !isSoldOut && handleAddProductToDraft(p)}
-                          className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between relative select-none ${
-                            isSoldOut
-                              ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
-                              : inDraft
-                              ? 'border-emerald-500 bg-emerald-50/30 cursor-pointer hover:border-slate-400'
-                              : 'bg-white cursor-pointer hover:border-slate-400'
-                          }`}
-                        >
-                          {inDraft && (
-                            <span className="absolute top-2 right-2 w-5 h-5 bg-emerald-600 text-white text-[11px] font-black rounded-full flex items-center justify-center">
-                              {inDraft.quantity}
-                            </span>
-                          )}
-                          <div>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              {p.foodType === 'non_veg' ? (
-                                <span
-                                  className="w-3.5 h-3.5 rounded border border-rose-600 flex items-center justify-center shrink-0 bg-white"
-                                  title="Non-Veg"
-                                >
-                                  <span className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[5px] border-b-rose-600" />
-                                </span>
-                              ) : p.foodType === 'egg' ? (
-                                <span
-                                  className="w-3.5 h-3.5 rounded border border-amber-500 flex items-center justify-center shrink-0 bg-white"
-                                  title="Egg"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                </span>
-                              ) : (
-                                <span
-                                  className="w-3.5 h-3.5 rounded border border-emerald-600 flex items-center justify-center shrink-0 bg-white"
-                                  title="Pure Veg"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                                </span>
-                              )}
-                              <p className="font-bold text-xs text-slate-900 leading-tight truncate">
-                                {p.name}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-1 flex-wrap">
-                              <span className="text-[10px] text-slate-400">
-                                {p.category || 'Kitchen'}
-                              </span>
-                              {p.kitchenStation && p.kitchenStation !== 'main_kitchen' && (
-                                <span className="text-[9px] font-bold px-1 rounded bg-amber-100 text-amber-800">
-                                  {p.kitchenStation === 'tandoor'
-                                    ? 'Tandoor'
-                                    : p.kitchenStation === 'beverage_bar'
-                                    ? 'Bar'
-                                    : 'Bakery'}
-                                </span>
-                              )}
-                              {isSoldOut && (
-                                <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 uppercase">
-                                  Sold Out
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
-                            <span className="font-black text-xs text-slate-900">
-                              ₹{parseFloat(p.sellingPrice || p.retailPrice || '0').toFixed(2)}
-                            </span>
-                            {isSoldOut ? (
-                              <span className="text-[10px] text-rose-600 font-bold">86&apos;d</span>
-                            ) : (
-                              <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
-                                <Plus className="w-3 h-3" /> Add
-                              </span>
-                            )}
-                          </div>
+                  {/* Menu Product Grid with Spacious Cards & Engaging Empty State */}
+                  <div className="flex-1 overflow-y-auto p-3.5">
+                    {filteredProducts.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50/60 rounded-2xl border-2 border-dashed border-slate-200">
+                        <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3 shadow-xs">
+                          <UtensilsCrossed className="w-8 h-8" />
                         </div>
-                      );
-                    })}
+                        <h3 className="text-sm font-bold text-slate-800">No dishes found in menu</h3>
+                        <p className="text-xs text-slate-500 mt-1 max-w-xs mb-4">
+                          {searchQuery
+                            ? `No items matching "${searchQuery}". Try clearing search.`
+                            : 'Add your popular appetizers, curries, and drinks to build the digital menu.'}
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={() => setAddDishModalOpen(true)}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 rounded-xl shadow-xs"
+                        >
+                          <Plus className="w-4 h-4" /> Add First Dish
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2.5 content-start">
+                        {filteredProducts.map((p) => {
+                          const isSoldOut = p.isAvailable === false;
+                          const inDraft = draftItems.find((i) => i.productId === p.id);
+                          const hasVariants = p.variants && Array.isArray(p.variants) && p.variants.length > 0;
+                          return (
+                            <div
+                              key={p.id}
+                              onClick={() => !isSoldOut && handleAddProductToDraft(p)}
+                              className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between relative select-none group shadow-2xs ${
+                                isSoldOut
+                                  ? 'border-slate-200 bg-slate-50/80 opacity-60 cursor-not-allowed'
+                                  : inDraft
+                                  ? 'border-emerald-500 bg-emerald-50/20 cursor-pointer shadow-xs hover:border-emerald-600'
+                                  : 'bg-white border-slate-200/90 hover:border-slate-400 cursor-pointer hover:shadow-xs'
+                              }`}
+                            >
+                              {inDraft && (
+                                <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-emerald-600 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-xs">
+                                  {inDraft.quantity}
+                                </span>
+                              )}
+                              <div>
+                                <div className="flex items-start gap-2 mb-1.5">
+                                  {p.foodType === 'non_veg' ? (
+                                    <span
+                                      className="w-4 h-4 rounded border-2 border-rose-600 flex items-center justify-center shrink-0 bg-white mt-0.5"
+                                      title="Non-Veg"
+                                    >
+                                      <span className="w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[6px] border-b-rose-600" />
+                                    </span>
+                                  ) : p.foodType === 'egg' ? (
+                                    <span
+                                      className="w-4 h-4 rounded border-2 border-amber-500 flex items-center justify-center shrink-0 bg-white mt-0.5"
+                                      title="Egg"
+                                    >
+                                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="w-4 h-4 rounded border-2 border-emerald-600 flex items-center justify-center shrink-0 bg-white mt-0.5"
+                                      title="Pure Veg"
+                                    >
+                                      <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                                    </span>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-xs text-slate-900 leading-snug line-clamp-2">
+                                      {p.name}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    {p.category || 'Kitchen'}
+                                  </span>
+                                  {p.prepTimeMinutes && (
+                                    <span className="text-[9px] font-medium text-slate-400 flex items-center gap-0.5">
+                                      <Clock className="w-2.5 h-2.5" /> {p.prepTimeMinutes}m
+                                    </span>
+                                  )}
+                                  {p.kitchenStation && p.kitchenStation !== 'main_kitchen' && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800">
+                                      {p.kitchenStation === 'tandoor'
+                                        ? 'Tandoor'
+                                        : p.kitchenStation === 'beverage_bar'
+                                        ? 'Bar'
+                                        : 'Bakery'}
+                                    </span>
+                                  )}
+                                  {hasVariants && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-sky-100 text-sky-800">
+                                      {p.variants.length} portions
+                                    </span>
+                                  )}
+                                  {isSoldOut && (
+                                    <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-rose-100 text-rose-700 uppercase">
+                                      Sold Out
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                                <span className="font-black text-sm text-slate-900 font-mono">
+                                  ₹{parseFloat(p.sellingPrice || p.retailPrice || '0').toFixed(2)}
+                                </span>
+                                {isSoldOut ? (
+                                  <span className="text-[10px] text-rose-600 font-bold">86&apos;d</span>
+                                ) : (
+                                  <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg flex items-center gap-1 hover:bg-emerald-100 transition-colors">
+                                    <Plus className="w-3.5 h-3.5 stroke-[3]" /> Add
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Right Pane: Draft KOT Cart & Active KOT History */}
-                <div className="w-1/2 flex flex-col bg-slate-50">
+                {/* Right Pane: Draft KOT Cart & Active KOT History (42% width) */}
+                <div className="w-[42%] flex flex-col bg-slate-50 border-l border-slate-200">
                   <Tabs defaultValue="draft" className="flex-1 flex flex-col overflow-hidden">
-                    <div className="px-4 pt-2 bg-white border-b">
-                      <TabsList className="grid grid-cols-2 w-full h-8">
-                        <TabsTrigger value="draft" className="text-xs font-bold gap-1.5">
+                    <div className="px-4 pt-2.5 bg-white border-b border-slate-200 shadow-2xs">
+                      <TabsList className="grid grid-cols-2 w-full h-9 p-1 bg-slate-100 rounded-xl">
+                        <TabsTrigger value="draft" className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-xs">
                           <Flame className="w-3.5 h-3.5 text-amber-500" />
                           Draft KOT {draftItems.length > 0 && `(${draftItems.length})`}
                         </TabsTrigger>
-                        <TabsTrigger value="history" className="text-xs font-bold gap-1.5">
+                        <TabsTrigger value="history" className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-xs">
                           <ChefHat className="w-3.5 h-3.5 text-sky-500" />
                           Dispatched KOTs ({activeOrder?.kots?.length || 0})
                         </TabsTrigger>
@@ -847,41 +960,50 @@ export function TableOrderDrawer({
 
                     {/* Tab 1: Draft KOT */}
                     <TabsContent value="draft" className="flex-1 flex flex-col m-0 p-0 overflow-hidden">
-                      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
                         {draftItems.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-slate-400 text-center p-6">
-                            <Flame className="w-10 h-10 text-slate-300 mb-2" />
-                            <p className="text-xs font-bold text-slate-600">Draft KOT is empty</p>
-                            <p className="text-[11px] text-slate-400 mt-1 max-w-[200px]">
-                              Select items from the menu on the left to fire them to the kitchen.
+                            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-3">
+                              <Flame className="w-7 h-7" />
+                            </div>
+                            <p className="text-xs font-bold text-slate-700">Draft KOT is empty</p>
+                            <p className="text-[11px] text-slate-400 mt-1 max-w-[220px]">
+                              Tap dishes from the menu on the left to fire them directly to the kitchen.
                             </p>
                           </div>
                         ) : (
                           draftItems.map((item) => {
                             const itemIdentifier = item.itemKey || item.productId;
                             return (
-                              <div key={itemIdentifier} className="bg-white p-3 rounded-xl border shadow-sm space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-bold text-xs text-slate-900">{item.productName}</div>
-                                  <div className="font-black text-xs text-slate-900">
+                              <div key={itemIdentifier} className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5 hover:border-slate-300 transition-all">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-bold text-xs text-slate-900 leading-tight">
+                                      {item.productName}
+                                    </h4>
+                                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                      ₹{item.unitPrice.toFixed(2)} each
+                                    </p>
+                                  </div>
+                                  <div className="font-black text-sm text-slate-900 font-mono">
                                     ₹{(item.unitPrice * item.quantity).toFixed(2)}
                                   </div>
                                 </div>
 
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center border rounded-lg bg-slate-50 p-0.5">
+                                  <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-0.5">
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateDraftQuantity(itemIdentifier, -1)}
-                                      className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white rounded"
+                                      className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white hover:text-slate-900 rounded-lg transition-all"
                                     >
                                       <Minus className="w-3 h-3" />
                                     </button>
-                                    <span className="w-8 text-center font-bold text-xs">{item.quantity}</span>
+                                    <span className="w-8 text-center font-black text-xs text-slate-900 font-mono">{item.quantity}</span>
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateDraftQuantity(itemIdentifier, 1)}
-                                      className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white rounded"
+                                      className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-white hover:text-slate-900 rounded-lg transition-all"
                                     >
                                       <Plus className="w-3 h-3" />
                                     </button>
@@ -891,12 +1013,12 @@ export function TableOrderDrawer({
                                     value={item.kitchenStation}
                                     onValueChange={(val) => handleUpdateDraftStation(itemIdentifier, val as KitchenStation)}
                                   >
-                                    <SelectTrigger className="h-7 text-[11px] min-w-[130px] w-auto px-2 bg-slate-50">
+                                    <SelectTrigger className="h-7 text-[11px] min-w-[125px] w-auto px-2.5 bg-slate-50 border-slate-200 rounded-lg font-medium">
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value={KitchenStation.MAIN_KITCHEN}>Main Kitchen</SelectItem>
-                                      <SelectItem value={KitchenStation.BEVERAGE_BAR}>Bar / Beverages</SelectItem>
+                                      <SelectItem value={KitchenStation.BEVERAGE_BAR}>Bar / Drinks</SelectItem>
                                       <SelectItem value={KitchenStation.TANDOOR}>Tandoor & Grill</SelectItem>
                                       <SelectItem value={KitchenStation.BAKERY_DESSERT}>Bakery & Dessert</SelectItem>
                                     </SelectContent>
@@ -905,17 +1027,18 @@ export function TableOrderDrawer({
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateDraftQuantity(itemIdentifier, -item.quantity)}
-                                    className="text-red-500 hover:text-red-700 p-1"
+                                    className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition-colors"
+                                    title="Remove item"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
 
                                 <Input
-                                  placeholder="Special instruction (e.g. less spicy, no onion)"
+                                  placeholder="Kitchen instruction (e.g. less spicy, no onion)"
                                   value={item.specialInstructions}
                                   onChange={(e) => handleUpdateDraftInstructions(itemIdentifier, e.target.value)}
-                                  className="h-7 text-[11px] bg-slate-50 placeholder:italic"
+                                  className="h-7 text-[11px] bg-slate-50 border-slate-200 rounded-lg placeholder:italic"
                                 />
                               </div>
                             );
@@ -926,31 +1049,32 @@ export function TableOrderDrawer({
 
                     {/* Tab 2: Dispatched KOTs */}
                     <TabsContent value="history" className="flex-1 flex flex-col m-0 p-0 overflow-y-auto">
-                      <div className="p-3 space-y-3">
+                      <div className="p-3.5 space-y-3">
                         {(!activeOrder?.kots || activeOrder.kots.length === 0) ? (
-                          <div className="text-center p-6 text-slate-400 text-xs">
+                          <div className="text-center p-8 text-slate-400 text-xs">
+                            <ChefHat className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                             No KOT tickets dispatched yet.
                           </div>
                         ) : (
                           activeOrder.kots.map((kot) => (
-                            <div key={kot.id} className="bg-white p-3 rounded-xl border shadow-sm space-y-2 text-xs">
-                              <div className="flex items-center justify-between border-b pb-1.5">
+                            <div key={kot.id} className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5 text-xs">
+                              <div className="flex items-center justify-between border-b pb-2">
                                 <div>
-                                  <span className="font-bold text-slate-900">{kot.kotNumber}</span>
+                                  <span className="font-black text-slate-900 font-mono">{kot.kotNumber}</span>
                                   <span className="text-[10px] text-slate-400 ml-2">
                                     {new Date(kot.dispatchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <Badge
-                                    className={`text-[10px] uppercase font-bold ${
+                                    className={`text-[10px] uppercase font-black px-2 py-0.5 ${
                                       kot.status === KotStatus.READY
-                                        ? 'bg-emerald-100 text-emerald-800'
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
                                         : kot.status === KotStatus.PREPARING
-                                        ? 'bg-amber-100 text-amber-800'
+                                        ? 'bg-amber-100 text-amber-800 border-amber-200'
                                         : kot.status === KotStatus.SERVED
-                                        ? 'bg-slate-100 text-slate-700'
-                                        : 'bg-sky-100 text-sky-800'
+                                        ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                        : 'bg-sky-100 text-sky-800 border-sky-200'
                                     }`}
                                   >
                                     {kot.status}
@@ -958,28 +1082,28 @@ export function TableOrderDrawer({
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="h-6 w-6 p-0 text-slate-500"
+                                    className="h-7 w-7 p-0 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
                                     onClick={() => handlePrintKot(kot)}
-                                    title="Print KOT"
+                                    title="Print KOT Slip"
                                   >
                                     <Printer className="w-3.5 h-3.5" />
                                   </Button>
                                 </div>
                               </div>
 
-                              <div className="space-y-1">
+                              <div className="space-y-1.5 pt-0.5">
                                 {kot.lines?.map((line) => (
                                   <div key={line.id} className="flex justify-between items-start text-[11px]">
                                     <div>
-                                      <span className="font-bold text-slate-800">{parseFloat(line.quantity).toFixed(0)}x</span>{' '}
-                                      <span>{line.productNameSnapshot}</span>
+                                      <span className="font-black text-slate-900 font-mono">{parseFloat(line.quantity).toFixed(0)}x</span>{' '}
+                                      <span className="font-medium text-slate-800">{line.productNameSnapshot}</span>
                                       {line.specialInstructions && (
-                                        <p className="text-[10px] text-amber-700 font-medium italic">
+                                        <p className="text-[10px] text-amber-700 font-medium italic mt-0.5">
                                           Note: {line.specialInstructions}
                                         </p>
                                       )}
                                     </div>
-                                    <span className="font-mono text-slate-600">
+                                    <span className="font-mono text-slate-600 font-bold">
                                       ₹{parseFloat(line.lineTotal).toFixed(2)}
                                     </span>
                                   </div>
@@ -992,32 +1116,32 @@ export function TableOrderDrawer({
                     </TabsContent>
                   </Tabs>
 
-                  {/* Running Bill Totals & Settlement Trigger */}
-                  <div className="bg-slate-900 text-white p-3 space-y-1.5 border-t border-slate-800">
+                  {/* Running Bill Totals & Tax Breakdown */}
+                  <div className="bg-slate-900 text-white p-3.5 space-y-1.5 border-t border-slate-800">
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>Subtotal:</span>
-                      <span>₹{parseFloat(activeOrder?.subtotal || '0').toFixed(2)}</span>
+                      <span>Subtotal</span>
+                      <span className="font-mono">₹{parseFloat(activeOrder?.subtotal || '0').toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>GST (5% Restaurant):</span>
-                      <span>₹{parseFloat(activeOrder?.taxTotal || '0').toFixed(2)}</span>
+                      <span>GST (5% Restaurant)</span>
+                      <span className="font-mono">₹{parseFloat(activeOrder?.taxTotal || '0').toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between font-black text-sm text-emerald-400 border-t border-slate-800 pt-1">
-                      <span>Grand Total:</span>
-                      <span>₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)}</span>
+                    <div className="flex justify-between font-black text-base text-emerald-400 border-t border-slate-800/80 pt-1.5 mt-1">
+                      <span>Grand Total</span>
+                      <span className="font-mono text-lg">₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)}</span>
                     </div>
                   </div>
 
-                  {/* Dynamic Action Area: Place Order <-> Print Bill */}
-                  <div className="p-3 bg-white border-t space-y-2">
+                  {/* Dynamic Action Bar */}
+                  <div className="p-3.5 bg-white border-t border-slate-200">
                     {draftItems.length > 0 ? (
                       <Button
                         onClick={handleFireKot}
                         disabled={isFiringKot}
-                        className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm h-11 gap-2 shadow-sm"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm h-11 rounded-xl gap-2 shadow-xs transition-all"
                       >
-                        <Flame className="w-4 h-4 fill-slate-950" />
-                        {isFiringKot ? 'Firing to Kitchen...' : `🔥 Place Order (${draftItems.length} items)`}
+                        <Flame className="w-4 h-4 fill-white" />
+                        {isFiringKot ? 'Sending to Kitchen...' : `🔥 Send KOT to Kitchen (${draftItems.length} items)`}
                       </Button>
                     ) : (activeOrder?.kots?.length || 0) > 0 ? (
                       <div className="flex gap-2">
@@ -1028,33 +1152,36 @@ export function TableOrderDrawer({
                               handlePrintKot(activeOrder.kots[activeOrder.kots.length - 1]);
                             }
                           }}
-                          className="flex-1 text-xs font-bold gap-1.5 h-11 border-slate-300"
+                          className="flex-1 text-xs font-bold gap-1.5 h-11 rounded-xl border-slate-300 hover:bg-slate-50"
                           title="Print latest KOT slip"
                         >
-                          <Printer className="w-4 h-4 text-slate-600" /> Print KOT
+                          <Printer className="w-3.5 h-3.5 text-slate-600" /> KOT Slip
                         </Button>
                         <Button
                           variant="outline"
                           onClick={handlePrintBill}
-                          className="flex-1 text-xs font-bold gap-1.5 h-11 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
-                          title="Print Customer Bill Receipt & Mark Table Billed"
+                          className="flex-1 text-xs font-bold gap-1.5 h-11 rounded-xl border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
+                          title="Print Customer Bill Receipt"
                         >
-                          <Receipt className="w-4 h-4 text-emerald-700" /> Print Bill
+                          <Receipt className="w-3.5 h-3.5 text-emerald-700" /> Print Bill
                         </Button>
                         <Button
                           onClick={() => setSettleModalOpen(true)}
-                          className="flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm h-11 gap-1.5 shadow-sm"
+                          className="flex-[1.5] bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs h-11 rounded-xl gap-1.5 shadow-xs"
                         >
                           <CheckCircle2 className="w-4 h-4" /> Settle (₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)})
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        disabled
-                        className="w-full bg-slate-100 text-slate-400 font-bold text-xs h-10 border border-slate-200 cursor-not-allowed"
-                      >
-                        Select dishes from menu to place order
-                      </Button>
+                      <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-3 text-center">
+                        <p className="text-xs font-bold text-emerald-900 flex items-center justify-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                          Ready for Ordering
+                        </p>
+                        <p className="text-[11px] text-emerald-700/80 mt-0.5">
+                          Tap dishes from the menu on the left to fire a KOT to the kitchen.
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>

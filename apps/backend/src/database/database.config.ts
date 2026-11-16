@@ -25,8 +25,11 @@ export function getDatabaseConfig(configService: ConfigService): TypeOrmModuleOp
     entities: isProd
       ? [join(__dirname, '..', '**', '*.entity.js')]
       : [join(__dirname, '..', '**', '*.entity.{ts,js}')],
-    migrations: [],
-    migrationsRun: false,
+    migrations: [
+      join(__dirname, '..', '..', '..', 'database', 'migrations', '*.{ts,js}'),
+      join(__dirname, '..', 'database', 'migrations', '*.{ts,js}'),
+    ],
+    migrationsRun: true,
     synchronize: false, // Never use synchronize in production
     logging: nodeEnv === 'development' ? ['query', 'error', 'warn'] : ['error'],
     ssl: sslRequired ? { rejectUnauthorized: false } : false,

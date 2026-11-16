@@ -5,6 +5,8 @@ import {
   NotFoundException,
   ForbiddenException,
   Optional,
+  OnModuleInit,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, IsNull, FindOptionsWhere } from 'typeorm';
@@ -46,7 +48,9 @@ import {
 import { randomUUID } from 'crypto';
 
 @Injectable()
-export class CatalogService {
+export class CatalogService implements OnModuleInit {
+  private readonly logger = new Logger(CatalogService.name);
+
   constructor(
     @InjectRepository(CategoryEntity)
     private readonly categoryRepo: Repository<CategoryEntity>,
@@ -76,6 +80,31 @@ export class CatalogService {
     @Optional()
     private readonly realtimeService?: RealtimeEventsService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.ensureRestaurantColumns();
+    } catch (err: any) {
+      this.logger.warn(`Could not verify products restaurant schema on startup: ${err.message}`);
+    }
+  }
+
+  public async ensureRestaurantColumns(): Promise<void> {
+    try {
+      await this.dataSource.query(`
+        ALTER TABLE "products"
+        ADD COLUMN IF NOT EXISTS "food_type" VARCHAR(32) NULL,
+        ADD COLUMN IF NOT EXISTS "kitchen_station" VARCHAR(64) NULL,
+        ADD COLUMN IF NOT EXISTS "prep_time_minutes" INTEGER NULL,
+        ADD COLUMN IF NOT EXISTS "is_available" BOOLEAN NOT NULL DEFAULT true,
+        ADD COLUMN IF NOT EXISTS "is_made_to_order" BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "variants" JSONB NULL;
+      `);
+      this.logger.log('Products restaurant culinary schema verified successfully');
+    } catch (err: any) {
+      this.logger.warn(`Column ensure query failed: ${err.message}`);
+    }
+  }
 
   // --- Category Management ---
 
@@ -333,7 +362,18 @@ export class CatalogService {
       allowFractionalQuantity: dto.allowFractionalQuantity ?? false,
     });
 
-    const saved = await this.productRepo.save(product);
+    let saved: ProductEntity;
+    try {
+      saved = await this.productRepo.save(product);
+    } catch (err: any) {
+      if (err.message?.includes('column') && err.message?.includes('does not exist')) {
+        await this.ensureRestaurantColumns();
+        saved = await this.productRepo.save(product);
+      } else {
+        throw err;
+      }
+    }
+
     if (this.realtimeService) {
       this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', {
         productId: saved.id,
@@ -344,10 +384,24 @@ export class CatalogService {
   }
 
   async getProducts(tenantId: string): Promise<ProductEntity[]> {
-    return this.productRepo.find({
-      where: { tenantId, isActive: true },
-      order: { name: 'ASC' },
-    });
+    try {
+      return await this.productRepo.find({
+        where: { tenantId, isActive: true },
+        order: { name: 'ASC' },
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch products for tenant ${tenantId}: ${err.message}. Auto-repairing schema...`);
+      try {
+        await this.ensureRestaurantColumns();
+        return await this.productRepo.find({
+          where: { tenantId, isActive: true },
+          order: { name: 'ASC' },
+        });
+      } catch (retryErr: any) {
+        this.logger.error(`Products query failed even after ensureRestaurantColumns: ${retryErr.message}`);
+        return [];
+      }
+    }
   }
 
   async getProductById(tenantId: string, productId: string): Promise<ProductEntity> {
