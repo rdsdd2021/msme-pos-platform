@@ -141,14 +141,18 @@ class ShadcnAppBar extends ConsumerWidget implements PreferredSizeWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: pendingCount > 0
-                      ? ShadcnColors.warningLight
-                      : ShadcnColors.secondary,
+                  color: syncState.lastError != null
+                      ? ShadcnColors.destructiveLight
+                      : (pendingCount > 0
+                          ? ShadcnColors.warningLight
+                          : ShadcnColors.secondary),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: pendingCount > 0
-                        ? ShadcnColors.warning.withOpacity(0.4)
-                        : ShadcnColors.border,
+                    color: syncState.lastError != null
+                        ? ShadcnColors.destructive.withOpacity(0.4)
+                        : (pendingCount > 0
+                            ? ShadcnColors.warning.withOpacity(0.4)
+                            : ShadcnColors.border),
                     width: 1.0,
                   ),
                 ),
@@ -156,21 +160,33 @@ class ShadcnAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      pendingCount > 0
+                      syncState.isSyncing
                           ? Icons.sync
-                          : Icons.cloud_done_outlined,
+                          : (syncState.lastError != null
+                              ? Icons.sync_problem
+                              : (pendingCount > 0
+                                  ? Icons.sync
+                                  : Icons.cloud_done_outlined)),
                       size: 14,
-                      color: pendingCount > 0
-                          ? ShadcnColors.warningForeground
-                          : ShadcnColors.mutedForeground,
+                      color: syncState.lastError != null
+                          ? ShadcnColors.destructive
+                          : (pendingCount > 0
+                              ? ShadcnColors.warningForeground
+                              : ShadcnColors.mutedForeground),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      pendingCount > 0 ? '$pendingCount Sync' : 'Synced',
+                      syncState.isSyncing
+                          ? 'Syncing...'
+                          : (syncState.lastError != null
+                              ? 'Sync Error'
+                              : (pendingCount > 0 ? '$pendingCount Sync' : 'Synced')),
                       style: ShadcnTypography.caption.copyWith(
-                        color: pendingCount > 0
-                            ? ShadcnColors.warningForeground
-                            : ShadcnColors.mutedForeground,
+                        color: syncState.lastError != null
+                            ? ShadcnColors.destructive
+                            : (pendingCount > 0
+                                ? ShadcnColors.warningForeground
+                                : ShadcnColors.mutedForeground),
                         fontWeight: FontWeight.w600,
                         fontSize: 11,
                       ),

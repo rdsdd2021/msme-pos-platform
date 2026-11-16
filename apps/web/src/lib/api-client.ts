@@ -1057,8 +1057,10 @@ export interface DispatchKotItemRequest {
 }
 
 export interface DispatchKotRequest {
-  orderId: string;
-  items: DispatchKotItemRequest[];
+  orderId?: string;
+  tableId?: string;
+  items?: DispatchKotItemRequest[];
+  lines?: any[];
   kitchenStation?: KitchenStation;
 }
 

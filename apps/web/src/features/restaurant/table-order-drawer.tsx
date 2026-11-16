@@ -185,7 +185,11 @@ export function TableOrderDrawer({
       loadOrderData();
       onRefreshTable();
     },
-    pollIntervalMs: 10000,
+    onPoll: () => {
+      loadOrderData();
+      onRefreshTable();
+    },
+    pollIntervalMs: 8000,
   });
 
   // Categories extracted from products
@@ -353,6 +357,7 @@ export function TableOrderDrawer({
 
       await apiClient.dispatchRestaurantKot(table.tenantId, table.branchId, {
         orderId,
+        tableId: table.id,
         items,
       });
 

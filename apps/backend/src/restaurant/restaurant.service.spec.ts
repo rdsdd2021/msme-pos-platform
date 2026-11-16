@@ -275,6 +275,61 @@ describe('RestaurantService', () => {
       expect(result.order.taxTotal).toBe('16.00'); // 5% GST
       expect(result.order.grandTotal).toBe('336.00');
     });
+
+    it('auto-provisions culinary product when productId is missing from catalog during KOT dispatch', async () => {
+      const mockOrder = {
+        id: 'order-autoprovision-1',
+        tableId: 'table-1',
+        tableNumberSnapshot: 'T-01',
+        status: RestaurantOrderStatus.OPEN,
+        subtotal: '0.00',
+        taxTotal: '0.00',
+        grandTotal: '0.00',
+      };
+
+      let savedProduct: any = null;
+      let savedLines: any[] = [];
+      mockDataSource.transaction.mockImplementation(async (cb) => {
+        const manager = {
+          findOne: jest.fn().mockImplementation((entity) => {
+            if (entity === RestaurantOrderEntity) return Promise.resolve(mockOrder);
+            return Promise.resolve(null);
+          }),
+          find: jest.fn().mockResolvedValue([]), // Product not found in catalog!
+          count: jest.fn().mockResolvedValue(0),
+          create: jest.fn().mockImplementation((entity, dto) => ({ id: 'new-product-id-999', ...dto })),
+          save: jest.fn().mockImplementation((obj) => {
+            if (Array.isArray(obj)) {
+              savedLines = obj;
+            } else if (obj.name === 'mutton kosha') {
+              savedProduct = obj;
+            }
+            return Promise.resolve(obj);
+          }),
+          update: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+        return cb(manager);
+      });
+
+      const result = await service.dispatchKot('tenant-1', 'branch-1', {
+        orderId: 'order-autoprovision-1',
+        items: [
+          {
+            productId: 'missing-client-uuid-1',
+            productName: 'mutton kosha',
+            quantity: '1.000',
+            unitPrice: '250.00',
+          },
+        ],
+      });
+
+      expect(savedProduct).not.toBeNull();
+      expect(savedProduct.name).toBe('mutton kosha');
+      expect(savedLines[0].productNameSnapshot).toBe('mutton kosha');
+      expect(savedLines[0].unitPrice).toBe('250.00');
+      expect(savedLines[0].productId).toBe('new-product-id-999');
+      expect(result.order.subtotal).toBe('250.00');
+    });
   });
 
   describe('Table Settlement', () => {

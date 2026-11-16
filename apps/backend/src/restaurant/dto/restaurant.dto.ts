@@ -11,7 +11,7 @@ import {
   Min,
   IsBoolean,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   TableStatus,
@@ -126,12 +126,14 @@ export class DispatchKotItemDto {
   variantName?: string;
 
   @ApiProperty({ example: '180.00', required: false })
+  @Transform(({ value }) => (value !== undefined && value !== null ? String(value) : value))
   @IsString()
   @IsOptional()
   @Matches(/^\d+(\.\d{1,2})?$/, { message: 'unitPrice must be a valid decimal string' })
   unitPrice?: string;
 
   @ApiProperty({ example: '2.000' })
+  @Transform(({ value }) => (value !== undefined && value !== null ? String(value) : value))
   @IsString()
   @Matches(/^\d+(\.\d{1,3})?$/, { message: 'quantity must be a valid positive quantity string' })
   quantity!: string;

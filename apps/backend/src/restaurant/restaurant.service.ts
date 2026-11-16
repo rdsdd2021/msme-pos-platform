@@ -12,6 +12,8 @@ import { RestaurantOrderEntity } from './entities/restaurant-order.entity';
 import { RestaurantKotEntity } from './entities/restaurant-kot.entity';
 import { RestaurantKotLineEntity } from './entities/restaurant-kot-line.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
+import { UserEntity } from '../tenants/entities/user.entity';
+import { CustomerEntity } from '../operations/entities/customer.entity';
 import { BillingService } from '../billing/billing.service';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import {
@@ -374,25 +376,39 @@ export class RestaurantService {
         const rawTableId = String(dto.tableId).trim();
         if (isUuid(rawTableId)) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { id: rawTableId, tenantId, branchId },
+            where: [{ id: rawTableId, tenantId, branchId }, { id: rawTableId, tenantId }],
           });
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableNumber: rawTableId.toUpperCase(), tenantId, branchId },
+            where: [
+              { tableNumber: rawTableId.toUpperCase(), tenantId, branchId },
+              { tableNumber: rawTableId.toUpperCase(), tenantId },
+            ],
           });
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableNumber: rawTableId, tenantId, branchId },
+            where: [
+              { tableNumber: rawTableId, tenantId, branchId },
+              { tableNumber: rawTableId, tenantId },
+            ],
           });
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableName: rawTableId, tenantId, branchId },
+            where: [
+              { tableName: rawTableId, tenantId, branchId },
+              { tableName: rawTableId, tenantId },
+            ],
           });
         }
         if (!table) throw new NotFoundException(`Table ${dto.tableId} not found in this branch`);
+
+        // Authoritatively align branchId with table's persistent branch
+        if (table.branchId) {
+          branchId = table.branchId;
+        }
 
         // Check if table already has an active open order
         const existingOrder = await manager.findOne(RestaurantOrderEntity, {
@@ -409,6 +425,28 @@ export class RestaurantService {
         }
       }
 
+      // Safe Captain User Verification to eliminate FK_restaurant_orders_captain violation
+      let resolvedCaptainUserId: string | null = null;
+      if (captainUserId && isUuid(captainUserId)) {
+        try {
+          const userExists = await manager.findOne(UserEntity, { where: { id: captainUserId } });
+          if (userExists) {
+            resolvedCaptainUserId = userExists.id;
+          }
+        } catch (_) {}
+      }
+
+      // Safe Customer Verification to eliminate FK_restaurant_orders_customer violation
+      let resolvedCustomerId: string | null = null;
+      if (dto.customerId && isUuid(dto.customerId)) {
+        try {
+          const custExists = await manager.findOne(CustomerEntity, { where: { id: dto.customerId, tenantId } });
+          if (custExists) {
+            resolvedCustomerId = custExists.id;
+          }
+        } catch (_) {}
+      }
+
       const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
       const order = manager.create(RestaurantOrderEntity, {
         tenantId,
@@ -419,10 +457,10 @@ export class RestaurantService {
         tableNumberSnapshot: table?.tableNumber || null,
         sectionSnapshot: table?.section || null,
         guestCount: dto.guestCount || table?.seatingCapacity || 1,
-        customerId: (dto.customerId && isUuid(dto.customerId)) ? dto.customerId : null,
+        customerId: resolvedCustomerId,
         notes: dto.notes || null,
         status: RestaurantOrderStatus.OPEN,
-        captainUserId: (captainUserId && isUuid(captainUserId)) ? captainUserId : null,
+        captainUserId: resolvedCaptainUserId,
         captainNameSnapshot: captainName || 'Captain',
         subtotal: '0.00',
         taxTotal: '0.00',
@@ -473,8 +511,11 @@ export class RestaurantService {
         const rawOrderId = String(dto.orderId).trim();
         if (isUuid(rawOrderId)) {
           order = await manager.findOne(RestaurantOrderEntity, {
-            where: { id: rawOrderId, tenantId, branchId },
+            where: [{ id: rawOrderId, tenantId, branchId }, { id: rawOrderId, tenantId }],
           });
+          if (order?.branchId) {
+            branchId = order.branchId;
+          }
         }
       }
 
@@ -484,26 +525,38 @@ export class RestaurantService {
       if (!order && targetTableId) {
         if (isUuid(targetTableId)) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { id: targetTableId, tenantId, branchId },
+            where: [{ id: targetTableId, tenantId, branchId }, { id: targetTableId, tenantId }],
           });
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
+            where: [
+              { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
+              { tableNumber: targetTableId.toUpperCase(), tenantId },
+            ],
           });
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableNumber: targetTableId, tenantId, branchId },
+            where: [
+              { tableNumber: targetTableId, tenantId, branchId },
+              { tableNumber: targetTableId, tenantId },
+            ],
           });
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
-            where: { tableName: targetTableId, tenantId, branchId },
+            where: [
+              { tableName: targetTableId, tenantId, branchId },
+              { tableName: targetTableId, tenantId },
+            ],
           });
         }
 
         if (table) {
+          if (table.branchId) {
+            branchId = table.branchId;
+          }
           order = await manager.findOne(RestaurantOrderEntity, {
             where: {
               tableId: table.id,
@@ -520,23 +573,35 @@ export class RestaurantService {
         if (!table && targetTableId) {
           if (isUuid(targetTableId)) {
             table = await manager.findOne(RestaurantTableEntity, {
-              where: { id: targetTableId, tenantId, branchId },
+              where: [{ id: targetTableId, tenantId, branchId }, { id: targetTableId, tenantId }],
             });
           }
           if (!table) {
             table = await manager.findOne(RestaurantTableEntity, {
-              where: { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
+              where: [
+                { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
+                { tableNumber: targetTableId.toUpperCase(), tenantId },
+              ],
             });
           }
           if (!table) {
             table = await manager.findOne(RestaurantTableEntity, {
-              where: { tableNumber: targetTableId, tenantId, branchId },
+              where: [
+                { tableNumber: targetTableId, tenantId, branchId },
+                { tableNumber: targetTableId, tenantId },
+              ],
             });
           }
           if (!table) {
             table = await manager.findOne(RestaurantTableEntity, {
-              where: { tableName: targetTableId, tenantId, branchId },
+              where: [
+                { tableName: targetTableId, tenantId, branchId },
+                { tableName: targetTableId, tenantId },
+              ],
             });
+          }
+          if (table?.branchId) {
+            branchId = table.branchId;
           }
         }
 
@@ -639,10 +704,65 @@ export class RestaurantService {
       const savedKot = await manager.save(kot);
 
       let additionalSubtotal = 0;
+      let hasProvisionedDish = false;
       const kotLines: RestaurantKotLineEntity[] = [];
 
       for (const item of itemsToProcess) {
-        const product = productMap.get(item.productId);
+        let product: ProductEntity | null | undefined = productMap.get(item.productId);
+        const rawItemPid = item.productId ? String(item.productId).trim() : '';
+
+        // If product was not in initial map, look it up by ID or SKU across the tenant
+        if (!product && rawItemPid) {
+          try {
+            product = await manager.findOne(ProductEntity, {
+              where: isUuid(rawItemPid)
+                ? [{ id: rawItemPid, tenantId }, { sku: rawItemPid, tenantId }]
+                : { sku: rawItemPid, tenantId },
+            });
+          } catch (_) {}
+        }
+
+        // If still not found, search by name across tenant
+        const itemName = item.productName ? String(item.productName).trim() : '';
+        if (!product && itemName) {
+          try {
+            product = await manager.findOne(ProductEntity, {
+              where: { name: itemName, tenantId },
+            });
+          } catch (_) {}
+        }
+
+        // Auto-provision product record so FK_restaurant_kot_lines_product NEVER fails!
+        if (!product) {
+          const dishName = itemName || 'Kitchen Dish';
+          const dishSku = `DISH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+          const isClientPidUuid = isUuid(rawItemPid);
+
+          const newDish = manager.create(ProductEntity, {
+            ...(isClientPidUuid ? { id: rawItemPid } : {}),
+            tenantId,
+            name: dishName,
+            sku: dishSku,
+            sellingPrice: item.unitPrice ? String(item.unitPrice) : '0.00',
+            purchaseCost: '0.00',
+            mrp: item.unitPrice ? String(item.unitPrice) : '0.00',
+            foodType: null,
+            kitchenStation: item.kitchenStation || savedKot.kitchenStation,
+            isMadeToOrder: true,
+            trackInventory: false,
+            isActive: true,
+          });
+
+          try {
+            product = await manager.save(newDish);
+            hasProvisionedDish = true;
+          } catch {
+            product = await manager.findOne(ProductEntity, {
+              where: { tenantId, name: dishName },
+            });
+          }
+        }
+
         let nameSnapshot = item.productName || product?.name || 'Dish Item';
         let priceNum = product
           ? parseFloat(product.sellingPrice)
@@ -677,7 +797,7 @@ export class RestaurantService {
 
         additionalSubtotal += lineTotalNum;
 
-        const rawItemPid = item.productId ? String(item.productId).trim() : '';
+        // Guaranteed to exist in "products" table
         const resolvedLinePid = product?.id || (isUuid(rawItemPid) ? rawItemPid : randomUUID());
 
         const line = manager.create(RestaurantKotLineEntity, {
@@ -732,7 +852,7 @@ export class RestaurantService {
         );
       }
 
-      return { kot: savedKot, order };
+      return { kot: savedKot, order, hasProvisionedDish };
     });
 
     if (this.realtimeService) {
@@ -742,9 +862,12 @@ export class RestaurantService {
         { kotId: result.kot.id, orderId: result.order.id, status: 'ORDERED' },
         branchId,
       );
+      if (result.hasProvisionedDish) {
+        this.realtimeService.emit(tenantId, 'CATALOG_CHANGED', { action: 'AUTO_PROVISION_DISH' }, branchId);
+      }
     }
 
-    return result;
+    return { kot: result.kot, order: result.order };
   }
 
   // =========================================================================

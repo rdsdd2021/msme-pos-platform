@@ -650,10 +650,13 @@ export default function AdminDashboard({
     onCustomerUpdated: () => {
       fetchAllData(true);
     },
+    onRestaurantTableChanged: () => {
+      fetchAllData(true);
+    },
     onPoll: () => {
       fetchAllData(true);
     },
-    pollIntervalMs: 25000,
+    pollIntervalMs: 12000,
   });
 
   // Filtered Products

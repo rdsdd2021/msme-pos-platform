@@ -104,7 +104,7 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
     onPoll: () => {
       fetchTables();
     },
-    pollIntervalMs: 15000,
+    pollIntervalMs: 8000,
   });
 
   // Seed default 12 tables

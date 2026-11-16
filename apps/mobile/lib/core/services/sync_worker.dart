@@ -73,7 +73,7 @@ class SyncWorker {
     // 1. Fetch pending outbox operations in sequence order (retry rejected ops up to 5 times)
     final pendingOps = await (_db.select(_db.syncOutbox)
           ..where((t) =>
-              t.status.isIn(const ['pending', 'failed']) |
+              t.status.isIn(const ['pending', 'failed', 'sending']) |
               (t.status.equals('rejected') & t.retryCount.isSmallerThanValue(5)))
           ..orderBy([(t) => OrderingTerm(expression: t.sequence, mode: OrderingMode.asc)]))
         .get();

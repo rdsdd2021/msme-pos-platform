@@ -262,10 +262,13 @@ export class SyncService implements OnModuleInit {
             const variants = Array.isArray(raw.variants) ? raw.variants : null;
             const trackInventory = raw.trackInventory !== undefined ? Boolean(raw.trackInventory) : (isMadeToOrder ? false : true);
 
+            const mrp = raw.mrp ? String(raw.mrp) : sellingPrice;
+
             if (existingProd) {
               existingProd.name = name;
               existingProd.sellingPrice = sellingPrice;
               existingProd.purchaseCost = costPrice;
+              existingProd.mrp = mrp;
               existingProd.gstRatePercent = taxRate;
               if (barcode) existingProd.barcodePrimary = barcode;
               if (hsnCode) existingProd.hsnCode = hsnCode;
@@ -300,6 +303,7 @@ export class SyncService implements OnModuleInit {
                 barcodePrimary: barcode,
                 sellingPrice,
                 purchaseCost: costPrice,
+                mrp,
                 gstRatePercent: taxRate,
                 hsnCode,
                 imageUrl,
