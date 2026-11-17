@@ -115,14 +115,21 @@ export function TableOrderDrawer({
   // Split bill settlement modal
   const [settleModalOpen, setSettleModalOpen] = useState(false);
 
+  // References to preserve draft items across background polling cycles
+  const prevTableIdRef = React.useRef<string | null>(null);
+  const prevOpenRef = React.useRef<boolean>(false);
+
   // Reload active order data (handles SSE real-time updates and manual refresh)
   const loadOrderData = React.useCallback(async () => {
     if (!open || !table) return;
     try {
-      if (table.activeOrder?.id) {
-        const orderRes = await apiClient.getRestaurantOrder(table.tenantId, table.activeOrder.id);
+      const orderId = table.activeOrder?.id || activeOrder?.id;
+      if (orderId) {
+        const orderRes = await apiClient.getRestaurantOrder(table.tenantId, orderId);
         setActiveOrder(orderRes);
-      } else if (table.branchId) {
+        return;
+      }
+      if (table.branchId) {
         try {
           const tables = await apiClient.getRestaurantTables(table.tenantId, table.branchId);
           const currentTable = tables.find((t) => t.id === table.id);
@@ -140,22 +147,34 @@ export function TableOrderDrawer({
       }
     } catch (err: any) {
       console.warn('Could not load active order:', err);
-      setActiveOrder(table.activeOrder || null);
     }
-  }, [open, table]);
+  }, [open, table?.id, table?.tenantId, table?.branchId, table?.activeOrder?.id, activeOrder?.id]);
 
   // Load active order and products when drawer opens
   useEffect(() => {
-    if (!open || !table) return;
+    if (!open || !table) {
+      prevOpenRef.current = false;
+      return;
+    }
 
-    setError(null);
-    setDraftItems([]);
-    if (table.currentGuestCount && table.currentGuestCount > 0) {
-      setGuestCount(table.currentGuestCount);
+    const isNewlyOpened = !prevOpenRef.current;
+    const isDifferentTable = prevTableIdRef.current !== table.id;
+    prevOpenRef.current = true;
+    prevTableIdRef.current = table.id;
+
+    // ONLY reset draft items when opening the drawer fresh or switching to a different table
+    if (isNewlyOpened || isDifferentTable) {
+      setError(null);
+      setDraftItems([]);
+      if (table.currentGuestCount && table.currentGuestCount > 0) {
+        setGuestCount(table.currentGuestCount);
+      }
     }
 
     const loadInitialData = async () => {
-      setLoading(true);
+      if (isNewlyOpened || isDifferentTable) {
+        setLoading(true);
+      }
       try {
         const [prodResult] = await Promise.allSettled([
           apiClient.getProducts(table.tenantId),
@@ -170,12 +189,14 @@ export function TableOrderDrawer({
       } catch (err: any) {
         console.warn('Failed to load restaurant initial data:', err);
       } finally {
-        setLoading(false);
+        if (isNewlyOpened || isDifferentTable) {
+          setLoading(false);
+        }
       }
     };
 
     loadInitialData();
-  }, [open, table, loadOrderData]);
+  }, [open, table?.id, table?.tenantId, loadOrderData]);
 
   // Listen to SSE real-time events while drawer is open
   useRealtimeEvents({
@@ -183,11 +204,15 @@ export function TableOrderDrawer({
     enabled: open,
     onRestaurantTableChanged: () => {
       loadOrderData();
-      onRefreshTable();
+      if (draftItems.length === 0) {
+        onRefreshTable();
+      }
     },
     onPoll: () => {
       loadOrderData();
-      onRefreshTable();
+      if (draftItems.length === 0) {
+        onRefreshTable();
+      }
     },
     pollIntervalMs: 8000,
   });

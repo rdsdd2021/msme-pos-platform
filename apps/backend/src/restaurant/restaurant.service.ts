@@ -1094,14 +1094,15 @@ export class RestaurantService {
       gstRatePercent: '5.00', // Standard restaurant GST rate
     }));
 
-    // Recalculate active totals to match settled lines exactly
+    // Recalculate active totals to match settled lines exactly with CGST Section 170 nearest rupee rounding
     const settledSubtotal = activeLines.reduce(
       (sum, l) => sum + parseFloat(l.lineTotal || '0'),
       0,
     );
     const settledTax = Math.round(settledSubtotal * 0.05 * 100) / 100;
-    const settledGrandTotal = Math.round((settledSubtotal + settledTax) * 100) / 100;
-    const settledGrandTotalStr = settledGrandTotal.toFixed(2);
+    const rawGrandTotal = Math.round((settledSubtotal + settledTax) * 100) / 100;
+    const roundedGrandTotal = Math.round(rawGrandTotal);
+    const settledGrandTotalStr = (roundedGrandTotal > 0 ? roundedGrandTotal : rawGrandTotal).toFixed(2);
 
     // Payments setup (Single or Split)
     let payments: Array<{
@@ -1128,6 +1129,7 @@ export class RestaurantService {
     const saleRequest = {
       branchId,
       idempotencyKey,
+      customerName: order.tableNumberSnapshot ? `Table ${order.tableNumberSnapshot} (Dine-In)` : undefined,
       customerId: dto.customerId || order.customerId || undefined,
       items,
       payments,

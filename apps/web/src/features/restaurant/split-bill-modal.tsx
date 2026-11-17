@@ -53,18 +53,21 @@ export function SplitBillModal({
   onOpenChange,
   onSettlementSuccess,
 }: SplitBillModalProps) {
+  const rawGrandTotalNum = parseFloat(order.grandTotal) || 0;
+  // Apply CGST Section 170 nearest rupee rounding to match backend billing engine
+  const grandTotalNum = Math.round(rawGrandTotalNum) || rawGrandTotalNum;
+  const roundingAdjustment = grandTotalNum - rawGrandTotalNum;
+
   const [splitMode, setSplitMode] = useState<SplitMode>('single');
   const [singleMethod, setSingleMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
-  const [cashTendered, setCashTendered] = useState<string>(order.grandTotal);
+  const [cashTendered, setCashTendered] = useState<string>(grandTotalNum.toFixed(2));
   const [guestCount, setGuestCount] = useState<number>(order.guestCount || 2);
   const [customSplits, setCustomSplits] = useState<RestaurantSplitPayment[]>([
-    { paymentMethod: PaymentMethod.CASH, amount: order.grandTotal },
+    { paymentMethod: PaymentMethod.CASH, amount: grandTotalNum.toFixed(2) },
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settledInvoice, setSettledInvoice] = useState<any | null>(null);
-
-  const grandTotalNum = parseFloat(order.grandTotal) || 0;
 
   // Handle Equal Split initialization
   const generateEqualSplits = (count: number): RestaurantSplitPayment[] => {
@@ -274,6 +277,11 @@ export function SplitBillModal({
                 </p>
                 <p className="text-xs text-slate-300 mt-1">
                   Subtotal: ₹{parseFloat(order.subtotal).toFixed(2)} + GST (5%): ₹{parseFloat(order.taxTotal).toFixed(2)}
+                  {Math.abs(roundingAdjustment) >= 0.01 && (
+                    <span className="text-emerald-300 ml-1">
+                      (Round: {roundingAdjustment > 0 ? '+' : ''}₹{roundingAdjustment.toFixed(2)})
+                    </span>
+                  )}
                 </p>
               </div>
               <Badge variant="outline" className="bg-slate-800 text-slate-200 border-slate-700 px-3 py-1 text-xs">
