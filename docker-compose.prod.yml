@@ -1,5 +1,3 @@
-version: '3.8'
-
 # ==============================================================================
 # MSME POS Platform — Production Multi-Container Orchestration
 # Rules Enforced:
