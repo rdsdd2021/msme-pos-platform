@@ -35,7 +35,7 @@ class KiranaPosApp extends ConsumerWidget {
 
     return MaterialApp(
       key: ValueKey(authState.isAuthenticated ? 'authenticated' : 'unauthenticated'),
-      title: 'Kirana POS',
+      title: 'ZeeZo Billing',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -179,7 +179,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       items.add(_NavItem(
         icon: Icons.point_of_sale_outlined,
         activeIcon: Icons.point_of_sale,
-        label: 'Kirana POS',
+        label: 'Billing',
         badgeCount: cartState.totalItemsCount,
       ));
 

@@ -402,23 +402,23 @@ export function LandingPage() {
   const FAQS = [
     {
       q: 'What happens when broadband or electricity goes down during billing?',
-      a: 'The POS terminal operates completely offline. Every invoice line, payment record, customer balance change, and stock movement commits directly to an encrypted local SQLite database on your device in a single atomic transaction. Once your network restores, our idempotent sync engine batches and reconciles records with the central cloud without duplicate bills.',
+      a: 'ZeeZo Billing operates completely offline. You can ring up bills, scan barcodes, print thermal receipts, and take cash payments with zero internet. Once your network or Wi-Fi reconnects, all sales, stock changes, and customer balances automatically and safely back up to the cloud.',
     },
     {
       q: 'Does it work with my existing Bluetooth thermal printer or billing machine?',
-      a: 'Yes. Assistt POS uses standard ESC/POS protocol. It natively connects over Bluetooth, USB, or LAN to Sunmi, NGX, Essae, TVS, Epson, and all standard 58mm & 80mm receipt printers. It remembers your paired hardware and silently auto-reconnects every morning on boot.',
+      a: 'Yes. ZeeZo Billing connects easily over Bluetooth, USB, or Wi-Fi to all standard 58mm and 80mm thermal receipt printers (including Sunmi, NGX, Essae, TVS, Epson, and regular thermal printers). Once paired, it connects automatically every morning when you start billing.',
     },
     {
-      q: 'How are GST calculations, GSTR-1, and HSN codes handled?',
-      a: 'The server-side financial engine automatically splits intra-state (CGST + SGST) and inter-state (IGST) taxes down to the exact paisa. Invoices permanently snapshot the commodity HSN code and tax rates. You can export verified GSTR-1 (B2B, B2C, HSN Summary) and GSTR-3B Excel/JSON files with one click.',
+      q: 'How are GST calculations and tax summaries handled?',
+      a: 'GST is calculated automatically down to the exact paisa, with clear CGST, SGST, and IGST breakdowns. Every invoice prints the correct HSN code and tax rates. You can export clean GST summaries whenever you need to file your monthly returns.',
     },
     {
       q: 'Can my cashiers see store profit, edit prices, or switch branches?',
-      a: 'No. The system enforces strict Zero-Trust RBAC. Cashiers only have access to the fast checkout terminal, hold cart, and cashier shift cash drawer float reconciliation. Prices, stock balances, executive analytics, and inter-branch transfers are locked strictly to Store Owners and Branch Managers.',
+      a: 'No. Cashiers only have access to the checkout counter and billing screen. Your product purchase costs, store profits, inventory adjustments, and settings are strictly password-protected for Store Owners and Managers only.',
     },
     {
-      q: 'Can I run the POS on my Android phone and manage my store from a laptop?',
-      a: 'Absolutely. Cashiers can ring up bills on Android phones, tablets, or Sunmi POS handhelds. Store owners can log in from any web browser on a laptop or desktop to view real-time sales analytics, add products, adjust purchase orders, and monitor store inventory.',
+      q: 'Can I run the app on my phone and manage my store from a laptop?',
+      a: 'Yes! Cashiers can ring up bills on Android phones, tablets, or handheld billing machines. Store owners can log in from any web browser on a laptop, desktop, or tablet to check live sales, add items, view stock, and manage accounts anytime.',
     },
   ];
 
@@ -431,23 +431,23 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 text-white flex items-center justify-center font-black text-lg shadow-md shadow-emerald-500/20">
-              <Store className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-full overflow-hidden border border-amber-400 bg-slate-900 shadow-md shadow-amber-500/20 flex items-center justify-center shrink-0">
+              <img src="/logo.png" alt="ZeeZo Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-lg tracking-tight text-slate-900">
-                  ASSISTT <span className="text-emerald-600">POS</span>
+                  ZeeZo <span className="text-amber-500 font-extrabold">Billing</span>
                 </span>
                 <Badge
                   variant="outline"
-                  className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold px-1.5 py-0"
+                  className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-bold px-1.5 py-0"
                 >
-                  v1.0 Production
+                  Smart POS
                 </Badge>
               </div>
               <p className="text-[10px] text-slate-500 hidden sm:block">
-                Multi-Tenant Offline-First Retail Platform
+                Fast Billing &amp; Store Management
               </p>
             </div>
           </div>
@@ -455,32 +455,32 @@ export function LandingPage() {
           {/* Center Navigation Links */}
           <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-600">
             <button
-              onClick={() => scrollToSection('modules-section')}
-              className="hover:text-emerald-600 transition cursor-pointer"
+              onClick={() => scrollToSection('bento-section')}
+              className="hover:text-amber-600 transition cursor-pointer"
             >
-              Industry Modules
+              Features
             </button>
             <button
-              onClick={() => scrollToSection('bento-section')}
-              className="hover:text-emerald-600 transition cursor-pointer"
+              onClick={() => scrollToSection('modules-section')}
+              className="hover:text-amber-600 transition cursor-pointer"
             >
-              Architecture
+              Businesses
             </button>
             <button
               onClick={() => scrollToSection('hardware-section')}
-              className="hover:text-emerald-600 transition cursor-pointer"
+              className="hover:text-amber-600 transition cursor-pointer"
             >
               Hardware &amp; Printers
             </button>
             <button
               onClick={() => scrollToSection('pricing-section')}
-              className="hover:text-emerald-600 transition cursor-pointer"
+              className="hover:text-amber-600 transition cursor-pointer"
             >
               Pricing
             </button>
             <button
               onClick={() => scrollToSection('faq-section')}
-              className="hover:text-emerald-600 transition cursor-pointer"
+              className="hover:text-amber-600 transition cursor-pointer"
             >
               FAQ
             </button>
@@ -492,10 +492,10 @@ export function LandingPage() {
               href="/downloads/kirana-pos.apk"
               download="kirana-pos.apk"
               title="Download Android Mobile POS APK"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-800 text-xs font-bold cursor-pointer shadow-xs transition"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-800 text-xs font-bold cursor-pointer shadow-xs transition"
             >
-              <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Download APK</span>
+              <Smartphone className="w-3.5 h-3.5 text-amber-600" />
+              <span>Download App</span>
             </a>
             <Button
               variant="outline"
@@ -520,7 +520,7 @@ export function LandingPage() {
       {/* =========================================================================
           HERO SECTION (Shipixen Light Leading Pill + Ambient Radial Glow)
           ========================================================================= */}
-      <section className="relative overflow-hidden pt-16 pb-20 border-b border-slate-200/80 bg-white bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(16,185,129,0.12),rgba(255,255,255,0))]">
+      <section className="relative overflow-hidden pt-16 pb-20 border-b border-slate-200/80 bg-white bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(245,158,11,0.12),rgba(255,255,255,0))]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           {/* Shipixen Light Leading Pill */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-sm shadow-slate-100 mb-6">
@@ -528,20 +528,20 @@ export function LandingPage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="text-emerald-700 font-bold">100% Offline SQLite</span>
+            <span className="text-emerald-700 font-bold">100% Offline Ready</span>
             <span className="text-slate-300">•</span>
-            <span>GST Statutory Ready</span>
+            <span>Instant GST Invoicing</span>
             <span className="text-slate-300">•</span>
-            <span className="text-teal-700">ESC/POS Printing</span>
+            <span className="text-amber-600 font-medium">Thermal Bill Printing</span>
           </div>
 
           {/* Main Title */}
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 max-w-4xl mx-auto leading-[1.12]">
-            The Modern <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600">Offline-First POS</span> for Bharat’s Retailers
+            Superfast Billing &amp; POS for <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-600">Retail &amp; Restaurants</span>
           </h1>
 
           <p className="mt-5 text-sm sm:text-base lg:text-lg text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Uninterrupted counter sales, instant barcode ring-up, customer Khata notebook, and Bluetooth thermal receipts. Built for Kirana, Supermarkets, Restaurants, Chemists, Electronics, and Fashion.
+            Lightning-fast counter checkout, barcode scanning, customer Khata notebook, instant UPI payments, and Bluetooth thermal receipts. Works smoothly even during power or internet cuts.
           </p>
 
           {/* CTA Buttons */}
@@ -557,11 +557,10 @@ export function LandingPage() {
             <a
               href="/downloads/kirana-pos.apk"
               download="kirana-pos.apk"
-              className="w-full sm:w-auto h-12 px-6 rounded-xl border border-emerald-300/80 bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 text-sm font-bold cursor-pointer flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.02]"
+              className="w-full sm:w-auto h-12 px-6 rounded-xl border border-amber-300/80 bg-amber-50/80 hover:bg-amber-100 text-amber-900 text-sm font-bold cursor-pointer flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.02]"
             >
-              <Smartphone className="w-4 h-4 text-emerald-600" />
-              <span>Download Android APK</span>
-              <span className="text-[10px] font-mono bg-emerald-200/70 text-emerald-900 px-1.5 py-0.5 rounded font-bold">v1.0.16</span>
+              <Smartphone className="w-4 h-4 text-amber-600" />
+              <span>Download Android App</span>
             </a>
             <Button
               size="lg"
@@ -569,7 +568,7 @@ export function LandingPage() {
               onClick={() => scrollToSection('modules-section')}
               className="w-full sm:w-auto h-12 px-6 border-slate-200 bg-white text-slate-800 hover:bg-slate-50 text-sm font-bold cursor-pointer flex items-center justify-center gap-2 shadow-xs"
             >
-              <span>Explore Industry Modules</span>
+              <span>Explore Businesses</span>
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </Button>
           </div>
@@ -640,28 +639,28 @@ export function LandingPage() {
       </section>
 
       {/* =========================================================================
-          SHIPXEN BENTO GRID: CORE PLATFORM ARCHITECTURE (LIGHT VERSION)
+          KEY FEATURES GRID: FAST, SIMPLE & RELIABLE BILLING
           ========================================================================= */}
       <section id="bento-section" className="py-20 bg-slate-50 border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14">
             <Badge
               variant="outline"
-              className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-bold px-3 py-1 mb-3"
+              className="bg-amber-50 text-amber-800 border-amber-200 text-xs font-bold px-3 py-1 mb-3"
             >
-              Enterprise Engineering
+              Why Store Owners Choose ZeeZo
             </Badge>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              Engineered For The Reality of Indian Retail
+              Built for Speed, Simplicity &amp; Zero Downtime
             </h2>
             <p className="mt-3 text-sm text-slate-600">
-              Intermittent broadband, rush-hour counter queues, weighing scale loose items, and strict GST audits. Built from the ground up to never fail at checkout.
+              Handle rush-hour counter queues, weighing scale loose items, instant UPI payments, and customer store credit without ever getting stuck.
             </p>
           </div>
 
           {/* 5-Item Bento Box Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Bento Card 1: 100% Offline SQLite (Spans 2 columns) */}
+            {/* Bento Card 1: 100% Offline Resilience (Spans 2 columns) */}
             <div className="md:col-span-2 p-8 rounded-3xl bg-white border border-slate-200 relative overflow-hidden flex flex-col justify-between shadow-xs hover:shadow-md hover:border-emerald-500/50 transition-all duration-300">
               <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
               <div>
@@ -669,21 +668,21 @@ export function LandingPage() {
                   <WifiOff className="w-6 h-6" />
                 </div>
                 <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold mb-3">
-                  Rule 13 Verified
+                  100% Offline Ready
                 </Badge>
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                  100% Offline-First SQLite Local Persistence
+                  Works 100% Offline — Never Stops During Internet Cuts
                 </h3>
                 <p className="text-sm text-slate-600 mt-2 max-w-xl leading-relaxed">
-                  When the internet drops, your store never stops. Invoices, lines, inventory movements, and customer ledger balances commit to an encrypted local SQLite database in a single atomic transaction. Syncs idempotently upon reconnection.
+                  When broadband or mobile data drops, your checkout counter never halts. Scan barcodes, print thermal receipts, collect cash, and manage customers completely offline. Everything backs up safely to the cloud the moment you reconnect.
                 </p>
               </div>
-              <div className="mt-8 flex flex-wrap items-center gap-3 pt-4 border-t border-slate-100 text-xs font-mono text-emerald-700">
+              <div className="mt-8 flex flex-wrap items-center gap-3 pt-4 border-t border-slate-100 text-xs font-medium text-emerald-700">
                 <span className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                  <Check className="w-3.5 h-3.5 text-emerald-600" /> Atomic SQLite Transactions
+                  <Check className="w-3.5 h-3.5 text-emerald-600" /> Zero Downtime Billing
                 </span>
                 <span className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                  <Check className="w-3.5 h-3.5 text-emerald-600" /> Idempotent Sync Ingestion
+                  <Check className="w-3.5 h-3.5 text-emerald-600" /> Automatic Cloud Backup
                 </span>
               </div>
             </div>
@@ -694,13 +693,13 @@ export function LandingPage() {
                 <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center border border-teal-200 mb-6">
                   <Zap className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Sub-0.2s Barcode Ring-up</h3>
+                <h3 className="text-lg font-bold text-slate-900">0.2s Fast Barcode Ring-up</h3>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Buffer rapid keystrokes from USB &amp; Bluetooth laser scanners. Integrates with electronic weighing scales for automatic loose grain &amp; vegetable pricing.
+                  Instant recognition with USB &amp; Bluetooth laser scanners or phone camera. Connects with electronic weighing scales for loose grains, fruits, and vegetables.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-mono text-teal-700 flex items-center gap-1.5">
-                <Scale className="w-4 h-4 text-teal-600" /> Electronic Scale Wedge
+              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-medium text-teal-700 flex items-center gap-1.5">
+                <Scale className="w-4 h-4 text-teal-600" /> Electronic Weighing Scale Sync
               </div>
             </div>
 
@@ -710,13 +709,13 @@ export function LandingPage() {
                 <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center border border-cyan-200 mb-6">
                   <FileText className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Automated GST Compliance</h3>
+                <h3 className="text-lg font-bold text-slate-900">Simple GST Invoicing</h3>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Calculates CGST, SGST, and IGST tax splits down to the paisa. Snapshots HSN commodity codes and prepares one-click GSTR-1 &amp; GSTR-3B tax summaries.
+                  Accurate CGST, SGST, and IGST tax calculations down to the exact paisa. Print GSTIN &amp; HSN codes on receipts and export clean summaries for monthly filing.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-mono text-cyan-700 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-cyan-600" /> GSTR-1 &amp; GSTR-3B Ready
+              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-medium text-cyan-700 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-cyan-600" /> One-Click GST Tax Summaries
               </div>
             </div>
 
@@ -726,29 +725,29 @@ export function LandingPage() {
                 <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-200 mb-6">
                   <Users className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Customer Khata Notebook</h3>
+                <h3 className="text-lg font-bold text-slate-900">Customer Khata (Udhaar)</h3>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Manage store credit ledgers with customer-wise credit limits, partial repayments, and instant PDF receipts with payment reminders on WhatsApp.
+                  Record customer store credit, track pending balances, set credit limits, and send instant WhatsApp bills and polite payment reminders with UPI links.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-mono text-purple-700 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-purple-600" /> WhatsApp Receipt Dispatch
+              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-medium text-purple-700 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-purple-600" /> WhatsApp Receipts &amp; Reminders
               </div>
             </div>
 
-            {/* Bento Card 5: Zero-Trust Cashier Float & Branch Scoping */}
+            {/* Bento Card 5: Cashier Float & Staff Security */}
             <div className="p-8 rounded-3xl bg-white border border-slate-200 shadow-xs hover:shadow-md hover:border-amber-500/50 flex flex-col justify-between transition-all duration-300">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200 mb-6">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">Cashier Float &amp; Shift Audit</h3>
+                <h3 className="text-lg font-bold text-slate-900">Cash Drawer &amp; Staff Security</h3>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Cashiers are strictly scoped to their assigned branch counter with shift opening float, mid-day cash drops, and end-of-shift drawer reconciliation.
+                  Track cashier shift opening float, mid-day cash collections, and end-of-shift drawer handovers. Protect your purchase prices and profits from staff eyes.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-mono text-amber-700 flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-amber-600" /> Branch IDOR Protection
+              <div className="mt-6 pt-4 border-t border-slate-100 text-xs font-medium text-amber-700 flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-amber-600" /> Staff Roles &amp; Cash Float Security
               </div>
             </div>
           </div>
@@ -765,13 +764,13 @@ export function LandingPage() {
               variant="outline"
               className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-bold px-3 py-1 mb-3"
             >
-              Enterprise Multi-Vertical Architecture
+              All-In-One Business Solution
             </Badge>
             <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
-              One Universal Engine. Specialized Industry Modules.
+              Tailored For Every Retail &amp; Dining Business
             </h2>
             <p className="mt-3 text-sm text-slate-600">
-              Every retail vertical has unique checkout demands. Assistt POS adapts its catalog schema, hardware interfaces, and tax rules to your specific business model.
+              Every business has unique billing needs. ZeeZo Billing adapts its catalog, barcode scanner, receipt format, and taxes to your exact store type.
             </p>
           </div>
 
@@ -1055,7 +1054,7 @@ export function LandingPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Offline SQLite Persistence</span>
+                    <span>100% Offline Billing Support</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -1193,7 +1192,7 @@ export function LandingPage() {
                   ))}
                 </div>
                 <p className="text-xs text-slate-700 leading-relaxed italic">
-                  &ldquo;During evening rush hour from 7 to 9 PM, our broadband used to drop and customers walked away. With Assistt POS offline SQLite mode, counter ring-up is under 2 seconds and we never lose a sale.&rdquo;
+                  &ldquo;During evening rush hour from 7 to 9 PM, our broadband used to drop and customers walked away. With ZeeZo Billing offline mode, counter ring-up is under 2 seconds and we never lose a sale.&rdquo;
                 </p>
               </div>
               <div className="pt-4 border-t border-slate-100 flex items-center gap-3">
@@ -1389,15 +1388,17 @@ export function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div>
             <div className="flex items-center gap-2 text-slate-900 font-black text-sm mb-3">
-              <Store className="w-4 h-4 text-emerald-600" />
-              <span>ASSISTT POS</span>
+              <div className="w-6 h-6 rounded-full overflow-hidden border border-amber-400 bg-slate-900 flex items-center justify-center shrink-0">
+                <img src="/logo.png" alt="ZeeZo Logo" className="w-full h-full object-cover" />
+              </div>
+              <span>ZeeZo™ Billing</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Multi-tenant, local-first retail operations and business management platform designed for Indian MSMEs.
+              Fast, simple, and reliable billing and store management for kirana stores, supermarkets, restaurants, and retail shops.
             </p>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Vertical Modules</h4>
+            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Business Types</h4>
             <ul className="space-y-1.5 text-[11px]">
               <li>Kirana &amp; Grocery</li>
               <li>Restaurant &amp; Cafe</li>
@@ -1408,25 +1409,25 @@ export function LandingPage() {
             </ul>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Hardware Standards</h4>
+            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Hardware Support</h4>
             <ul className="space-y-1.5 text-[11px]">
-              <li>58mm &amp; 80mm ESC/POS Thermal</li>
+              <li>58mm &amp; 80mm Thermal Printers</li>
               <li>Dynamic Bharat UPI QR Codes</li>
-              <li>Weighing Scale Serial Wedges</li>
-              <li>Android POS Handhelds (Sunmi/NGX)</li>
-              <li>1D / 2D Laser Barcode Guns</li>
+              <li>Electronic Weighing Scales</li>
+              <li>Android Handheld Billing Devices</li>
+              <li>1D / 2D Barcode Scanners</li>
             </ul>
           </div>
           <div>
-            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">Compliance &amp; Cloud</h4>
+            <h4 className="font-bold text-slate-900 mb-3 text-xs uppercase tracking-wider">GST &amp; Cloud</h4>
             <ul className="space-y-1.5 text-[11px]">
-              <li>GST Statutory Engine (CGST/SGST/IGST)</li>
-              <li>GSTR-1 &amp; GSTR-3B Auto-Formatting</li>
-              <li>HSN Commodity Code Database</li>
-              <li>Zero-Trust Branch RBAC</li>
+              <li>Instant GST Bills (CGST / SGST / IGST)</li>
+              <li>Clean Monthly Tax Summaries</li>
+              <li>HSN Code Database</li>
+              <li>Staff &amp; Cashier Float Controls</li>
               <li className="text-emerald-700 font-semibold flex items-center gap-1 mt-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                PostgreSQL Cloud Active
+                Live Cloud Sync Active
               </li>
             </ul>
           </div>
@@ -1434,12 +1435,12 @@ export function LandingPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
           <div>
-            &copy; {new Date().getFullYear()} Assistt MSME POS Platform. Built for Indian Retailers.
+            &copy; {new Date().getFullYear()} ZeeZo™ Billing. Built for Indian Businesses.
           </div>
           <div className="flex items-center gap-6 text-slate-500">
-            <span>GST Statutory Compliant</span>
-            <span>ESC/POS Standard</span>
-            <span>100% Offline Resilience</span>
+            <span>GST Ready</span>
+            <span>Thermal Bill Printing</span>
+            <span>100% Offline Support</span>
           </div>
         </div>
       </footer>

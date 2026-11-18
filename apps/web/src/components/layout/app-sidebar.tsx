@@ -156,19 +156,19 @@ export function AppSidebar({
         <div className="h-14 flex items-center justify-between px-3.5 border-b border-slate-200/80 bg-slate-50/40">
           {!collapsed ? (
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-xs shrink-0">
-                ⚡
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-900 border border-slate-200/80 shadow-xs shrink-0 flex items-center justify-center">
+                <img src="/logo.png" alt="ZeeZo Logo" className="w-full h-full object-cover" />
               </div>
               <div className="flex flex-col overflow-hidden">
                 <span className="font-bold text-xs tracking-tight text-slate-900 truncate">
-                  {activeTenant?.tenantName || 'Kirana POS'}
+                  {activeTenant?.tenantName || 'ZeeZo Billing'}
                 </span>
-                <span className="text-[10px] text-slate-500 font-medium">Enterprise v1.0</span>
+                <span className="text-[10px] text-slate-500 font-medium">POS &amp; Store Terminal</span>
               </div>
             </div>
           ) : (
-            <div className="w-8 h-8 mx-auto rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm shadow-xs">
-              ⚡
+            <div className="w-8 h-8 mx-auto rounded-full overflow-hidden bg-slate-900 border border-slate-200/80 shadow-xs flex items-center justify-center">
+              <img src="/logo.png" alt="ZeeZo Logo" className="w-full h-full object-cover" />
             </div>
           )}
 

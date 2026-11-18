@@ -3,8 +3,12 @@ import { Toaster } from 'sonner';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'POS Platform',
-  description: 'MSME Point of Sale and Business Management Platform',
+  title: 'ZeeZo™ Billing — Fast & Smart POS Platform',
+  description: 'Fast counter billing, offline POS, thermal printing, barcode scanning, and inventory management for retail shops, supermarkets, and restaurants.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

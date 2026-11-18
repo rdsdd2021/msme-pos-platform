@@ -462,10 +462,10 @@ class _MobileLoginScreenState extends ConsumerState<MobileLoginScreen> {
                           child: const Icon(Icons.point_of_sale_rounded, size: 28, color: ShadcnColors.primary),
                         ),
                         const SizedBox(height: 12),
-                        Text('Kirana POS', style: ShadcnTypography.h1),
+                        Text('ZeeZo Billing', style: ShadcnTypography.h1),
                         const SizedBox(height: 4),
                         const Text(
-                          'Enterprise Offline-First Retail POS & ERP',
+                          'Smart POS & Store Billing',
                           style: ShadcnTypography.caption,
                         ),
                       ],

@@ -27,7 +27,7 @@
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
-        android:label="Kirana POS"
+        android:label="ZeeZo Billing"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

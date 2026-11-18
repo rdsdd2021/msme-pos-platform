@@ -65,13 +65,13 @@ export default function LoginScreen({
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Branding */}
         <div className="flex flex-col items-center justify-center text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-emerald-600/20 mb-3">
-            <Store className="h-6 w-6" />
+          <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-amber-400 shadow-lg shadow-amber-500/20 mb-3 bg-slate-900 flex items-center justify-center">
+            <img src="/logo.png" alt="ZeeZo Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900">
-            ASSISTT <span className="text-emerald-600 font-extrabold">POS</span>
+            ZeeZo <span className="text-amber-500 font-extrabold">Billing</span>
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">MSME Retail, Restaurant &amp; Kirana Platform</p>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">Smart Billing &amp; Store Management for Retail &amp; Restaurants</p>
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export default function LoginScreen({
             <div className="mb-6 text-center">
               <h2 className="text-lg font-bold text-slate-900">Sign in to your Store</h2>
               <p className="text-xs text-slate-500 mt-1">
-                Live multi-tenant authentication &amp; branch RBAC
+                Access your billing counter, sales history, and inventory
               </p>
             </div>
 
@@ -258,12 +258,12 @@ export default function LoginScreen({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs font-bold text-slate-800 whitespace-nowrap">Android POS App</span>
+                    <span className="text-xs font-bold text-slate-800 whitespace-nowrap">ZeeZo Mobile App</span>
                     <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold font-mono whitespace-nowrap">
-                      v1.0.16
+                      Android
                     </span>
                   </div>
-                  <div className="text-[10px] text-slate-400 truncate">Offline SQLite &amp; Thermal Billing</div>
+                  <div className="text-[10px] text-slate-400 truncate">Works Offline &amp; Prints Thermal Bills</div>
                 </div>
               </div>
               <a
@@ -281,7 +281,7 @@ export default function LoginScreen({
         {/* Security badge */}
         <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Secure session with HttpOnly cookies &amp; SHA-256 token rotation</span>
+          <span>Secure 256-bit encrypted store connection</span>
         </div>
       </div>
     </div>

@@ -611,7 +611,7 @@ export function ReceiptDesignerModal({
 
                   <div className="border border-slate-200 rounded-xl p-3 bg-white flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-bold text-slate-800 block">Show Powered by MSME POS</span>
+                      <span className="text-xs font-bold text-slate-800 block">Show Powered by ZeeZo Billing</span>
                       <span className="text-[11px] text-slate-500">Subtle footnote branding</span>
                     </div>
                     <input
@@ -814,7 +814,7 @@ export function ReceiptDesignerModal({
               {/* Footnote Branding */}
               {config.showBranding && (
                 <div className="text-center text-[8px] text-slate-400 mt-3 pt-2 border-t border-slate-200">
-                  Powered by MSME POS Platform • pos.assistt.in
+                  Powered by ZeeZo Billing
                 </div>
               )}
             </div>

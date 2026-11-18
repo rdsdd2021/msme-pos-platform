@@ -19,11 +19,10 @@ describe('LandingPage — Marketing & Multi-Industry Modules', () => {
   it('renders marketing hero with value proposition and badges', () => {
     render(<LandingPage />);
 
-    expect(screen.getAllByText(/ASSISTT/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/The Modern/i)).toBeInTheDocument();
-    expect(screen.getByText(/Offline-First POS/i)).toBeInTheDocument();
-    expect(screen.getByText(/100% Offline SQLite/i)).toBeInTheDocument();
-    expect(screen.getByText(/GST Statutory Ready/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/ZeeZo/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Superfast Billing/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/100% Offline Ready/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Instant GST Invoicing/i)).toBeInTheDocument();
   });
 
   it('renders all 6 industry vertical module tabs', () => {
