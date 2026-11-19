@@ -1632,7 +1632,7 @@ export default function AdminDashboard({
         {loading && (
           <div className="flex items-center justify-center p-12 text-slate-500 gap-2">
             <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-sm font-medium">Loading store management data from PostgreSQL...</span>
+            <span className="text-sm font-medium">Loading store management data...</span>
           </div>
         )}
 
@@ -1855,7 +1855,7 @@ export default function AdminDashboard({
                 <div className="flex justify-between items-center">
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">Live Sales & Tax Audit Summary</h2>
-                    <p className="text-xs text-slate-500">Real-time daily aggregates from posted PostgreSQL invoices</p>
+                    <p className="text-xs text-slate-500">Real-time daily sales overview</p>
                   </div>
                   <button
                     onClick={fetchAllData}
@@ -1871,7 +1871,7 @@ export default function AdminDashboard({
                     <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-turnover">
                       ₹{report?.totalSales || '0.00'}
                     </p>
-                    <p className="text-[11px] text-emerald-600 mt-1 font-medium">Authoritative server snapshot</p>
+                    <p className="text-[11px] text-emerald-600 mt-1 font-medium">Real-time store sales</p>
                   </div>
 
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -1879,7 +1879,7 @@ export default function AdminDashboard({
                     <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-invoices">
                       {report?.invoiceCount || 0}
                     </p>
-                    <p className="text-[11px] text-slate-500 mt-1">Non-repudiable receipts</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Completed customer bills</p>
                   </div>
 
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -1901,7 +1901,7 @@ export default function AdminDashboard({
 
                 {/* Tender Breakdown Table */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                  <h3 className="font-bold text-sm text-slate-900 mb-3">Tender Method Breakdown (Live PostgreSQL)</h3>
+                  <h3 className="font-bold text-sm text-slate-900 mb-3">Payment Methods Breakdown</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {['cash', 'upi', 'card', 'credit'].map((method) => (
                       <div key={method} className="bg-slate-50 p-3 rounded-xl border border-slate-100">

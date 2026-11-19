@@ -150,8 +150,8 @@ export function CustomerMergeDialog<T extends CustomerMergeFormData = CustomerMe
             <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-[11px] text-slate-600 leading-relaxed flex items-start gap-2">
               <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
               <div>
-                <strong>Audit & Financial Safety:</strong> All invoices and Khata debt repayments are atomically
-                reassigned in a PostgreSQL transaction. The source profile is soft-deactivated and NEVER deleted.
+                <strong>Customer Safety:</strong> All past invoices and Khata store credit records will be safely
+                transferred to the target profile. The source profile is archived and no sales data is ever lost.
               </div>
             </div>
           </div>

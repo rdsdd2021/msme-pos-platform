@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
-import { Store, ShieldCheck, AlertCircle, ArrowRight, Loader2, UserCheck, Smartphone, Download, UserPlus, LogIn } from 'lucide-react';
+import { Store, ShieldCheck, AlertCircle, ArrowRight, Loader2, UserCheck, Smartphone, Download, UserPlus, LogIn, ChevronDown } from 'lucide-react';
 import { OnboardingWizard } from '@/features/onboarding/onboarding-wizard';
 
 interface LoginScreenProps {
@@ -199,17 +199,18 @@ export default function LoginScreen({
               </button>
             </form>
 
-            {/* Quick Demo Credentials */}
-            <div className="mt-6 pt-5 border-t border-slate-100">
-              <p className="text-[11px] font-semibold text-slate-400 mb-2.5 text-center uppercase tracking-wider">
-                Quick Test Credentials
-              </p>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Optional Demo Accounts (Collapsible so store owners see a clean, distraction-free form) */}
+            <details className="mt-4 pt-3 border-t border-slate-100 group text-center cursor-pointer">
+              <summary className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition list-none inline-flex items-center gap-1 mx-auto select-none">
+                <span>Want to test with a demo account?</span>
+                <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="mt-2.5 grid grid-cols-2 gap-2 text-left">
                 <button
                   type="button"
                   onClick={() => handleFillDemo('admin@kirana.dev')}
                   data-testid="demo-owner-btn"
-                  className="p-2.5 text-left bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs transition cursor-pointer group"
+                  className="p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs transition cursor-pointer group"
                 >
                   <div className="font-bold text-slate-900 flex items-center gap-1 group-hover:text-emerald-700">
                     <UserCheck className="h-3 w-3 text-emerald-600" />
@@ -221,7 +222,7 @@ export default function LoginScreen({
                   type="button"
                   onClick={() => handleFillDemo('cashier@kirana.dev')}
                   data-testid="demo-cashier-btn"
-                  className="p-2.5 text-left bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs transition cursor-pointer group"
+                  className="p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs transition cursor-pointer group"
                 >
                   <div className="font-bold text-slate-900 flex items-center gap-1 group-hover:text-blue-700">
                     <UserCheck className="h-3 w-3 text-blue-600" />
@@ -230,25 +231,7 @@ export default function LoginScreen({
                   <div className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">cashier@kirana.dev</div>
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={handleFillSuperAdmin}
-                data-testid="demo-superadmin-btn"
-                className="mt-2 w-full p-2.5 text-left bg-purple-50/70 hover:bg-purple-100/80 border border-purple-200/80 rounded-xl text-xs transition cursor-pointer group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-purple-700">
-                    <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
-                    <span>Platform Super Admin</span>
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-200/70 text-purple-800">
-                    Platform
-                  </span>
-                </div>
-                <div className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">superadmin@pos.assistt.in</div>
-              </button>
-            </div>
+            </details>
 
             {/* Android APK Direct Sideload Download */}
             <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">

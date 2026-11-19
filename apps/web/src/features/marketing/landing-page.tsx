@@ -98,9 +98,9 @@ export const INDUSTRY_MODULES: IndustryModuleInfo[] = [
         tag: 'Thermal Printing',
       },
       {
-        title: 'Atomic Offline Stock Ledger',
-        description: 'Stock deductions and invoice creation occur atomically in local SQLite with idempotent sync.',
-        tag: '100% Offline',
+        title: '100% Offline Billing & Stock Sync',
+        description: 'Never pause your billing counter. Generate bills without internet, and sync seamlessly to the cloud once reconnected.',
+        tag: 'Always Working',
       },
     ],
     terminalPreview: {

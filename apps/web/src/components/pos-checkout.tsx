@@ -675,7 +675,7 @@ export default function PosCheckoutScreen() {
           {loading ? (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-2.5">
               <div className="animate-spin h-7 w-7 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-              <span className="text-xs font-medium text-slate-500">Loading catalog from PostgreSQL...</span>
+              <span className="text-xs font-medium text-slate-500">Loading product catalog...</span>
             </div>
           ) : error ? (
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex flex-col gap-2">
@@ -1615,7 +1615,7 @@ export default function PosCheckoutScreen() {
             <DialogHeader className="bg-emerald-600 text-white p-4 shrink-0">
               <div className="flex items-center justify-between">
                 <Badge variant="outline" className="bg-emerald-700 text-white border-none w-fit text-[10px] uppercase font-bold tracking-wider">
-                  Sale Confirmed in PostgreSQL
+                  Sale Confirmed
                 </Badge>
                 <span className="text-[11px] text-emerald-100 font-mono">
                   {receiptConfig.paperWidth}mm Roll
@@ -1625,7 +1625,7 @@ export default function PosCheckoutScreen() {
                 {confirmedInvoice.invoiceNumber}
               </DialogTitle>
               <DialogDescription className="text-xs text-emerald-100">
-                Receipt generated and stock movement ledger updated atomically.
+                Receipt generated and inventory balance updated successfully.
               </DialogDescription>
             </DialogHeader>
 
