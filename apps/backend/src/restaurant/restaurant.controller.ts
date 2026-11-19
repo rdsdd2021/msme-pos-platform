@@ -25,6 +25,8 @@ import {
   TransferTableDto,
   SettleRestaurantOrderDto,
 } from './dto/restaurant.dto';
+import { UpdateRestaurantSettingsDto } from './dto/restaurant-settings.dto';
+import { ParseMenuImageDto, ImportMenuDishesDto } from './dto/ai-menu.dto';
 import { Permission, TenantContext, KitchenStation, AppModule } from '@pos/shared-types';
 import { ModuleGuard, RequireModule } from '../auth/guards/module.guard';
 
@@ -182,5 +184,50 @@ export class RestaurantController {
     @Request() req: { tenantContext: TenantContext },
   ) {
     return this.restaurantService.settleOrder(tenantId, branchId, req.tenantContext.userId, dto);
+  }
+
+  @Get('settings')
+  @RequirePermissions(Permission.RESTAURANT_TABLES_READ)
+  @ApiOperation({ summary: 'Get restaurant dining & service charge settings' })
+  @ApiQuery({ name: 'branchId', type: 'string', required: false })
+  async getSettings(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.restaurantService.getRestaurantSettings(tenantId, branchId);
+  }
+
+  @Patch('settings')
+  @RequirePermissions(Permission.RESTAURANT_TABLES_MANAGE)
+  @ApiOperation({ summary: 'Update restaurant dining & service charge settings' })
+  @ApiQuery({ name: 'branchId', type: 'string', required: false })
+  async updateSettings(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Body() dto: UpdateRestaurantSettingsDto,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.restaurantService.updateRestaurantSettings(tenantId, branchId, dto);
+  }
+
+  @Post('ai-menu/parse')
+  @RequirePermissions(Permission.CATALOG_CREATE)
+  @ApiOperation({ summary: 'Parse physical menu photo or document using AI Vision' })
+  async parseAiMenu(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Body() dto: ParseMenuImageDto,
+  ) {
+    return this.restaurantService.parseMenuImageWithAI(tenantId, dto.imageBase64, dto.mimeType);
+  }
+
+  @Post('ai-menu/import')
+  @RequirePermissions(Permission.CATALOG_CREATE)
+  @ApiOperation({ summary: 'Bulk import AI-reviewed dishes and auto-provision categories' })
+  @ApiQuery({ name: 'branchId', type: 'string', required: false })
+  async importAiMenu(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Body() dto: ImportMenuDishesDto,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.restaurantService.importMenuDishes(tenantId, dto.branchId || branchId, dto.dishes);
   }
 }

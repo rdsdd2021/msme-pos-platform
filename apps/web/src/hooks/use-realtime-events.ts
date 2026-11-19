@@ -9,6 +9,9 @@ export type RealtimeEventType =
   | 'CATALOG_CHANGED'
   | 'CUSTOMER_UPDATED'
   | 'RESTAURANT_TABLE_CHANGED'
+  | 'KOT_CREATED'
+  | 'KOT_STATUS_CHANGED'
+  | 'RESTAURANT_SETTINGS_CHANGED'
   | 'HEARTBEAT';
 
 export interface RealtimeEventPayload {
@@ -28,9 +31,51 @@ export interface UseRealtimeEventsOptions {
   onCatalogChanged?: (data: any) => void;
   onCustomerUpdated?: (data: any) => void;
   onRestaurantTableChanged?: (data: any) => void;
+  onKotCreated?: (data: any) => void;
+  onKotStatusChanged?: (data: any) => void;
+  onRestaurantSettingsChanged?: (data: any) => void;
   /** Silent periodic polling fallback interval in ms (default: 30000ms) */
   pollIntervalMs?: number;
   onPoll?: () => void;
+}
+
+/**
+ * Synthesizes a pleasant dual-tone kitchen order chime (D5 -> A5)
+ * using the native browser Web Audio API without requiring external audio files.
+ */
+export function playKitchenChime() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    
+    // First tone (587.33 Hz - D5)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.35);
+
+    // Second tone (880 Hz - A5)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(880.0, ctx.currentTime + 0.15);
+    gain2.gain.setValueAtTime(0.25, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.6);
+  } catch {
+    // Silently continue if audio context is blocked by user gesture policy
+  }
 }
 
 export function useRealtimeEvents({
@@ -42,6 +87,9 @@ export function useRealtimeEvents({
   onCatalogChanged,
   onCustomerUpdated,
   onRestaurantTableChanged,
+  onKotCreated,
+  onKotStatusChanged,
+  onRestaurantSettingsChanged,
   pollIntervalMs = 30000,
   onPoll,
 }: UseRealtimeEventsOptions) {
@@ -55,6 +103,9 @@ export function useRealtimeEvents({
     onCatalogChanged,
     onCustomerUpdated,
     onRestaurantTableChanged,
+    onKotCreated,
+    onKotStatusChanged,
+    onRestaurantSettingsChanged,
   });
 
   // Keep latest callbacks in ref without triggering reconnection loops
@@ -67,6 +118,9 @@ export function useRealtimeEvents({
       onCatalogChanged,
       onCustomerUpdated,
       onRestaurantTableChanged,
+      onKotCreated,
+      onKotStatusChanged,
+      onRestaurantSettingsChanged,
     };
   });
 
@@ -112,6 +166,15 @@ export function useRealtimeEvents({
               break;
             case 'RESTAURANT_TABLE_CHANGED':
               cb.onRestaurantTableChanged?.(payload.data);
+              break;
+            case 'KOT_CREATED':
+              cb.onKotCreated?.(payload.data);
+              break;
+            case 'KOT_STATUS_CHANGED':
+              cb.onKotStatusChanged?.(payload.data);
+              break;
+            case 'RESTAURANT_SETTINGS_CHANGED':
+              cb.onRestaurantSettingsChanged?.(payload.data);
               break;
           }
         } catch {

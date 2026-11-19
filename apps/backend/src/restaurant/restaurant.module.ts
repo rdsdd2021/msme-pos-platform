@@ -7,6 +7,8 @@ import { RestaurantOrderEntity } from './entities/restaurant-order.entity';
 import { RestaurantKotEntity } from './entities/restaurant-kot.entity';
 import { RestaurantKotLineEntity } from './entities/restaurant-kot-line.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
+import { CategoryEntity } from '../catalog/entities/category.entity';
+import { TenantEntity } from '../tenants/entities/tenant.entity';
 import { TenantsModule } from '../tenants/tenants.module';
 import { BillingModule } from '../billing/billing.module';
 import { AuthModule } from '../auth/auth.module';
@@ -19,6 +21,8 @@ import { AuthModule } from '../auth/auth.module';
       RestaurantKotEntity,
       RestaurantKotLineEntity,
       ProductEntity,
+      CategoryEntity,
+      TenantEntity,
     ]),
     TenantsModule,
     BillingModule,

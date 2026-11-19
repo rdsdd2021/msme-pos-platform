@@ -8,6 +8,9 @@ export type RealtimeEventType =
   | 'CATALOG_CHANGED'
   | 'CUSTOMER_UPDATED'
   | 'RESTAURANT_TABLE_CHANGED'
+  | 'KOT_CREATED'
+  | 'KOT_STATUS_CHANGED'
+  | 'RESTAURANT_SETTINGS_CHANGED'
   | 'HEARTBEAT';
 
 export interface RealtimeEvent<T = any> {

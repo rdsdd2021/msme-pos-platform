@@ -8,6 +8,8 @@ import { RestaurantOrderEntity } from './entities/restaurant-order.entity';
 import { RestaurantKotEntity } from './entities/restaurant-kot.entity';
 import { RestaurantKotLineEntity } from './entities/restaurant-kot-line.entity';
 import { ProductEntity } from '../catalog/entities/product.entity';
+import { CategoryEntity } from '../catalog/entities/category.entity';
+import { TenantEntity } from '../tenants/entities/tenant.entity';
 import { BillingService } from '../billing/billing.service';
 import {
   TableStatus,
@@ -56,6 +58,25 @@ describe('RestaurantService', () => {
   const mockProductRepo = {
     find: jest.fn(),
     findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'prod-uuid-1', ...dto })),
+    save: jest.fn().mockImplementation((prod) => Promise.resolve(prod)),
+  };
+
+  const mockCategoryRepo = {
+    find: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'cat-uuid-1', ...dto })),
+    save: jest.fn().mockImplementation((cat) => Promise.resolve(cat)),
+  };
+
+  const mockTenantRepo = {
+    findOne: jest.fn().mockResolvedValue({
+      id: 'tenant-1',
+      name: 'Test Tenant',
+      settings: {},
+    }),
+    save: jest.fn().mockImplementation((t) => Promise.resolve(t)),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
 
   const mockBillingService = {
@@ -91,6 +112,8 @@ describe('RestaurantService', () => {
         { provide: getRepositoryToken(RestaurantKotEntity), useValue: mockKotRepo },
         { provide: getRepositoryToken(RestaurantKotLineEntity), useValue: mockKotLineRepo },
         { provide: getRepositoryToken(ProductEntity), useValue: mockProductRepo },
+        { provide: getRepositoryToken(CategoryEntity), useValue: mockCategoryRepo },
+        { provide: getRepositoryToken(TenantEntity), useValue: mockTenantRepo },
         { provide: BillingService, useValue: mockBillingService },
         { provide: DataSource, useValue: mockDataSource },
       ],
@@ -420,6 +443,77 @@ describe('RestaurantService', () => {
         }),
       );
       expect(result.order.status).toBe(RestaurantOrderStatus.COMPLETED);
+    });
+  });
+
+  describe('Restaurant Settings', () => {
+    it('returns default dining settings when tenant has no custom settings', async () => {
+      mockTenantRepo.findOne.mockResolvedValue({
+        id: 'tenant-1',
+        name: 'Kirana Store',
+        settings: {},
+      });
+
+      const settings = await service.getRestaurantSettings('tenant-1');
+      expect(settings).toBeDefined();
+      expect(settings.defaultGstPercent).toBe('5.00');
+      expect(settings.floorSections.length).toBeGreaterThan(0);
+    });
+
+    it('updates dining settings and persists into tenant.settings.diningSettings', async () => {
+      mockTenantRepo.findOne.mockResolvedValue({
+        id: 'tenant-1',
+        name: 'Fine Dining Resto',
+        settings: {},
+      });
+
+      const updated = await service.updateRestaurantSettings('tenant-1', 'branch-1', {
+        serviceChargePercent: '5.00',
+        defaultGstPercent: '5.00',
+        autoPrintKotOnFire: true,
+      });
+
+      expect(mockTenantRepo.save).toHaveBeenCalled();
+      expect(updated.serviceChargePercent).toBe('5.00');
+      expect(updated.autoPrintKotOnFire).toBe(true);
+    });
+  });
+
+  describe('AI Menu Parse & Import', () => {
+    it('falls back gracefully to parsed sample dishes when Gemini API key is not present', async () => {
+      const result = await service.parseMenuImageWithAI('tenant-1', 'mockBase64String', 'image/jpeg');
+      expect(result).toBeDefined();
+      expect(result.dishes.length).toBeGreaterThan(0);
+      expect(result.dishes[0]).toHaveProperty('name');
+      expect(result.dishes[0]).toHaveProperty('price');
+      expect(result.dishes[0]).toHaveProperty('category');
+    });
+
+    it('imports dishes and auto-provisions missing categories and products', async () => {
+      mockCategoryRepo.find.mockResolvedValue([]);
+      mockCategoryRepo.save.mockImplementation((c) => Promise.resolve({ id: 'cat-123', ...c }));
+      mockProductRepo.save.mockImplementation((p) => Promise.resolve({ id: 'prod-123', ...p }));
+
+      const importResult = await service.importMenuDishes('tenant-1', 'branch-1', [
+        {
+          name: 'Butter Naan',
+          price: '40.00',
+          category: 'Breads',
+          foodType: 'veg',
+          kitchenStation: 'tandoor',
+        },
+        {
+          name: 'Chicken Biryani',
+          price: '240.00',
+          category: 'Biryani & Rice',
+          foodType: 'non_veg',
+          kitchenStation: 'kitchen',
+        },
+      ]);
+
+      expect(importResult.importedCount).toBe(2);
+      expect(importResult.categoriesCreated).toBe(2);
+      expect(importResult.dishes.length).toBe(2);
     });
   });
 });

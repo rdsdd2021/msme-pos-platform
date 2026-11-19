@@ -1079,6 +1079,44 @@ export interface SettleRestaurantOrderRequest {
   customerId?: string;
 }
 
+export interface FloorSectionConfig {
+  id: string;
+  name: string;
+  defaultCapacity: number;
+  tableCount: number;
+}
+
+export interface RestaurantSettings {
+  floorSections: FloorSectionConfig[];
+  defaultGstPercent: string;
+  serviceChargePercent: string;
+  packagingCharge: string;
+  autoPrintKotOnFire: boolean;
+  autoPrintBillOnSettle: boolean;
+  defaultKitchenStation: string;
+}
+
+export interface ParsedMenuDishItem {
+  name: string;
+  price: string;
+  category: string;
+  foodType?: 'veg' | 'non_veg' | 'egg';
+  kitchenStation?: 'kitchen' | 'bar' | 'desserts' | 'tandoor';
+  hsnCode?: string;
+}
+
+export interface ParseMenuResponse {
+  dishes: ParsedMenuDishItem[];
+  totalExtracted: number;
+  provider: 'gemini-vision' | 'mock-fallback';
+}
+
+export interface ImportMenuResponse {
+  importedCount: number;
+  categoriesCreated: number;
+  dishes: any[];
+}
+
 class ApiClient {
   private baseUrl: string;
   private accessToken: string | null = null;
@@ -1880,6 +1918,45 @@ class ApiClient {
     return this.request(`/tenants/${tenantId}/restaurant/orders/settle?branchId=${branchId}`, {
       method: 'POST',
       body: JSON.stringify(dto),
+    });
+  }
+
+  async getRestaurantSettings(tenantId: string, branchId?: string): Promise<RestaurantSettings> {
+    const q = branchId ? `?branchId=${branchId}` : '';
+    return this.request<RestaurantSettings>(`/tenants/${tenantId}/restaurant/settings${q}`);
+  }
+
+  async updateRestaurantSettings(
+    tenantId: string,
+    payload: Partial<RestaurantSettings>,
+    branchId?: string,
+  ): Promise<RestaurantSettings> {
+    const q = branchId ? `?branchId=${branchId}` : '';
+    return this.request<RestaurantSettings>(`/tenants/${tenantId}/restaurant/settings${q}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async parseMenuImage(
+    tenantId: string,
+    imageBase64: string,
+    mimeType?: string,
+  ): Promise<ParseMenuResponse> {
+    return this.request<ParseMenuResponse>(`/tenants/${tenantId}/restaurant/ai-menu/parse`, {
+      method: 'POST',
+      body: JSON.stringify({ imageBase64, mimeType }),
+    });
+  }
+
+  async importMenuDishes(
+    tenantId: string,
+    branchId: string,
+    dishes: ParsedMenuDishItem[],
+  ): Promise<ImportMenuResponse> {
+    return this.request<ImportMenuResponse>(`/tenants/${tenantId}/restaurant/ai-menu/import?branchId=${branchId}`, {
+      method: 'POST',
+      body: JSON.stringify({ dishes, branchId }),
     });
   }
 }

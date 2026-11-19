@@ -208,6 +208,15 @@ export function TableOrderDrawer({
         onRefreshTable();
       }
     },
+    onKotCreated: () => {
+      loadOrderData();
+      if (draftItems.length === 0) {
+        onRefreshTable();
+      }
+    },
+    onKotStatusChanged: () => {
+      loadOrderData();
+    },
     onPoll: () => {
       loadOrderData();
       if (draftItems.length === 0) {

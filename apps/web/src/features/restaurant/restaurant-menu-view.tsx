@@ -24,6 +24,7 @@ import {
 import { apiClient, Product, Category } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { RestaurantDishModal } from './restaurant-dish-modal';
+import { RestaurantAiMenuModal } from './restaurant-ai-menu-modal';
 import { FoodDietaryType, KitchenStation } from '@pos/shared-types';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 
@@ -48,6 +49,7 @@ export function RestaurantMenuView() {
   const [selectedStation, setSelectedStation] = useState<string>('ALL');
   const [selectedCourse, setSelectedCourse] = useState<string>('All Courses');
   const [dishModalOpen, setDishModalOpen] = useState(false);
+  const [aiMenuModalOpen, setAiMenuModalOpen] = useState(false);
   const [dishToEdit, setDishToEdit] = useState<Product | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -266,6 +268,16 @@ export function RestaurantMenuView() {
             >
               <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? 'animate-spin text-blue-600' : 'text-slate-500'}`} />
               <span>Refresh Menu</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setAiMenuModalOpen(true)}
+              data-testid="btn-ai-menu-upload"
+              className="h-9 px-3.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 font-bold text-xs gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              <span>AI Menu Upload</span>
             </Button>
             <Button
               size="sm"
@@ -530,6 +542,15 @@ export function RestaurantMenuView() {
         dishToEdit={dishToEdit}
         tenantId={activeTenantId}
         onSuccess={() => {
+          fetchDishes();
+        }}
+      />
+
+      {/* AI Assisted Menu Upload Modal */}
+      <RestaurantAiMenuModal
+        open={aiMenuModalOpen}
+        onOpenChange={setAiMenuModalOpen}
+        onImportSuccess={() => {
           fetchDishes();
         }}
       />

@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { RestaurantFloorplanView } from '../restaurant-floorplan-view';
 import { SplitBillModal } from '../split-bill-modal';
 import { KitchenDisplayView } from '../kitchen-display-view';
+import { RestaurantSettingsView } from '../restaurant-settings-view';
+import { RestaurantAiMenuModal } from '../restaurant-ai-menu-modal';
 import {
   apiClient,
   RestaurantTable,
@@ -49,6 +51,10 @@ jest.mock('@/lib/api-client', () => {
       transferRestaurantTable: jest.fn(),
       settleRestaurantOrder: jest.fn(),
       getProducts: jest.fn().mockResolvedValue([]),
+      getRestaurantSettings: jest.fn(),
+      updateRestaurantSettings: jest.fn(),
+      parseMenuImage: jest.fn(),
+      importMenuDishes: jest.fn(),
     },
   };
 });
@@ -374,6 +380,107 @@ describe('Restaurant & Cafe Module UI Tests', () => {
           'kot-test-1',
           KotStatus.PREPARING,
         );
+      });
+    });
+
+    it('toggles kitchen chime sound setting', async () => {
+      (apiClient.getRestaurantKdsQueue as jest.Mock).mockResolvedValue(mockKdsTickets);
+      render(<KitchenDisplayView />);
+
+      const chimeBtn = screen.getByRole('button', { name: /Muted/i });
+      expect(chimeBtn).toBeInTheDocument();
+
+      fireEvent.click(chimeBtn);
+      expect(screen.getByRole('button', { name: /Chime Active/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('RestaurantSettingsView', () => {
+    it('loads and displays dining settings and allows saving', async () => {
+      (apiClient.getRestaurantSettings as jest.Mock).mockResolvedValue({
+        floorSections: [
+          { id: 'ac', name: 'AC Dining Hall', defaultCapacity: 4, tableCount: 6 },
+        ],
+        defaultGstPercent: '5.00',
+        serviceChargePercent: '0.00',
+        packagingCharge: '10.00',
+        autoPrintKotOnFire: false,
+        autoPrintBillOnSettle: true,
+        defaultKitchenStation: 'main_kitchen',
+      });
+      (apiClient.updateRestaurantSettings as jest.Mock).mockResolvedValue({
+        floorSections: [
+          { id: 'ac', name: 'AC Dining Hall', defaultCapacity: 4, tableCount: 6 },
+        ],
+        defaultGstPercent: '5.00',
+      });
+
+      render(<RestaurantSettingsView />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Floor & Dining Sections/i)).toBeInTheDocument();
+        expect(screen.getByDisplayValue('AC Dining Hall')).toBeInTheDocument();
+      });
+
+      const saveBtn = screen.getByRole('button', { name: /Save Dining Settings/i });
+      fireEvent.click(saveBtn);
+
+      await waitFor(() => {
+        expect(apiClient.updateRestaurantSettings).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('RestaurantAiMenuModal', () => {
+    it('opens upload modal and executes quick sample menu scan', async () => {
+      (apiClient.parseMenuImage as jest.Mock).mockResolvedValue({
+        dishes: [
+          {
+            name: 'Paneer Tikka',
+            price: '220.00',
+            category: 'Starters',
+            foodType: 'veg',
+            kitchenStation: 'tandoor',
+          },
+        ],
+        totalExtracted: 1,
+        provider: 'gemini-vision',
+      });
+      (apiClient.importMenuDishes as jest.Mock).mockResolvedValue({
+        importedCount: 1,
+        categoriesCreated: 1,
+        dishes: [],
+      });
+
+      const handleImportSuccess = jest.fn();
+      render(
+        <RestaurantAiMenuModal
+          open={true}
+          onOpenChange={jest.fn()}
+          onImportSuccess={handleImportSuccess}
+        />,
+      );
+
+      expect(screen.getByText(/AI Assisted Menu Upload/i)).toBeInTheDocument();
+      expect(screen.getByText(/Gemini Vision/i)).toBeInTheDocument();
+
+      // Click "Try with Sample Menu"
+      const sampleBtn = screen.getByRole('button', { name: /Try with Sample Menu/i });
+      fireEvent.click(sampleBtn);
+
+      await waitFor(() => {
+        expect(apiClient.parseMenuImage).toHaveBeenCalled();
+        expect(screen.getByDisplayValue('Paneer Tikka')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('220.00')).toBeInTheDocument();
+      });
+
+      // Click Save & Import
+      const importBtn = screen.getByRole('button', { name: /Save & Import 1 Dishes/i });
+      fireEvent.click(importBtn);
+
+      await waitFor(() => {
+        expect(apiClient.importMenuDishes).toHaveBeenCalled();
+        expect(handleImportSuccess).toHaveBeenCalled();
       });
     });
   });

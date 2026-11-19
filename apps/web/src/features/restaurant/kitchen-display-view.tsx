@@ -12,7 +12,7 @@ import {
   apiClient,
 } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
-import { useRealtimeEvents } from '@/hooks/use-realtime-events';
+import { useRealtimeEvents, playKitchenChime } from '@/hooks/use-realtime-events';
 import {
   ChefHat,
   Clock,
@@ -64,14 +64,26 @@ export function KitchenDisplayView() {
     return () => clearInterval(interval);
   }, [fetchKdsQueue, autoRefresh]);
 
-  // Real-time live KDS updates on order placement / table changes
+  // Real-time live KDS updates on order placement / table changes / KOT dispatch
   useRealtimeEvents({
     tenantId: activeTenant?.tenantId,
     enabled: autoRefresh,
+    onKotCreated: () => {
+      if (soundEnabled) {
+        playKitchenChime();
+      }
+      fetchKdsQueue();
+    },
+    onKotStatusChanged: () => {
+      fetchKdsQueue();
+    },
     onRestaurantTableChanged: () => {
       fetchKdsQueue();
     },
     onOrderCreated: () => {
+      if (soundEnabled) {
+        playKitchenChime();
+      }
       fetchKdsQueue();
     },
     onPoll: () => {
@@ -157,11 +169,15 @@ export function KitchenDisplayView() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              if (next) playKitchenChime();
+            }}
             className="border-slate-700 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-xs h-8 gap-1.5"
           >
             {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
-            {soundEnabled ? 'Chime On' : 'Muted'}
+            {soundEnabled ? 'Chime Active' : 'Muted'}
           </Button>
 
           <Button

@@ -22,6 +22,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { TableOrderDrawer } from './table-order-drawer';
 import { SplitBillModal } from './split-bill-modal';
 import { RestaurantMenuModal } from './restaurant-menu-modal';
+import { RestaurantSettingsView } from './restaurant-settings-view';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 import {
   UtensilsCrossed,
@@ -37,6 +38,7 @@ import {
   Receipt,
   ChefHat,
   Layers,
+  Settings,
 } from 'lucide-react';
 
 interface RestaurantFloorplanViewProps {
@@ -59,6 +61,7 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
   // Quick Settle Modal
   const [quickSettleOrder, setQuickSettleOrder] = useState<RestaurantOrder | null>(null);
   const [quickSettleOpen, setQuickSettleOpen] = useState(false);
+  const [diningSettingsOpen, setDiningSettingsOpen] = useState(false);
 
   // Add Table Modal
   const [addTableOpen, setAddTableOpen] = useState(false);
@@ -95,10 +98,19 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
     fetchTables();
   }, [activeTenant?.tenantId, activeBranch?.id]);
 
-  // Live Realtime updates when mobile waiters or other cashiers update tables
+  // Live Realtime updates when mobile waiters or other cashiers update tables or KOTs
   useRealtimeEvents({
     tenantId: activeTenant?.tenantId,
     onRestaurantTableChanged: () => {
+      fetchTables();
+    },
+    onKotCreated: () => {
+      fetchTables();
+    },
+    onKotStatusChanged: () => {
+      fetchTables();
+    },
+    onRestaurantSettingsChanged: () => {
       fetchTables();
     },
     onPoll: () => {
@@ -261,6 +273,16 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
               <ChefHat className="w-4 h-4 text-amber-500" /> Kitchen Screen (KDS)
             </Button>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDiningSettingsOpen(true)}
+            data-testid="btn-dining-settings"
+            className="gap-1.5 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-50"
+          >
+            <Settings className="w-4 h-4 text-slate-500" /> Dining Settings
+          </Button>
 
           {tables.length === 0 && (
             <Button
@@ -650,6 +672,25 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
         onOpenChange={setMenuModalOpen}
         tenantId={activeTenant?.tenantId}
       />
+
+      {/* Restaurant Dining & KOT Settings Modal */}
+      <Dialog
+        open={diningSettingsOpen}
+        onOpenChange={(isOpen) => {
+          setDiningSettingsOpen(isOpen);
+          if (!isOpen) fetchTables();
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto p-6 bg-slate-50 text-slate-900 border-slate-200">
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-base font-black flex items-center gap-2 text-slate-900">
+              <Settings className="w-5 h-5 text-blue-600" />
+              Restaurant Dining &amp; KOT Settings
+            </DialogTitle>
+          </DialogHeader>
+          <RestaurantSettingsView />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

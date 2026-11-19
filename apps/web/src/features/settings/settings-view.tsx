@@ -17,6 +17,7 @@ import {
   Percent,
   Receipt,
   Sparkles,
+  Utensils,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { BranchesView } from './branches-view';
 import { DevicesView } from './devices-view';
 import { SubscriptionView } from './subscription-view';
+import { RestaurantSettingsView } from '@/features/restaurant/restaurant-settings-view';
 import {
   ReceiptDesignConfig,
   DEFAULT_RECEIPT_CONFIG,
@@ -33,7 +35,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { Branch, Device, Subscription } from '@/lib/api-client';
 
-export type SettingsSubTab = 'profile' | 'receipt' | 'billing' | 'branches' | 'devices' | 'subscription';
+export type SettingsSubTab = 'profile' | 'receipt' | 'billing' | 'dining' | 'branches' | 'devices' | 'subscription';
 
 export interface SettingsViewProps {
   initialTab?: SettingsSubTab;
@@ -231,6 +233,20 @@ export function SettingsView({
           >
             <Receipt className="h-3.5 w-3.5" />
             <span>Billing &amp; Invoicing</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('dining')}
+            data-testid="settings-tab-dining"
+            className={cn(
+              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+              activeTab === 'dining'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            )}
+          >
+            <Utensils className="h-3.5 w-3.5" />
+            <span>Dining &amp; KOT</span>
           </button>
 
           <button
@@ -798,6 +814,11 @@ export function SettingsView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* --- SUB-TAB: RESTAURANT & DINING SETTINGS --- */}
+      {activeTab === 'dining' && (
+        <RestaurantSettingsView />
       )}
 
       {/* --- SUB-TAB 4: BRANCHES & GSTIN --- */}
