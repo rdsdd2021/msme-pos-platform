@@ -1390,7 +1390,7 @@ Return ONLY raw JSON in this exact structure:
               return {
                 dishes: mapped,
                 totalExtracted: mapped.length,
-                provider: 'gemini',
+                provider: 'gemini-vision',
               };
             }
           }

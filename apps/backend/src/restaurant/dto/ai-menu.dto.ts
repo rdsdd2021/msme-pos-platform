@@ -59,5 +59,5 @@ export interface ParseMenuResponse {
     confidence: number;
   }>;
   totalExtracted: number;
-  provider: 'gemini' | 'mock-fallback';
+  provider: 'gemini-vision' | 'gemini' | 'mock-fallback';
 }

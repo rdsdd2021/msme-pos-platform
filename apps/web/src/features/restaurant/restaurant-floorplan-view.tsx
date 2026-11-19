@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { TableStatus } from '@pos/shared-types';
@@ -687,6 +688,9 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
               <Settings className="w-5 h-5 text-blue-600" />
               Restaurant Dining &amp; KOT Settings
             </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Configure floor sections, seating capacities, restaurant GST rate, and KOT printer routing.
+            </DialogDescription>
           </DialogHeader>
           <RestaurantSettingsView />
         </DialogContent>

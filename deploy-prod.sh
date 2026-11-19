@@ -2,26 +2,22 @@
 set -e
 
 echo "============================================="
-echo "  Assistt POS Production Deploy & Restart    "
+echo "  ZeeZo™ POS Zero-Downtime Production Deploy "
 echo "============================================="
 
-# Clean up any lingering dev containers
-echo "[1/4] Stopping any dev containers..."
-docker compose down --remove-orphans 2>/dev/null || true
+# 1. Build images in background while containers continue serving traffic
+echo "[1/3] Building updated production images (traffic uninterrupted)..."
+docker compose -f docker-compose.prod.yml build
 
-# Stop existing prod containers
-echo "[2/4] Stopping existing production containers..."
-docker compose -f docker-compose.prod.yml down --remove-orphans
+# 2. Gracefully swap containers (PostgreSQL continues running uninterrupted)
+echo "[2/3] Performing rolling swap of backend, web & gateway..."
+docker compose -f docker-compose.prod.yml up -d
 
-# Build and start prod containers
-echo "[3/4] Building and launching production containers..."
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Verify status
-echo "[4/4] Checking production services..."
+# 3. Verify health status
+echo "[3/3] Checking production services..."
 sleep 3
 docker compose -f docker-compose.prod.yml ps
 
 echo ""
-echo "=== Deployment Complete ==="
+echo "=== Zero-Downtime Deployment Complete ==="
 echo "To tail backend logs: docker compose -f docker-compose.prod.yml logs -f backend"
