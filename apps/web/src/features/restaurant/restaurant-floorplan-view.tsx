@@ -105,6 +105,9 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
     onRestaurantTableChanged: () => {
       fetchTables();
     },
+    onOrderCreated: () => {
+      fetchTables();
+    },
     onKotCreated: () => {
       fetchTables();
     },
@@ -112,6 +115,9 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
       fetchTables();
     },
     onRestaurantSettingsChanged: () => {
+      fetchTables();
+    },
+    onCatalogChanged: () => {
       fetchTables();
     },
     onPoll: () => {

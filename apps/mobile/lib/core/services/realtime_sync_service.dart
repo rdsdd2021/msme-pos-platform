@@ -41,9 +41,17 @@ class RealtimeSyncService {
 
     try {
       final authRepo = _ref.read(authRepositoryProvider);
-      final token = await authRepo.getAccessToken();
+      var token = await authRepo.getAccessToken();
       final authState = _ref.read(authProvider);
       final tenantId = authState.activeMembership?.tenantId;
+
+      if (token == null || tenantId == null) {
+        // Try refreshing tokens once in case memory token cleared
+        try {
+          await authRepo.refreshTokens();
+          token = await authRepo.getAccessToken();
+        } catch (_) {}
+      }
 
       if (token == null || tenantId == null) {
         _isConnecting = false;
@@ -76,11 +84,14 @@ class RealtimeSyncService {
         (line) {
           _handleLine(line);
         },
-        onError: (err) {
+        onError: (err) async {
           debugPrint('[RealtimeSync] Stream error: $err');
+          try {
+            await authRepo.refreshTokens();
+          } catch (_) {}
           _scheduleReconnect(const Duration(seconds: 5));
         },
-        onDone: () {
+        onDone: () async {
           debugPrint('[RealtimeSync] Stream closed by server');
           _scheduleReconnect(const Duration(seconds: 5));
         },
@@ -89,6 +100,13 @@ class RealtimeSyncService {
     } catch (e) {
       _isConnecting = false;
       debugPrint('[RealtimeSync] Connect error: $e');
+      // If error is 401 Unauthorized, refresh tokens before retrying
+      if (e is DioException && e.response?.statusCode == 401) {
+        try {
+          final authRepo = _ref.read(authRepositoryProvider);
+          await authRepo.refreshTokens();
+        } catch (_) {}
+      }
       _scheduleReconnect(const Duration(seconds: 8));
     }
   }
@@ -111,7 +129,10 @@ class RealtimeSyncService {
           type == 'STOCK_CHANGED' ||
           type == 'ORDER_CREATED' ||
           type == 'CUSTOMER_UPDATED' ||
-          type == 'RESTAURANT_TABLE_CHANGED') {
+          type == 'RESTAURANT_TABLE_CHANGED' ||
+          type == 'KOT_CREATED' ||
+          type == 'KOT_STATUS_CHANGED' ||
+          type == 'RESTAURANT_SETTINGS_CHANGED') {
         _ref.read(syncStateProvider.notifier).syncNow();
       }
     } catch (e) {

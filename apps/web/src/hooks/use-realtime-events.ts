@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 
 export type RealtimeEventType =
@@ -93,8 +93,10 @@ export function useRealtimeEvents({
   pollIntervalMs = 30000,
   onPoll,
 }: UseRealtimeEventsOptions) {
+  const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isDestroyedRef = useRef(false);
   const onPollRef = useRef(onPoll);
   const callbacksRef = useRef({
     onEvent,
@@ -125,10 +127,19 @@ export function useRealtimeEvents({
   });
 
   const connect = useCallback(() => {
-    if (!enabled || !tenantId || typeof window === 'undefined') return;
+    if (isDestroyedRef.current || !enabled || !tenantId || typeof window === 'undefined') {
+      return;
+    }
 
     const token = typeof apiClient?.getAccessToken === 'function' ? apiClient.getAccessToken() : null;
-    if (!token) return;
+    if (!token) {
+      // If auth is still hydrating, retry in 1000ms until token is available
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (!isDestroyedRef.current) connect();
+      }, 1000);
+      return;
+    }
 
     // Clean up any existing connection
     if (eventSourceRef.current) {
@@ -142,6 +153,12 @@ export function useRealtimeEvents({
     try {
       const es = new EventSource(url);
       eventSourceRef.current = es;
+
+      es.onopen = () => {
+        if (!isDestroyedRef.current) {
+          setIsConnected(true);
+        }
+      };
 
       es.onmessage = (message) => {
         try {
@@ -182,24 +199,59 @@ export function useRealtimeEvents({
         }
       };
 
-      es.onerror = () => {
+      es.onerror = async () => {
+        if (!isDestroyedRef.current) {
+          setIsConnected(false);
+        }
         es.close();
         eventSourceRef.current = null;
-        // Exponential backoff reconnect
+
+        // In case 401 token expiry caused the disconnect, attempt silent refresh before reconnecting
+        try {
+          if (typeof apiClient?.handleTokenRefresh === 'function') {
+            await apiClient.handleTokenRefresh();
+          }
+        } catch {
+          // ignore refresh error, reconnect timer will retry
+        }
+
+        // Schedule resilient reconnection
         if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
-        }, 5000);
+          if (!isDestroyedRef.current) {
+            connect();
+          }
+        }, 3000);
       };
     } catch {
-      // EventSource instantiation failed
+      // EventSource instantiation failed - schedule retry
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (!isDestroyedRef.current) {
+          connect();
+        }
+      }, 5000);
     }
   }, [enabled, tenantId]);
 
   useEffect(() => {
+    isDestroyedRef.current = false;
+
+    // Immediately connect
     connect();
 
+    // Listen to token arrival or refresh so SSE connects the instant auth succeeds
+    const unsubscribeToken = typeof apiClient?.onTokenChange === 'function'
+      ? apiClient.onTokenChange((newToken) => {
+          if (newToken && !isDestroyedRef.current) {
+            connect();
+          }
+        })
+      : undefined;
+
     return () => {
+      isDestroyedRef.current = true;
+      if (unsubscribeToken) unsubscribeToken();
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -208,10 +260,11 @@ export function useRealtimeEvents({
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+      setIsConnected(false);
     };
   }, [connect]);
 
-  // Periodic polling fallback
+  // Periodic polling fallback ensuring data is never stale even during temporary network drops
   useEffect(() => {
     if (!enabled || !tenantId || pollIntervalMs <= 0) return;
 
@@ -221,5 +274,8 @@ export function useRealtimeEvents({
 
     return () => clearInterval(interval);
   }, [enabled, tenantId, pollIntervalMs]);
+
+  return { isConnected };
 }
+
 

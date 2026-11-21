@@ -1124,6 +1124,7 @@ class ApiClient {
   private activeBranchId: string | null = null;
   private isRefreshing = false;
   private refreshSubscribers: ((token: string) => void)[] = [];
+  private tokenListeners: ((token: string | null) => void)[] = [];
 
   constructor() {
     // In the browser, always default to '/api/v1' relative path to prevent any localhost leaks
@@ -1140,11 +1141,28 @@ class ApiClient {
   }
 
   setAccessToken(token: string | null): void {
+    const changed = this.accessToken !== token;
     this.accessToken = token;
+    if (changed) {
+      this.tokenListeners.forEach((cb) => {
+        try {
+          cb(token);
+        } catch {
+          // ignore callback error
+        }
+      });
+    }
   }
 
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  onTokenChange(callback: (token: string | null) => void): () => void {
+    this.tokenListeners.push(callback);
+    return () => {
+      this.tokenListeners = this.tokenListeners.filter((cb) => cb !== callback);
+    };
   }
 
   getBaseUrl(): string {
@@ -1219,7 +1237,7 @@ class ApiClient {
     }
   }
 
-  private async handleTokenRefresh(): Promise<string | null> {
+  async handleTokenRefresh(): Promise<string | null> {
     if (this.isRefreshing) {
       return new Promise((resolve) => {
         this.refreshSubscribers.push(resolve);

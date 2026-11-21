@@ -95,7 +95,12 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
     final resolvedDeviceId = deviceId ?? await AppConfig.getDeviceId();
     final authState = _ref.read(authProvider);
-    final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+    final tenantId = authState.activeMembership?.tenantId;
+    if (tenantId == null) {
+      // User is not authenticated with an active store membership yet
+      state = state.copyWith(isSyncing: false, status: SyncStatus.idle);
+      return false;
+    }
     final branchId = authState.activeMembership?.branchId;
 
     try {
