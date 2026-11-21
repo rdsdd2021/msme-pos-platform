@@ -6,6 +6,7 @@ import '../../core/providers/catalog_provider.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
 import 'widgets/add_edit_restaurant_dish_dialog.dart';
+import 'widgets/ai_menu_upload_dialog.dart';
 
 class RestaurantMenuScreen extends ConsumerStatefulWidget {
   const RestaurantMenuScreen({super.key});
@@ -41,6 +42,15 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
     showDialog(
       context: context,
       builder: (ctx) => const AddEditRestaurantDishDialog(),
+    );
+  }
+
+  void _openAiMenuScanDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const AiMenuUploadDialog(),
     );
   }
 
@@ -132,6 +142,11 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
             onPressed: () => ref.read(catalogProvider.notifier).loadCatalog(),
           ),
           IconButton(
+            icon: const Icon(Icons.auto_awesome, color: Color(0xFFF59E0B)),
+            tooltip: 'AI Menu Scan',
+            onPressed: _openAiMenuScanDialog,
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add Dish',
             onPressed: _openAddDishDialog,
@@ -140,6 +155,50 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
       ),
       body: Column(
         children: [
+          // AI Menu Scanner Quick Prompt Banner
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [const Color(0xFFF59E0B).withOpacity(0.12), const Color(0xFFF59E0B).withOpacity(0.04)],
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.35)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 18, color: Color(0xFFD97706)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Upload Paper Menu with AI',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                      ),
+                      Text(
+                        'Snap a photo of your paper menu to auto-import dishes & prices',
+                        style: TextStyle(fontSize: 10.5, color: ShadcnColors.mutedForeground),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    minimumSize: const Size(50, 28),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: _openAiMenuScanDialog,
+                  child: const Text('Scan', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
           // KPI Metric Header Strip
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -281,15 +340,26 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
                         ),
                         if (allProducts.isEmpty) ...[
                           const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: ShadcnColors.primary,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                            ),
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Add First Dish'),
-                            onPressed: _openAddDishDialog,
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFD97706),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                ),
+                                icon: const Icon(Icons.auto_awesome, size: 18),
+                                label: const Text('Scan Menu with AI'),
+                                onPressed: _openAiMenuScanDialog,
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Add Dish'),
+                                onPressed: _openAddDishDialog,
+                              ),
+                            ],
                           ),
                         ],
                       ],

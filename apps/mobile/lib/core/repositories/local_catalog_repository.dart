@@ -418,5 +418,13 @@ class LocalCatalogRepository {
       }
     } catch (_) {}
   }
+
+  /// Batch insert dishes or products into local SQLite
+  Future<void> batchInsertProducts(List<LocalProductsCompanion> companions) async {
+    await _ensureColumnsExist();
+    await _db.batch((batch) {
+      batch.insertAllOnConflictUpdate(_db.localProducts, companions);
+    });
+  }
 }
 

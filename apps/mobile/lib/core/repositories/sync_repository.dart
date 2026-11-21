@@ -243,5 +243,158 @@ class SyncRepository {
       throw Exception('Pull failed: HTTP ${status ?? dioErr.type.name}');
     }
   }
+
+  /// Parse physical menu photo or document using backend Gemini Vision AI
+  Future<Map<String, dynamic>> parseAiMenu({
+    required String tenantId,
+    required String imageBase64,
+    String mimeType = 'image/jpeg',
+    bool isTestMode = false,
+  }) async {
+    final token = await _authRepo.getAccessToken();
+
+    // Fast-path test/offline mock
+    if (isTestMode ||
+        (token?.startsWith('demo-jwt-') == true && _baseUrl.contains('10.0.2.2')) ||
+        _baseUrl.contains('test-mock')) {
+      return {
+        'dishes': [
+          {
+            'name': 'Paneer Butter Masala',
+            'price': '260.00',
+            'category': 'Main Course',
+            'foodType': 'veg',
+            'kitchenStation': 'main_kitchen',
+            'hsnCode': '21069099',
+            'confidence': 0.95,
+          },
+          {
+            'name': 'Butter Naan',
+            'price': '50.00',
+            'category': 'Breads',
+            'foodType': 'veg',
+            'kitchenStation': 'tandoor',
+            'hsnCode': '19059090',
+            'confidence': 0.98,
+          },
+          {
+            'name': 'Chicken Biryani',
+            'price': '320.00',
+            'category': 'Rice & Biryani',
+            'foodType': 'non_veg',
+            'kitchenStation': 'main_kitchen',
+            'hsnCode': '21069099',
+            'confidence': 0.94,
+          },
+        ],
+        'totalExtracted': 3,
+        'provider': 'gemini-vision',
+      };
+    }
+
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/api/v1/tenants/$tenantId/restaurant/ai-menu/parse',
+        data: {
+          'imageBase64': imageBase64,
+          'mimeType': mimeType,
+        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+          sendTimeout: const Duration(seconds: 45),
+          receiveTimeout: const Duration(seconds: 45),
+        ),
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (dioErr) {
+      if (dioErr.response?.statusCode == 401) {
+        final refreshedToken = await _authRepo.refreshTokens();
+        if (refreshedToken != null && refreshedToken.isNotEmpty) {
+          final retryResponse = await _dio.post(
+            '$_baseUrl/api/v1/tenants/$tenantId/restaurant/ai-menu/parse',
+            data: {
+              'imageBase64': imageBase64,
+              'mimeType': mimeType,
+            },
+            options: Options(
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $refreshedToken',
+              },
+              sendTimeout: const Duration(seconds: 45),
+              receiveTimeout: const Duration(seconds: 45),
+            ),
+          );
+          return retryResponse.data as Map<String, dynamic>;
+        }
+      }
+      final msg = dioErr.response?.data?['message'] ?? dioErr.message;
+      throw Exception(msg ?? 'Failed to analyze menu photo with AI');
+    }
+  }
+
+  /// Bulk import AI parsed menu dishes
+  Future<Map<String, dynamic>> importAiMenu({
+    required String tenantId,
+    String? branchId,
+    required List<Map<String, dynamic>> dishes,
+    bool isTestMode = false,
+  }) async {
+    final token = await _authRepo.getAccessToken();
+
+    if (isTestMode ||
+        (token?.startsWith('demo-jwt-') == true && _baseUrl.contains('10.0.2.2')) ||
+        _baseUrl.contains('test-mock')) {
+      return {
+        'importedCount': dishes.length,
+        'categoriesCreated': 1,
+        'dishes': dishes,
+      };
+    }
+
+    try {
+      final query = (branchId != null && branchId.isNotEmpty) ? '?branchId=$branchId' : '';
+      final response = await _dio.post(
+        '$_baseUrl/api/v1/tenants/$tenantId/restaurant/ai-menu/import$query',
+        data: {
+          'dishes': dishes,
+          if (branchId != null) 'branchId': branchId,
+        },
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (dioErr) {
+      if (dioErr.response?.statusCode == 401) {
+        final refreshedToken = await _authRepo.refreshTokens();
+        if (refreshedToken != null && refreshedToken.isNotEmpty) {
+          final query = (branchId != null && branchId.isNotEmpty) ? '?branchId=$branchId' : '';
+          final retryResponse = await _dio.post(
+            '$_baseUrl/api/v1/tenants/$tenantId/restaurant/ai-menu/import$query',
+            data: {
+              'dishes': dishes,
+              if (branchId != null) 'branchId': branchId,
+            },
+            options: Options(
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $refreshedToken',
+              },
+            ),
+          );
+          return retryResponse.data as Map<String, dynamic>;
+        }
+      }
+      final msg = dioErr.response?.data?['message'] ?? dioErr.message;
+      throw Exception(msg ?? 'Failed to import menu dishes');
+    }
+  }
 }
 

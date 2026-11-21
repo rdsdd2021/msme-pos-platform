@@ -136,7 +136,12 @@ export default function LoginScreen({
                 className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-start gap-2.5"
               >
                 <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
-                <span>{validationError || error}</span>
+                <span>
+                  {validationError ||
+                    (error?.toLowerCase().includes('internal server error')
+                      ? 'Unable to connect to billing service. Please try again or click a demo account below.'
+                      : error)}
+                </span>
               </div>
             )}
 
@@ -154,7 +159,7 @@ export default function LoginScreen({
                   data-testid="login-email-input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@kirana.dev"
+                  placeholder="e.g. owner@yourstore.com"
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition shadow-2xs"
                 />
               </div>
@@ -174,8 +179,8 @@ export default function LoginScreen({
                   data-testid="login-password-input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition shadow-2xs font-mono"
+                  placeholder="Enter your password"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-xs placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition shadow-2xs"
                 />
               </div>
 
@@ -199,18 +204,20 @@ export default function LoginScreen({
               </button>
             </form>
 
-            {/* Optional Demo Accounts (Collapsible so store owners see a clean, distraction-free form) */}
-            <details className="mt-4 pt-3 border-t border-slate-100 group text-center cursor-pointer">
-              <summary className="text-[11px] font-medium text-slate-400 hover:text-slate-600 transition list-none inline-flex items-center gap-1 mx-auto select-none">
-                <span>Want to test with a demo account?</span>
-                <ChevronDown className="w-3 h-3 transition-transform group-open:rotate-180" />
-              </summary>
-              <div className="mt-2.5 grid grid-cols-2 gap-2 text-left">
+            {/* Quick 1-Click Demo Accounts */}
+            <div className="mt-4 pt-3.5 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  1-Click Demo Logins
+                </span>
+                <span className="text-[10px] text-emerald-600 font-medium">Ready to test</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-left">
                 <button
                   type="button"
                   onClick={() => handleFillDemo('admin@kirana.dev')}
                   data-testid="demo-owner-btn"
-                  className="p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs transition cursor-pointer group"
+                  className="p-2.5 bg-slate-50 hover:bg-emerald-50/70 border border-slate-200/80 hover:border-emerald-200 rounded-xl text-xs transition cursor-pointer group"
                 >
                   <div className="font-bold text-slate-900 flex items-center gap-1 group-hover:text-emerald-700">
                     <UserCheck className="h-3 w-3 text-emerald-600" />
@@ -222,7 +229,7 @@ export default function LoginScreen({
                   type="button"
                   onClick={() => handleFillDemo('cashier@kirana.dev')}
                   data-testid="demo-cashier-btn"
-                  className="p-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-xl text-xs transition cursor-pointer group"
+                  className="p-2.5 bg-slate-50 hover:bg-blue-50/70 border border-slate-200/80 hover:border-blue-200 rounded-xl text-xs transition cursor-pointer group"
                 >
                   <div className="font-bold text-slate-900 flex items-center gap-1 group-hover:text-blue-700">
                     <UserCheck className="h-3 w-3 text-blue-600" />
@@ -231,7 +238,7 @@ export default function LoginScreen({
                   <div className="text-[10px] text-slate-500 truncate mt-0.5 font-mono">cashier@kirana.dev</div>
                 </button>
               </div>
-            </details>
+            </div>
 
             {/* Android APK Direct Sideload Download */}
             <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
