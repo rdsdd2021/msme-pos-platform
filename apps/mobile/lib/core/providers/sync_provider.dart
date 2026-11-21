@@ -104,11 +104,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
     final branchId = authState.activeMembership?.branchId;
 
     try {
-      final result = await _worker.synchronize(
-        tenantId: tenantId,
-        deviceId: resolvedDeviceId,
-        branchId: branchId,
-      );
+      final result = await _worker
+          .synchronize(
+            tenantId: tenantId,
+            deviceId: resolvedDeviceId,
+            branchId: branchId,
+          )
+          .timeout(const Duration(seconds: 15));
 
       final count = await _worker.getPendingCount();
       final lastTime = await _worker.getLastSyncTime();
@@ -153,6 +155,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
         status: SyncStatus.offline,
       );
       return false;
+    } finally {
+      if (state.isSyncing) {
+        state = state.copyWith(isSyncing: false);
+      }
     }
   }
 }

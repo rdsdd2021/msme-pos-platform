@@ -66,8 +66,9 @@ class CatalogState {
 class CatalogNotifier extends StateNotifier<CatalogState> {
   final LocalCatalogRepository _repo;
   final String? activeTenantId;
+  final Ref? _ref;
 
-  CatalogNotifier(this._repo, [this.activeTenantId])
+  CatalogNotifier(this._repo, [this.activeTenantId, this._ref])
       : super(const CatalogState(allProducts: initialProducts, isLoading: false)) {
     _init();
   }
@@ -172,6 +173,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       tenantId: resolvedTenantId,
     );
     state = state.copyWith(allProducts: [newProduct, ...state.allProducts]);
+    _ref?.read(syncStateProvider.notifier).syncNow();
     return newProduct;
   }
 
@@ -179,6 +181,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     await _repo.updateProduct(product);
     final updated = state.allProducts.map((p) => p.id == product.id ? product : p).toList();
     state = state.copyWith(allProducts: updated);
+    _ref?.read(syncStateProvider.notifier).syncNow();
   }
 
   Future<void> adjustStock({
@@ -207,6 +210,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       return p;
     }).toList();
     state = state.copyWith(allProducts: updated);
+    _ref?.read(syncStateProvider.notifier).syncNow();
   }
 
   Future<void> reload([String? tenantId]) async {
@@ -220,5 +224,5 @@ final catalogProvider = StateNotifierProvider<CatalogNotifier, CatalogState>((re
   final repo = ref.watch(localCatalogRepoProvider);
   final authState = ref.watch(authProvider);
   final tenantId = authState.activeMembership?.tenantId;
-  return CatalogNotifier(repo, tenantId);
+  return CatalogNotifier(repo, tenantId, ref);
 });

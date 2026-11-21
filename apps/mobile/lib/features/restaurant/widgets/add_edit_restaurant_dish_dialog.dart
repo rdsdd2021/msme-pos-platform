@@ -123,8 +123,19 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final authState = ref.read(authProvider);
+    final tenantId = authState.activeMembership?.tenantId ??
+        authState.user?.primaryMembership?.tenantId ??
+        '';
+
+    if (tenantId.isEmpty || tenantId == 'tenant-1') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please wait for store session to connect before adding dishes.')),
+      );
+      setState(() => _isSaving = false);
+      return;
+    }
     setState(() => _isSaving = true);
-    final tenantId = ref.read(authProvider).activeMembership?.tenantId ?? 'tenant-1';
 
     try {
       final name = _nameController.text.trim();

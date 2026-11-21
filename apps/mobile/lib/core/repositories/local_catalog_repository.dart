@@ -419,11 +419,82 @@ class LocalCatalogRepository {
     } catch (_) {}
   }
 
-  /// Batch insert dishes or products into local SQLite
-  Future<void> batchInsertProducts(List<LocalProductsCompanion> companions) async {
+  /// Batch insert dishes or products into local SQLite and queue for cloud sync outbox
+  Future<void> batchInsertProducts(List<LocalProductsCompanion> companions, {String? deviceId}) async {
+    if (companions.isEmpty) return;
     await _ensureColumnsExist();
-    await _db.batch((batch) {
-      batch.insertAllOnConflictUpdate(_db.localProducts, companions);
+    final resolvedDeviceId = (deviceId != null && deviceId.isNotEmpty && deviceId != 'pos-mobile-01')
+        ? deviceId
+        : await AppConfig.getDeviceId();
+    final now = DateTime.now();
+
+    await _db.transaction(() async {
+      await _db.batch((batch) {
+        batch.insertAllOnConflictUpdate(_db.localProducts, companions);
+      });
+
+      // Atomically queue each product into syncOutbox
+      for (int i = 0; i < companions.length; i++) {
+        final c = companions[i];
+        final pid = c.id.value;
+        final name = c.name.value;
+        final sku = c.sku.value;
+        final category = c.categoryName.value;
+        final sellingPaisa = c.sellingPricePaisa.value;
+        final costPaisa = c.purchaseCostPaisa.present ? (c.purchaseCostPaisa.value ?? 0) : 0;
+        final gstRate = c.gstRatePercent.present ? (c.gstRatePercent.value ?? 0.0) : 0.0;
+        final unit = c.unit.present ? (c.unit.value ?? 'PCS') : 'PCS';
+        final stock = c.stockQuantity.present ? (c.stockQuantity.value ?? 0.0) : 0.0;
+        final barcode = c.barcode.present ? c.barcode.value : null;
+        final hsn = c.hsnCode.present ? c.hsnCode.value : null;
+        final img = c.imageUrl.present ? c.imageUrl.value : null;
+        final foodType = c.foodType.present ? c.foodType.value : null;
+        final station = c.kitchenStation.present ? c.kitchenStation.value : null;
+        final prepTime = c.prepTimeMinutes.present ? c.prepTimeMinutes.value : null;
+        final isAvail = c.isAvailable.present ? (c.isAvailable.value ?? true) : true;
+        final isMade = c.isMadeToOrder.present ? (c.isMadeToOrder.value ?? false) : false;
+        final variantsStr = c.variantsJson.present ? c.variantsJson.value : null;
+        dynamic variants;
+        if (variantsStr != null && variantsStr.isNotEmpty) {
+          try {
+            variants = jsonDecode(variantsStr);
+          } catch (_) {}
+        }
+
+        await _db.into(_db.syncOutbox).insert(
+          SyncOutboxCompanion.insert(
+            operationId: const Uuid().v4(),
+            deviceId: resolvedDeviceId,
+            sequence: (now.millisecondsSinceEpoch + i) % 1000000,
+            operationType: 'CREATE_PRODUCT',
+            schemaVersion: const Value(1),
+            payload: jsonEncode({
+              'id': pid,
+              'productId': pid,
+              'name': name.trim(),
+              'sku': sku.trim().toUpperCase(),
+              'barcode': barcode?.trim(),
+              'category': (category ?? 'General').trim(),
+              'sellingPrice': (sellingPaisa / 100.0).toStringAsFixed(2),
+              'costPrice': (costPaisa / 100.0).toStringAsFixed(2),
+              'taxRate': gstRate.toString(),
+              'hsnCode': hsn?.trim(),
+              'unit': unit,
+              'initialStock': stock,
+              'imageUrl': img,
+              'foodType': foodType,
+              'kitchenStation': station,
+              'prepTimeMinutes': prepTime,
+              'isAvailable': isAvail,
+              'isMadeToOrder': isMade,
+              'variants': variants,
+            }),
+            status: const Value('pending'),
+            retryCount: const Value(0),
+            createdAt: Value(now),
+          ),
+        );
+      }
     });
   }
 }

@@ -113,6 +113,7 @@ class LocalRestaurantRepository {
   /// Atomically dispatch a KOT ticket: updates table to 'ordered', persists lines, enqueues DISPATCH_KOT in SyncOutbox
   Future<String> dispatchKotAtomic({
     required String tableId,
+    String? tableNumber,
     required String orderId,
     required List<CartItem> lines,
     required String captainName,
@@ -123,9 +124,19 @@ class LocalRestaurantRepository {
     final kotId = const Uuid().v4();
     final now = DateTime.now();
 
+    // Resolve human-readable table number so a 36-char table UUID is never used as table_number_snapshot
+    String resolvedTableNumber = tableNumber ?? '';
+    if (resolvedTableNumber.isEmpty || resolvedTableNumber == tableId) {
+      final tblRow = await (_db.select(_db.localRestaurantTables)
+            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+          .getSingleOrNull();
+      resolvedTableNumber = tblRow?.tableNumber ?? tblRow?.name ?? (tableId.length <= 16 ? tableId : 'T-01');
+    }
+
     final syncPayload = {
       'orderId': orderId,
       'tableId': tableId,
+      'tableNumber': resolvedTableNumber,
       'branchId': branchId,
       'captainName': captainName,
       'lines': lines.map((i) => {
@@ -157,7 +168,7 @@ class LocalRestaurantRepository {
 
       if (existingOrder == null) {
         final activeOrderForTable = await (_db.select(_db.localRestaurantOrders)
-              ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId))
+              ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId) | o.tableNumberSnapshot.equals(resolvedTableNumber))
               ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
               ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]))
             .get();
@@ -172,7 +183,7 @@ class LocalRestaurantRepository {
               orderNumber: Value('ORD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}'),
               orderType: Value(isTakeaway ? 'takeaway' : 'dine_in'),
               tableId: Value(tableId),
-              tableNumberSnapshot: Value(tableId),
+              tableNumberSnapshot: Value(resolvedTableNumber),
               sectionSnapshot: const Value('Main Dining'),
               guestCount: const Value(2),
               status: const Value('ordered'),

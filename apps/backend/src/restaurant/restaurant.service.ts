@@ -628,7 +628,7 @@ export class RestaurantService {
           orderNumber,
           orderType: isTakeaway ? RestaurantOrderType.TAKEAWAY : RestaurantOrderType.DINE_IN,
           tableId: table?.id || null,
-          tableNumberSnapshot: table?.tableNumber || dto.tableId || 'Takeaway',
+          tableNumberSnapshot: table?.tableNumber || ((dto as any).tableNumber ? String((dto as any).tableNumber).slice(0, 32) : (dto.tableId && !isUuid(String(dto.tableId)) ? String(dto.tableId).slice(0, 32) : 'Takeaway')),
           sectionSnapshot: table?.section || 'Main Dining',
           guestCount: table?.currentGuestCount || 2,
           status: RestaurantOrderStatus.OPEN,
@@ -700,10 +700,22 @@ export class RestaurantService {
         if (p.sku) productMap.set(p.sku, p);
       }
 
-      const kotCount = await manager.count(RestaurantKotEntity, {
+      const orderKotCount = await manager.count(RestaurantKotEntity, {
         where: { tenantId, branchId, orderId: order.id },
       });
-      const kotNumber = `KOT-${(kotCount + 1).toString().padStart(2, '0')}`;
+      const orderNumPart = order.orderNumber ? order.orderNumber.replace('ORD-', '') : Date.now().toString().slice(-6);
+      let candidateKotNumber = isTest
+        ? `KOT-${(orderKotCount + 1).toString().padStart(2, '0')}`
+        : `KOT-${orderNumPart}-${(orderKotCount + 1).toString().padStart(2, '0')}`;
+      const existingKot = !isTest
+        ? await manager.findOne(RestaurantKotEntity, {
+            where: { tenantId, branchId, kotNumber: candidateKotNumber },
+          })
+        : null;
+      if (existingKot) {
+        candidateKotNumber = `KOT-${orderNumPart}-${(orderKotCount + 1).toString().padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+      }
+      const kotNumber = candidateKotNumber;
 
       const kot = manager.create(RestaurantKotEntity, {
         tenantId,

@@ -145,10 +145,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     try {
       final restRepo = ref.read(localRestaurantRepoProvider);
       final authState = ref.read(authProvider);
-      final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+      final tenantId = authState.activeMembership?.tenantId ??
+          authState.user?.primaryMembership?.tenantId ??
+          '';
       final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
           ? authState.activeBranchId!
-          : (authState.activeMembership?.branchId ?? 'branch-1');
+          : (authState.activeMembership?.branchId ?? authState.user?.primaryMembership?.branchId ?? '');
       final deviceId = await AppConfig.getDeviceId();
       final captainName = authState.user?.fullName ?? 'Captain';
 
@@ -156,6 +158,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
 
       await restRepo.dispatchKotAtomic(
         tableId: currentTable.id,
+        tableNumber: currentTable.name,
         orderId: orderId,
         lines: deltaLines,
         captainName: captainName,
@@ -213,10 +216,12 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     try {
       final restRepo = ref.read(localRestaurantRepoProvider);
       final authState = ref.read(authProvider);
-      final tenantId = authState.activeMembership?.tenantId ?? 'tenant-1';
+      final tenantId = authState.activeMembership?.tenantId ??
+          authState.user?.primaryMembership?.tenantId ??
+          '';
       final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
           ? authState.activeBranchId!
-          : (authState.activeMembership?.branchId ?? 'branch-1');
+          : (authState.activeMembership?.branchId ?? authState.user?.primaryMembership?.branchId ?? '');
       final deviceId = await AppConfig.getDeviceId();
 
       await restRepo.markTableBilledAtomic(

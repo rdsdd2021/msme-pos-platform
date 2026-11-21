@@ -281,6 +281,7 @@ class RestaurantState {
 class RestaurantNotifier extends StateNotifier<RestaurantState> {
   static const _storageKey = 'cached_restaurant_tables_v1';
   final LocalRestaurantRepository? _repo;
+  final Ref? _ref;
   dynamic _tablesSubscription;
 
   static final List<RestaurantTable> _defaultTables = [
@@ -306,7 +307,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     const RestaurantTable(id: 'TAK-02', name: 'Takeaway Counter 2', section: 'Takeaway', capacity: 1),
   ];
 
-  RestaurantNotifier([this._repo]) : super(RestaurantState(tables: _defaultTables)) {
+  RestaurantNotifier([this._repo, this._ref]) : super(RestaurantState(tables: _defaultTables)) {
     if (_repo != null) {
       _initFromRepo();
     } else {
@@ -688,5 +689,5 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
 final restaurantProvider = StateNotifierProvider<RestaurantNotifier, RestaurantState>((ref) {
   final repo = ref.watch(localRestaurantRepoProvider);
-  return RestaurantNotifier(repo);
+  return RestaurantNotifier(repo, ref);
 });

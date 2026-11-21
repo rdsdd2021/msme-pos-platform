@@ -38,7 +38,7 @@ export class RestaurantOrderEntity {
   @Column({ name: 'table_id', type: 'uuid', nullable: true })
   tableId!: string | null;
 
-  @Column({ name: 'table_number_snapshot', type: 'varchar', length: 32, nullable: true })
+  @Column({ name: 'table_number_snapshot', type: 'varchar', length: 64, nullable: true })
   tableNumberSnapshot!: string | null;
 
   @Column({ name: 'section_snapshot', type: 'varchar', length: 64, nullable: true })
