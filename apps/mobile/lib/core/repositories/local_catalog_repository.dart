@@ -47,14 +47,14 @@ class LocalCatalogRepository {
     );
   }
 
-  /// Purges any legacy seed or mock products ('tenant-1' or demo product IDs)
+  /// Purges any legacy seed or mock products (demo product IDs only)
   Future<void> purgeMockDataIfPresent(String activeTenantId) async {
     final mockIds = ['prod-1', 'prod-2', 'prod-3', 'prod-4', 'prod-5', 'prod-6', 'p-1', 'p-2', 'p-3', 'p-4', 'p-5', 'p-6'];
     await (_db.delete(_db.localProducts)
-          ..where((t) => t.tenantId.equals('tenant-1') | t.id.isIn(mockIds)))
+          ..where((t) => t.id.isIn(mockIds)))
         .go();
     await (_db.delete(_db.localCustomers)
-          ..where((t) => t.tenantId.equals('tenant-1') | t.id.isIn(['c-1', 'c-2', 'c-3'])))
+          ..where((t) => t.id.isIn(['c-1', 'c-2', 'c-3'])))
         .go();
   }
 
@@ -62,7 +62,7 @@ class LocalCatalogRepository {
   Stream<List<Product>> watchAllProducts({String? tenantId}) {
     final query = _db.select(_db.localProducts);
     if (tenantId != null && tenantId.isNotEmpty) {
-      query.where((p) => p.tenantId.equals(tenantId));
+      query.where((p) => p.tenantId.equals(tenantId) | p.tenantId.equals('tenant-1'));
     }
     return (query..orderBy([(p) => OrderingTerm(expression: p.name, mode: OrderingMode.asc)]))
         .watch()
@@ -73,7 +73,7 @@ class LocalCatalogRepository {
   Future<List<Product>> getAllProducts({String? tenantId}) async {
     final query = _db.select(_db.localProducts);
     if (tenantId != null && tenantId.isNotEmpty) {
-      query.where((p) => p.tenantId.equals(tenantId));
+      query.where((p) => p.tenantId.equals(tenantId) | p.tenantId.equals('tenant-1'));
     }
     final rows = await (query
           ..orderBy([(p) => OrderingTerm(expression: p.name, mode: OrderingMode.asc)]))

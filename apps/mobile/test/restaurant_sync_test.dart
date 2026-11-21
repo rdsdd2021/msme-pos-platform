@@ -175,5 +175,15 @@ void main() {
       expect(result.restaurantOrders.length, 1);
       expect(result.restaurantOrders.first['orderNumber'], 'ORD-101');
     });
+
+    test('updateTableStatus updates local table status in SQLite', () async {
+      await repo.updateTableStatus('tbl-test-1', 'seated');
+      final updated = await (db.select(db.localRestaurantTables)..where((t) => t.id.equals('tbl-test-1'))).getSingle();
+      expect(updated.status, 'seated');
+
+      await repo.updateTableStatus('tbl-test-1', 'vacant');
+      final vacantTbl = await (db.select(db.localRestaurantTables)..where((t) => t.id.equals('tbl-test-1'))).getSingle();
+      expect(vacantTbl.status, 'vacant');
+    });
   });
 }

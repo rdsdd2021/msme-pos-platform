@@ -142,8 +142,14 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     bool isAvailable = true,
     bool isMadeToOrder = false,
     List<ProductVariant>? variants,
-    String tenantId = 'tenant-1',
+    String? tenantId,
   }) async {
+    final resolvedTenantId = (tenantId != null && tenantId.isNotEmpty && tenantId != 'tenant-1')
+        ? tenantId
+        : (activeTenantId != null && activeTenantId!.isNotEmpty
+            ? activeTenantId!
+            : 'tenant-1');
+
     final newProduct = await _repo.createProduct(
       name: name,
       sku: sku,
@@ -163,7 +169,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       isAvailable: isAvailable,
       isMadeToOrder: isMadeToOrder,
       variants: variants,
-      tenantId: tenantId,
+      tenantId: resolvedTenantId,
     );
     state = state.copyWith(allProducts: [newProduct, ...state.allProducts]);
     return newProduct;

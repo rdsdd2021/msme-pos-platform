@@ -85,10 +85,24 @@ void main() {
       final products = await catalogRepo.getAllProducts();
       expect(products.length, 3);
 
-      // Verify purge routine purges legacy mock data
+      // Insert legacy mock product
+      await db.into(db.localProducts).insert(
+        LocalProductsCompanion.insert(
+          id: 'prod-1',
+          tenantId: 'tenant-1',
+          sku: 'MOCK-01',
+          name: 'Mock Legacy Product',
+          sellingPricePaisa: 1000,
+        ),
+      );
+      final withMock = await catalogRepo.getAllProducts();
+      expect(withMock.length, 4);
+
+      // Verify purge routine purges legacy mock data without deleting user products
       await catalogRepo.purgeMockDataIfPresent('test-tenant');
       final productsAfterPurge = await catalogRepo.getAllProducts();
-      expect(productsAfterPurge.length, 0);
+      expect(productsAfterPurge.length, 3);
+      expect(productsAfterPurge.any((p) => p.id == 'prod-1'), isFalse);
     });
 
     test('finds product by barcode or SKU and deducts stock in SQLite', () async {

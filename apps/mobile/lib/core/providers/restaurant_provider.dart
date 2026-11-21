@@ -352,12 +352,20 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       List<CartItem> confirmedLines;
       int confirmedCount;
 
-      if (parsedStatus == TableStatus.vacant || parsedStatus == TableStatus.dirty) {
-        // Table is vacant or dirty: completely reset active lines and confirmed count
+      // If the table is vacant or dirty in SQLite, BUT the waiter currently has active uncommitted draft items in memory,
+      // we must preserve those draft lines and keep the table seated so items do not disappear during background sync.
+      final hasLocalDraft = existing != null && (existing.hasNewItems || existing.activeOrderLines.isNotEmpty);
+
+      if ((parsedStatus == TableStatus.vacant || parsedStatus == TableStatus.dirty) && !hasLocalDraft) {
+        // Table is legitimately vacant or dirty with no active local order: reset active lines and confirmed count
         activeLines = const [];
         confirmedLines = const [];
         confirmedCount = 0;
       } else {
+        if (hasLocalDraft && (parsedStatus == TableStatus.vacant || parsedStatus == TableStatus.dirty)) {
+          parsedStatus = existing?.status == TableStatus.ordered ? TableStatus.ordered : TableStatus.seated;
+        }
+
         // Query committed lines from local SQLite (populated by sync pull or local KOT outbox)
         final dbLines = await _repo?.getTableActiveCartItems(tblId) ?? [];
         if (dbLines.isNotEmpty) {
@@ -365,16 +373,16 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           confirmedLines = dbLines;
           confirmedCount = dbLines.fold<int>(0, (sum, i) => sum + i.quantity);
 
-          // If waiter has uncommitted local draft items added in-memory, preserve the delta
+          // If waiter has uncommitted local draft items added in-memory, accurately preserve the delta
           if (existing != null && existing.hasNewItems) {
             final committedMap = <String, int>{};
             for (final l in dbLines) {
-              final k = '${l.product.id}_${l.notes ?? ""}';
+              final k = '${l.lineKey}_${l.notes ?? ""}';
               committedMap[k] = (committedMap[k] ?? 0) + l.quantity;
             }
             final uncommittedLines = <CartItem>[];
             for (final localLine in existing.activeOrderLines) {
-              final k = '${localLine.product.id}_${localLine.notes ?? ""}';
+              final k = '${localLine.lineKey}_${localLine.notes ?? ""}';
               final committedQty = committedMap[k] ?? 0;
               final diff = localLine.quantity - committedQty;
               if (diff > 0) {
@@ -512,6 +520,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
     state = state.copyWith(tables: updated);
     _saveToCache();
+    _repo?.updateTableStatus(tableId, 'seated');
   }
 
   void markOrderConfirmed(String tableId) {

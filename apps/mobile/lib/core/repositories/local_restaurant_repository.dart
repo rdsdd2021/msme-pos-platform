@@ -342,4 +342,18 @@ class LocalRestaurantRepository {
       );
     });
   }
+
+  /// Update table status locally without queuing external outbox mutation
+  Future<void> updateTableStatus(String tableId, String status) async {
+    try {
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+          .write(
+        LocalRestaurantTablesCompanion(
+          status: Value(status),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    } catch (_) {}
+  }
 }

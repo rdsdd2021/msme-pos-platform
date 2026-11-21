@@ -23,7 +23,7 @@ class LocalCustomerRepository {
   /// Purges any legacy mock customers
   Future<void> purgeMockCustomersIfPresent() async {
     await (_db.delete(_db.localCustomers)
-          ..where((t) => t.tenantId.equals('tenant-1') | t.id.isIn(['c-1', 'c-2', 'c-3'])))
+          ..where((t) => t.id.isIn(['c-1', 'c-2', 'c-3'])))
         .go();
   }
 
@@ -31,7 +31,7 @@ class LocalCustomerRepository {
   Stream<List<Customer>> watchAllCustomers({String? tenantId}) {
     final query = _db.select(_db.localCustomers);
     if (tenantId != null && tenantId.isNotEmpty) {
-      query.where((c) => c.tenantId.equals(tenantId));
+      query.where((c) => c.tenantId.equals(tenantId) | c.tenantId.equals('tenant-1'));
     }
     return (query..orderBy([(c) => OrderingTerm(expression: c.name, mode: OrderingMode.asc)]))
         .watch()
@@ -42,7 +42,7 @@ class LocalCustomerRepository {
   Future<List<Customer>> getAllCustomers({String? tenantId}) async {
     final query = _db.select(_db.localCustomers);
     if (tenantId != null && tenantId.isNotEmpty) {
-      query.where((c) => c.tenantId.equals(tenantId));
+      query.where((c) => c.tenantId.equals(tenantId) | c.tenantId.equals('tenant-1'));
     }
     final rows = await (query
           ..orderBy([(c) => OrderingTerm(expression: c.name, mode: OrderingMode.asc)]))

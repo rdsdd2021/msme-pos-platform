@@ -5,6 +5,7 @@ import 'package:pos_mobile/core/database/app_database.dart';
 import 'package:pos_mobile/core/models/cart_item.dart';
 import 'package:pos_mobile/core/models/product.dart';
 import 'package:pos_mobile/core/providers/restaurant_provider.dart';
+import 'package:pos_mobile/core/providers/cart_provider.dart';
 import 'package:pos_mobile/core/repositories/local_catalog_repository.dart';
 import 'package:pos_mobile/features/restaurant/restaurant_tables_screen.dart';
 import 'package:pos_mobile/features/restaurant/table_order_sheet.dart';
@@ -340,6 +341,51 @@ void main() {
 
       final afterUpdate = await repo.getAllProducts(tenantId: 'tenant-test');
       expect(afterUpdate.first.isAvailable, isFalse);
+
+      await db.close();
+    });
+
+    test('CartNotifier allows made-to-order culinary dishes with 0 on-hand stock', () {
+      final cartNotifier = CartNotifier();
+      final madeToOrderDish = Product(
+        id: 'dish-chef-special',
+        name: 'Chef Special Paneer',
+        sku: 'DISH-999',
+        category: 'Main Course',
+        unit: 'PORTION',
+        sellingPricePaisa: 35000,
+        purchaseCostPaisa: 0,
+        gstRate: 5,
+        currentStock: 0.0,
+        isMadeToOrder: true,
+      );
+
+      final added = cartNotifier.addProduct(madeToOrderDish);
+      expect(added, isTrue);
+      expect(cartNotifier.state.items.length, 1);
+      expect(cartNotifier.state.items.first.product.id, 'dish-chef-special');
+      expect(cartNotifier.state.items.first.quantity, 1);
+    });
+
+    test('purgeMockDataIfPresent does NOT wipe user-created products with fallback tenantId', () async {
+      final db = AppDatabase.inMemory();
+      final repo = LocalCatalogRepository(db);
+
+      // Create a user product under tenant-1
+      final userProduct = await repo.createProduct(
+        name: 'Gulab Jamun',
+        sku: 'DISH-GJ-1',
+        category: 'Dessert',
+        sellingPricePaisa: 6000,
+        tenantId: 'tenant-1',
+      );
+
+      // Purge mock data
+      await repo.purgeMockDataIfPresent('tenant-1');
+
+      // Product must still exist!
+      final all = await repo.getAllProducts(tenantId: 'tenant-1');
+      expect(all.any((p) => p.id == userProduct.id), isTrue);
 
       await db.close();
     });

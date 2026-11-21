@@ -29,8 +29,9 @@ class CartNotifier extends StateNotifier<CartState> {
     final existingIndex = state.items.indexWhere((item) => item.product.id == product.id);
     final currentQty = existingIndex >= 0 ? state.items[existingIndex].quantity : 0;
 
-    // Stock Ceiling Enforcement (Rule 15: Cannot add more than on-hand stock)
-    if (!allowNegativeStock && (currentQty + 1) > product.currentStock) {
+    // Stock Ceiling Enforcement (Rule 15: Cannot add more than on-hand stock for inventory-tracked items)
+    // Made-to-order dishes or culinary items prepared on demand are not restricted by warehouse stock
+    if (!product.isMadeToOrder && !allowNegativeStock && (currentQty + 1) > product.currentStock) {
       return false;
     }
 
