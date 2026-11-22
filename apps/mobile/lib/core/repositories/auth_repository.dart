@@ -365,6 +365,13 @@ class AuthRepository {
     await prefs.remove(_keyUser);
     await prefs.remove(_keyActiveTenant);
     await prefs.remove(_keyActiveBranch);
+    await prefs.remove('cached_restaurant_tables_v1');
+    final allKeys = prefs.getKeys();
+    for (final k in allKeys) {
+      if (k.startsWith('cached_restaurant_tables_')) {
+        await prefs.remove(k);
+      }
+    }
     await prefs.setBool(_keyLoggedOut, true);
   }
 

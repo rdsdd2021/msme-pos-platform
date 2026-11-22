@@ -6,6 +6,8 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/catalog_provider.dart';
 import '../../core/providers/customer_provider.dart';
 import '../../core/providers/printer_provider.dart';
+import '../../core/providers/restaurant_provider.dart';
+import '../../core/providers/sync_provider.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
 import '../../core/widgets/shadcn_card.dart';
@@ -339,6 +341,58 @@ class MobileOwnerScreen extends ConsumerWidget {
                         );
                       },
                     ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // System Diagnostics, App Version & Cache Reset
+            ShadcnCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('System Diagnostics', style: ShadcnTypography.h3),
+                      const ShadcnBadge(text: 'v1.0.18+20', variant: ShadcnBadgeVariant.outline),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'App Build: 1.0.18 (Build 20)\nTarget Cloud: https://pos.assistt.in\nTenant ID: ${membership?.tenantId ?? "N/A"}\nBranch ID: ${authState.activeBranchId ?? "N/A"}',
+                    style: ShadcnTypography.caption.copyWith(fontSize: 11, height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.cleaning_services_rounded, size: 16),
+                      label: const Text('Purge Local Cache & Force Resync'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ShadcnColors.destructive,
+                        side: const BorderSide(color: ShadcnColors.border),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      onPressed: () async {
+                        HapticFeedback.heavyImpact();
+                        await ref.read(restaurantProvider.notifier).resetAndPurgeLocalCache();
+                        await ref.read(catalogProvider.notifier).reload();
+                        await ref.read(customerProvider.notifier).reload();
+                        await ref.read(syncStateProvider.notifier).syncNow();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Local cache purged. Clean synchronization initiated.'),
+                              backgroundColor: ShadcnColors.success,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

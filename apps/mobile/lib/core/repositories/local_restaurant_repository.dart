@@ -412,4 +412,19 @@ class LocalRestaurantRepository {
       );
     } catch (_) {}
   }
+
+  /// Purges local SQLite records for a tenant on logout or account switch
+  Future<void> clearAllTenantData(String tenantId) async {
+    if (tenantId.isEmpty) return;
+    await (_db.delete(_db.localRestaurantTables)..where((t) => t.tenantId.equals(tenantId))).go();
+    await (_db.delete(_db.localRestaurantOrders)..where((t) => t.tenantId.equals(tenantId))).go();
+    await (_db.delete(_db.localRestaurantKotLines)..where((t) => t.tenantId.equals(tenantId))).go();
+  }
+
+  /// Global purge of any orphaned or legacy tables
+  Future<void> clearAllTablesGlobally() async {
+    await _db.delete(_db.localRestaurantTables).go();
+    await _db.delete(_db.localRestaurantOrders).go();
+    await _db.delete(_db.localRestaurantKotLines).go();
+  }
 }

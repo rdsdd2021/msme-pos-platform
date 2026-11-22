@@ -75,8 +75,8 @@ class ShadcnAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   ],
                 ),
                 Text(
-                  branchName,
-                  style: ShadcnTypography.caption.copyWith(fontSize: 11),
+                  '$branchName • v1.0.18 (B20)',
+                  style: ShadcnTypography.caption.copyWith(fontSize: 10),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

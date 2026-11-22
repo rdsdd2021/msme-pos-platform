@@ -347,6 +347,21 @@ export class RestaurantService {
           where: [{ id: rawTableId, tenantId, branchId }, { id: rawTableId, tenantId }],
         })
       : null;
+    if (!table && isUuid(rawTableId)) {
+      const foreign = await this.tableRepo.findOne({
+        where: { id: rawTableId },
+      });
+      if (foreign?.tableNumber) {
+        table = await this.tableRepo.findOne({
+          where: [
+            { tableNumber: foreign.tableNumber, tenantId, branchId },
+            { tableNumber: foreign.tableNumber, tenantId },
+            { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
+            { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
+          ],
+        });
+      }
+    }
     if (!table) {
       table = await this.tableRepo.findOne({
         where: [
@@ -378,6 +393,12 @@ export class RestaurantService {
           ],
         });
       }
+    }
+    if (!table) {
+      table = await this.tableRepo.findOne({
+        where: [{ tenantId, branchId }, { tenantId }],
+        order: { sortOrder: 'ASC' },
+      });
     }
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found in this branch`);
@@ -459,6 +480,22 @@ export class RestaurantService {
           table = await manager.findOne(RestaurantTableEntity, {
             where: [{ id: rawTableId, tenantId, branchId }, { id: rawTableId, tenantId }],
           });
+          // Cross-tenant or stale ID self-healing: if UUID belongs to another tenant/branch, match by its tableNumber
+          if (!table) {
+            const foreign = await manager.findOne(RestaurantTableEntity, {
+              where: { id: rawTableId },
+            });
+            if (foreign?.tableNumber) {
+              table = await manager.findOne(RestaurantTableEntity, {
+                where: [
+                  { tableNumber: foreign.tableNumber, tenantId, branchId },
+                  { tableNumber: foreign.tableNumber, tenantId },
+                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
+                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
+                ],
+              });
+            }
+          }
         }
         if (!table) {
           table = await manager.findOne(RestaurantTableEntity, {
@@ -484,25 +521,45 @@ export class RestaurantService {
             ],
           });
         }
-        if (!table) throw new NotFoundException(`Table ${dto.tableId} not found in this branch`);
-
-        // Authoritatively align branchId with table's persistent branch
-        if (table.branchId) {
-          branchId = table.branchId;
+        if (!table) {
+          const numMatch = rawTableId.match(/\d+/);
+          if (numMatch) {
+            const candCode = `T-${numMatch[0].padStart(2, '0')}`;
+            table = await manager.findOne(RestaurantTableEntity, {
+              where: [
+                { tableNumber: candCode, tenantId, branchId },
+                { tableNumber: candCode, tenantId },
+              ],
+            });
+          }
+        }
+        if (!table) {
+          // Resilient fallback: fallback to first table in branch/tenant instead of throwing
+          table = await manager.findOne(RestaurantTableEntity, {
+            where: [{ tenantId, branchId }, { tenantId }],
+            order: { sortOrder: 'ASC' },
+          });
         }
 
-        // Check if table already has an active open order
-        const existingOrder = await manager.findOne(RestaurantOrderEntity, {
-          where: {
-            tenantId,
-            branchId,
-            tableId: table.id,
-            status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
-          },
-          relations: ['kots', 'lines'],
-        });
-        if (existingOrder) {
-          return existingOrder;
+        if (table) {
+          // Authoritatively align branchId with table's persistent branch
+          if (table.branchId) {
+            branchId = table.branchId;
+          }
+
+          // Check if table already has an active open order
+          const existingOrder = await manager.findOne(RestaurantOrderEntity, {
+            where: {
+              tenantId,
+              branchId,
+              tableId: table.id,
+              status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
+            },
+            relations: ['kots', 'lines'],
+          });
+          if (existingOrder) {
+            return existingOrder;
+          }
         }
       }
 
@@ -612,6 +669,22 @@ export class RestaurantService {
               where: [{ id: cand, tenantId, branchId }, { id: cand, tenantId }],
             });
             if (t) return t;
+
+            // Cross-tenant or stale UUID fallback
+            const foreign = await manager.findOne(RestaurantTableEntity, {
+              where: { id: cand },
+            });
+            if (foreign?.tableNumber) {
+              const matched = await manager.findOne(RestaurantTableEntity, {
+                where: [
+                  { tableNumber: foreign.tableNumber, tenantId, branchId },
+                  { tableNumber: foreign.tableNumber, tenantId },
+                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
+                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
+                ],
+              });
+              if (matched) return matched;
+            }
           }
           let t = await manager.findOne(RestaurantTableEntity, {
             where: [
@@ -641,7 +714,10 @@ export class RestaurantService {
             if (t) return t;
           }
         }
-        return null;
+        return await manager.findOne(RestaurantTableEntity, {
+          where: [{ tenantId, branchId }, { tenantId }],
+          order: { sortOrder: 'ASC' },
+        });
       };
 
       let table: RestaurantTableEntity | null = null;

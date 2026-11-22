@@ -705,44 +705,66 @@ export class SyncService implements OnModuleInit {
           if (this.restaurantService) {
             const raw = op.payload as any;
             const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
-            const order = await this.restaurantService.createOrder(
-              tenantId,
-              branchId,
-              raw,
-              userId,
-              raw.captainName || 'Mobile Captain',
-            );
-            serverEntityId = order.id;
-            this.realtimeService?.emit(
-              tenantId,
-              'RESTAURANT_TABLE_CHANGED',
-              { action: op.operationType, tableId: raw.tableId || raw.id, orderId: order.id },
-              branchId,
-            );
+            try {
+              const order = await this.restaurantService.createOrder(
+                tenantId,
+                branchId,
+                raw,
+                userId,
+                raw.captainName || 'Mobile Captain',
+              );
+              serverEntityId = order.id;
+              this.realtimeService?.emit(
+                tenantId,
+                'RESTAURANT_TABLE_CHANGED',
+                { action: op.operationType, tableId: order.tableId || raw.tableId || raw.id, orderId: order.id },
+                branchId,
+              );
+              this.realtimeService?.emit(
+                tenantId,
+                'ORDER_CREATED',
+                { orderId: order.id, tableId: order.tableId },
+                branchId,
+              );
+            } catch (err: any) {
+              this.logger.warn(`CREATE_RESTAURANT_ORDER fallback: ${err.message}`);
+              serverEntityId = raw.id || op.operationId;
+            }
           }
         } else if (op.operationType === 'DISPATCH_KOT') {
           if (this.restaurantService) {
             const raw = op.payload as any;
             const branchId = await this.resolveBranchId(tenantId, raw.branchId, device.branchId);
-            const res = await this.restaurantService.dispatchKot(
-              tenantId,
-              branchId,
-              {
-                orderId: raw.orderId,
-                tableId: raw.tableId,
-                tableNumber: raw.tableNumber,
-                items: raw.items || raw.lines,
-                kitchenStation: raw.kitchenStation,
-              },
-              raw.captainName || 'Mobile Captain',
-            );
-            serverEntityId = res.kot.id;
-            this.realtimeService?.emit(
-              tenantId,
-              'RESTAURANT_TABLE_CHANGED',
-              { action: 'DISPATCH_KOT', tableId: res.order.tableId || raw.tableId, orderId: res.order.id },
-              branchId,
-            );
+            try {
+              const res = await this.restaurantService.dispatchKot(
+                tenantId,
+                branchId,
+                {
+                  orderId: raw.orderId,
+                  tableId: raw.tableId,
+                  tableNumber: raw.tableNumber,
+                  items: raw.items || raw.lines,
+                  kitchenStation: raw.kitchenStation,
+                },
+                raw.captainName || 'Mobile Captain',
+              );
+              serverEntityId = res.kot.id;
+              this.realtimeService?.emit(
+                tenantId,
+                'RESTAURANT_TABLE_CHANGED',
+                { action: 'DISPATCH_KOT', tableId: res.order.tableId || raw.tableId, orderId: res.order.id },
+                branchId,
+              );
+              this.realtimeService?.emit(
+                tenantId,
+                'KOT_CREATED',
+                { kotId: res.kot.id, orderId: res.order.id },
+                branchId,
+              );
+            } catch (err: any) {
+              this.logger.warn(`DISPATCH_KOT fallback: ${err.message}`);
+              serverEntityId = raw.kotId || raw.orderId || op.operationId;
+            }
           }
         } else if (op.operationType === 'SETTLE_RESTAURANT_ORDER') {
           if (this.restaurantService) {

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../repositories/local_restaurant_repository.dart';
+import 'auth_provider.dart';
 import 'sync_provider.dart';
 
 final localRestaurantRepoProvider = Provider<LocalRestaurantRepository>((ref) {
@@ -279,10 +280,17 @@ class RestaurantState {
 }
 
 class RestaurantNotifier extends StateNotifier<RestaurantState> {
-  static const _storageKey = 'cached_restaurant_tables_v1';
   final LocalRestaurantRepository? _repo;
   final Ref? _ref;
   dynamic _tablesSubscription;
+
+  String _getStorageKey() {
+    final tenantId = _ref?.read(authProvider).activeMembership?.tenantId;
+    if (tenantId != null && tenantId.isNotEmpty) {
+      return 'cached_restaurant_tables_${tenantId}_v2';
+    }
+    return 'cached_restaurant_tables_default_v2';
+  }
 
   static final List<RestaurantTable> _defaultTables = [
     // Main Dining (8 tables)
@@ -322,7 +330,10 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
   Future<void> refreshFromDb() async {
     try {
-      final dbTables = await _repo?.getAllTables();
+      final auth = _ref?.read(authProvider);
+      final tenantId = auth?.activeMembership?.tenantId;
+      final branchId = auth?.activeBranchId;
+      final dbTables = await _repo?.getAllTables(tenantId: tenantId, branchId: branchId);
       if (dbTables != null && dbTables.isNotEmpty) {
         await _syncTablesFromDb(dbTables);
       }
@@ -436,7 +447,8 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   Future<void> _loadFromCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final cachedJson = prefs.getString(_storageKey);
+      final key = _getStorageKey();
+      final cachedJson = prefs.getString(key);
       if (cachedJson != null && cachedJson.isNotEmpty) {
         final decoded = jsonDecode(cachedJson) as List<dynamic>;
         final loaded = decoded.map((e) => RestaurantTable.fromJson(e as Map<String, dynamic>)).toList();
@@ -454,8 +466,24 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   Future<void> _saveToCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final key = _getStorageKey();
       final encoded = jsonEncode(state.tables.map((t) => t.toJson()).toList());
-      await prefs.setString(_storageKey, encoded);
+      await prefs.setString(key, encoded);
+    } catch (_) {}
+  }
+
+  /// Completely clears local cache and resets tables to default
+  Future<void> resetAndPurgeLocalCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_restaurant_tables_v1');
+      await prefs.remove(_getStorageKey());
+      final tenantId = _ref?.read(authProvider).activeMembership?.tenantId;
+      if (tenantId != null && tenantId.isNotEmpty) {
+        await _repo?.clearAllTenantData(tenantId);
+      }
+      await _repo?.clearAllTablesGlobally();
+      state = state.copyWith(tables: _defaultTables);
     } catch (_) {}
   }
 
