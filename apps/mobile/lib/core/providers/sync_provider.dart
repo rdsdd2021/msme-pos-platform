@@ -24,6 +24,7 @@ class SyncState {
   final DateTime? lastSyncTime;
   final String? lastError;
   final SyncStatus status;
+  final int syncSequence;
 
   const SyncState({
     this.isSyncing = false,
@@ -31,6 +32,7 @@ class SyncState {
     this.lastSyncTime,
     this.lastError,
     this.status = SyncStatus.synced,
+    this.syncSequence = 0,
   });
 
   bool get hasPending => pendingCount > 0;
@@ -41,6 +43,7 @@ class SyncState {
     DateTime? lastSyncTime,
     String? lastError,
     SyncStatus? status,
+    int? syncSequence,
   }) {
     return SyncState(
       isSyncing: isSyncing ?? this.isSyncing,
@@ -48,6 +51,7 @@ class SyncState {
       lastSyncTime: lastSyncTime ?? this.lastSyncTime,
       lastError: lastError,
       status: status ?? this.status,
+      syncSequence: syncSequence ?? this.syncSequence,
     );
   }
 }
@@ -56,6 +60,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
   final SyncWorker _worker;
   final Ref _ref;
   Timer? _autoSyncTimer;
+  bool _pendingSyncRequested = false;
 
   SyncNotifier(this._worker, this._ref) : super(const SyncState()) {
     refreshStatus();
@@ -64,7 +69,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   void _startAutoSync() {
     _autoSyncTimer?.cancel();
-    _autoSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
+    _autoSyncTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
       final hasPending = await _worker.getPendingCount() > 0;
       if (hasPending || !state.isSyncing) {
         await syncNow();
@@ -89,7 +94,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
   }
 
   Future<bool> syncNow({String? deviceId}) async {
-    if (state.isSyncing) return false;
+    if (state.isSyncing) {
+      _pendingSyncRequested = true;
+      return false;
+    }
 
     state = state.copyWith(isSyncing: true, lastError: null, status: SyncStatus.syncing);
 
@@ -122,12 +130,11 @@ class SyncNotifier extends StateNotifier<SyncState> {
           lastSyncTime: lastTime,
           status: SyncStatus.synced,
           lastError: null,
+          syncSequence: state.syncSequence + 1,
         );
 
-        // Instantly reload local catalog, customer lists and restaurant tables if deltas were pulled
-        if (result.pulledProductsCount > 0) {
-          await _ref.read(catalogProvider.notifier).reload();
-        }
+        // Instantly reload local catalog, customer lists and restaurant tables on every sync
+        await _ref.read(catalogProvider.notifier).reload();
         if (result.pulledCustomersCount > 0) {
           await _ref.read(customerProvider.notifier).reload();
         }
@@ -158,6 +165,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
     } finally {
       if (state.isSyncing) {
         state = state.copyWith(isSyncing: false);
+      }
+      if (_pendingSyncRequested) {
+        _pendingSyncRequested = false;
+        Future.microtask(() => syncNow(deviceId: deviceId));
       }
     }
   }

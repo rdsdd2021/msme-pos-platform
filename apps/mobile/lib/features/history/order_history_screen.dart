@@ -222,6 +222,15 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Automatically re-fetch invoices in realtime when synchronization commits
+    ref.listen<SyncState>(syncStateProvider, (prev, next) {
+      if (prev?.lastSyncTime != next.lastSyncTime ||
+          prev?.syncSequence != next.syncSequence ||
+          (prev?.isSyncing == true && !next.isSyncing && next.status == SyncStatus.synced)) {
+        _loadInvoices();
+      }
+    });
+
     final list = _filteredInvoices;
 
     return Scaffold(

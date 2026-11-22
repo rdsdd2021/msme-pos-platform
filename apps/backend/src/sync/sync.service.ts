@@ -877,7 +877,10 @@ export class SyncService implements OnModuleInit {
     cursor?: string,
     branchId?: string,
   ): Promise<SyncPullDeltaResponse> {
-    const cursorDate = cursor ? new Date(cursor) : new Date(0);
+    // Apply 10-second safety buffer to cursor to prevent skipping in-flight transactions or clock skew
+    const cursorDate = cursor
+      ? new Date(Math.max(0, new Date(cursor).getTime() - 10000))
+      : new Date(0);
     const resolvedBranchId = (branchId && this.isUuid(branchId))
       ? branchId
       : (await this.branchRepo.findOne({ where: { tenantId } }))?.id;

@@ -89,7 +89,7 @@ export function KitchenDisplayView() {
     onPoll: () => {
       fetchKdsQueue();
     },
-    pollIntervalMs: 15000,
+    pollIntervalMs: 5000,
   });
 
   // Handle Status Update (Start Cooking, Ready, Served)

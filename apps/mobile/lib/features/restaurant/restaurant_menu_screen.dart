@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/product.dart';
 import '../../core/providers/catalog_provider.dart';
+import '../../core/providers/sync_provider.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
 import 'widgets/add_edit_restaurant_dish_dialog.dart';
@@ -102,6 +103,15 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Automatically re-fetch catalog dishes when synchronization commits
+    ref.listen<SyncState>(syncStateProvider, (prev, next) {
+      if (prev?.syncSequence != next.syncSequence ||
+          prev?.lastSyncTime != next.lastSyncTime ||
+          (prev?.isSyncing == true && !next.isSyncing && next.status == SyncStatus.synced)) {
+        ref.read(catalogProvider.notifier).reload();
+      }
+    });
+
     final catalogState = ref.watch(catalogProvider);
     final allProducts = catalogState.allProducts;
 

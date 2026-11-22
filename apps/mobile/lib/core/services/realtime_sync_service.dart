@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../providers/auth_provider.dart';
+import '../providers/catalog_provider.dart';
+import '../providers/customer_provider.dart';
+import '../providers/restaurant_provider.dart';
 import '../providers/sync_provider.dart';
 
 class RealtimeSyncService {
@@ -12,6 +15,7 @@ class RealtimeSyncService {
   final Dio _dio;
   StreamSubscription? _subscription;
   Timer? _reconnectTimer;
+  Timer? _watchdogTimer;
   bool _isDisposed = false;
   bool _isConnecting = false;
 
@@ -30,9 +34,30 @@ class RealtimeSyncService {
 
   void stop() {
     _isDisposed = true;
+    _watchdogTimer?.cancel();
     _reconnectTimer?.cancel();
     _subscription?.cancel();
     _subscription = null;
+  }
+
+  void reconnect() {
+    if (_isDisposed) return;
+    debugPrint('[RealtimeSync] Manual reconnect requested');
+    _watchdogTimer?.cancel();
+    _subscription?.cancel();
+    _subscription = null;
+    _isConnecting = false;
+    _scheduleReconnect(const Duration(milliseconds: 300));
+  }
+
+  void _resetWatchdog() {
+    _watchdogTimer?.cancel();
+    if (_isDisposed) return;
+    // Server emits HEARTBEAT every 15s. If no line received within 45s, connection is stale/dead.
+    _watchdogTimer = Timer(const Duration(seconds: 45), () {
+      debugPrint('[RealtimeSync] Watchdog timed out (no heartbeat for 45s). Reconnecting...');
+      reconnect();
+    });
   }
 
   Future<void> _connect() async {
@@ -75,6 +100,7 @@ class RealtimeSyncService {
       );
 
       _isConnecting = false;
+      _resetWatchdog();
 
       _subscription = response.data?.stream
           .cast<List<int>>()
@@ -86,6 +112,7 @@ class RealtimeSyncService {
         },
         onError: (err) async {
           debugPrint('[RealtimeSync] Stream error: $err');
+          _watchdogTimer?.cancel();
           try {
             await authRepo.refreshTokens();
           } catch (_) {}
@@ -93,12 +120,14 @@ class RealtimeSyncService {
         },
         onDone: () async {
           debugPrint('[RealtimeSync] Stream closed by server');
+          _watchdogTimer?.cancel();
           _scheduleReconnect(const Duration(seconds: 5));
         },
         cancelOnError: true,
       );
     } catch (e) {
       _isConnecting = false;
+      _watchdogTimer?.cancel();
       debugPrint('[RealtimeSync] Connect error: $e');
       // If error is 401 Unauthorized, refresh tokens before retrying
       if (e is DioException && e.response?.statusCode == 401) {
@@ -112,6 +141,7 @@ class RealtimeSyncService {
   }
 
   void _handleLine(String line) {
+    _resetWatchdog();
     if (!line.startsWith('data:')) return;
     final jsonStr = line.replaceFirst('data:', '').trim();
     if (jsonStr.isEmpty) return;
@@ -124,15 +154,23 @@ class RealtimeSyncService {
 
       debugPrint('[RealtimeSync] Received server event: $type');
 
-      // Trigger automatic background delta sync to update Drift SQLite and UI
-      if (type == 'CATALOG_CHANGED' ||
-          type == 'STOCK_CHANGED' ||
-          type == 'ORDER_CREATED' ||
-          type == 'CUSTOMER_UPDATED' ||
-          type == 'RESTAURANT_TABLE_CHANGED' ||
+      // Trigger instantaneous UI refresh and background delta sync
+      if (type == 'CATALOG_CHANGED' || type == 'STOCK_CHANGED') {
+        _ref.read(catalogProvider.notifier).reload();
+        _ref.read(syncStateProvider.notifier).syncNow();
+      } else if (type == 'RESTAURANT_TABLE_CHANGED' ||
           type == 'KOT_CREATED' ||
           type == 'KOT_STATUS_CHANGED' ||
-          type == 'RESTAURANT_SETTINGS_CHANGED') {
+          type == 'ORDER_CREATED') {
+        _ref.read(restaurantProvider.notifier).refreshFromDb();
+        _ref.read(syncStateProvider.notifier).syncNow();
+      } else if (type == 'CUSTOMER_UPDATED') {
+        _ref.read(customerProvider.notifier).reload();
+        _ref.read(syncStateProvider.notifier).syncNow();
+      } else if (type == 'RESTAURANT_SETTINGS_CHANGED') {
+        _ref.read(restaurantProvider.notifier).refreshFromDb();
+        _ref.read(syncStateProvider.notifier).syncNow();
+      } else {
         _ref.read(syncStateProvider.notifier).syncNow();
       }
     } catch (e) {
@@ -142,6 +180,7 @@ class RealtimeSyncService {
 
   void _scheduleReconnect(Duration delay) {
     if (_isDisposed) return;
+    _watchdogTimer?.cancel();
     _subscription?.cancel();
     _subscription = null;
     _reconnectTimer?.cancel();

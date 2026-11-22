@@ -95,7 +95,10 @@ export function RestaurantMenuView() {
     onCatalogChanged: () => {
       fetchDishes();
     },
-    pollIntervalMs: 15000,
+    onStockChanged: () => {
+      fetchDishes();
+    },
+    pollIntervalMs: 5000,
     onPoll: fetchDishes,
   });
 

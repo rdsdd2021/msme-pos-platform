@@ -653,10 +653,19 @@ export default function AdminDashboard({
     onRestaurantTableChanged: () => {
       fetchAllData(true);
     },
+    onKotCreated: () => {
+      fetchAllData(true);
+    },
+    onKotStatusChanged: () => {
+      fetchAllData(true);
+    },
+    onRestaurantSettingsChanged: () => {
+      fetchAllData(true);
+    },
     onPoll: () => {
       fetchAllData(true);
     },
-    pollIntervalMs: 12000,
+    pollIntervalMs: 5000,
   });
 
   // Filtered Products

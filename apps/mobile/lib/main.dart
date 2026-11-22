@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/cart_provider.dart';
+import 'core/providers/catalog_provider.dart';
+import 'core/providers/restaurant_provider.dart';
 import 'core/providers/sync_provider.dart';
 import 'core/services/realtime_sync_service.dart';
 import 'core/theme/shadcn_colors.dart';
@@ -81,15 +83,33 @@ class MainNavigationShell extends ConsumerStatefulWidget {
   ConsumerState<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
-class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
+class _MainNavigationShellState extends ConsumerState<MainNavigationShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initDeviceAndSync();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('[AppLifecycle] App resumed into foreground: refreshing live sync & SSE');
+      ref.read(realtimeSyncServiceProvider).reconnect();
+      ref.read(syncStateProvider.notifier).syncNow();
+      ref.read(catalogProvider.notifier).reload();
+      ref.read(restaurantProvider.notifier).refreshFromDb();
+    }
   }
 
   Future<void> _initDeviceAndSync() async {

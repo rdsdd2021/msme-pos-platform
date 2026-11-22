@@ -1239,6 +1239,17 @@ export class RestaurantService {
         { orderId: order.id, tableId: order.tableId, status: 'VACANT', action: 'SETTLED' },
         branchId,
       );
+      this.realtimeService.emit(
+        tenantId,
+        'ORDER_CREATED',
+        {
+          invoiceId: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          totalAmount: invoice.grandTotal,
+          branchId,
+        },
+        branchId,
+      );
     }
 
     return { invoice, order };
