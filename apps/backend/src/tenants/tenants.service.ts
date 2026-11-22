@@ -163,8 +163,15 @@ export class TenantsService {
       throw new NotFoundException(`Branch ${branchId} not found`);
     }
 
-    const effectiveGstin = dto.gstin !== undefined ? dto.gstin?.toUpperCase() : branch.gstin;
-    const effectiveStateCode = dto.stateCode !== undefined ? dto.stateCode : branch.stateCode;
+    const effectiveGstin = dto.gstin !== undefined ? dto.gstin?.toUpperCase().trim() : branch.gstin;
+    let effectiveStateCode = dto.stateCode !== undefined ? dto.stateCode?.trim() : branch.stateCode;
+
+    // Automatically derive state code from GSTIN prefix if not explicitly set
+    if (effectiveGstin && effectiveGstin.length >= 2 && (!effectiveStateCode || effectiveStateCode.length === 0)) {
+      effectiveStateCode = effectiveGstin.substring(0, 2);
+      dto.stateCode = effectiveStateCode;
+    }
+
     if (effectiveGstin && effectiveStateCode && /^[0-9]{2}$/.test(effectiveStateCode)) {
       const gstinPrefix = effectiveGstin.substring(0, 2);
       if (gstinPrefix !== effectiveStateCode) {
@@ -174,9 +181,16 @@ export class TenantsService {
       }
     }
 
-    if (dto.name !== undefined) branch.name = dto.name;
-    if (dto.gstin !== undefined) branch.gstin = dto.gstin ? dto.gstin.toUpperCase() : null;
-    if (dto.stateCode !== undefined) branch.stateCode = dto.stateCode ?? null;
+    if (dto.name !== undefined && dto.name.trim()) {
+      branch.name = dto.name.trim();
+      const tenant = await this.tenantRepository.findOne({ where: { id: tenantId } });
+      if (tenant) {
+        tenant.displayName = dto.name.trim();
+        await this.tenantRepository.save(tenant);
+      }
+    }
+    if (dto.gstin !== undefined) branch.gstin = dto.gstin ? dto.gstin.toUpperCase().trim() : null;
+    if (dto.stateCode !== undefined) branch.stateCode = dto.stateCode ? dto.stateCode.trim() : null;
     if (dto.addressLine1 !== undefined) branch.addressLine1 = dto.addressLine1 ?? null;
     if (dto.addressLine2 !== undefined) branch.addressLine2 = dto.addressLine2 ?? null;
     if (dto.city !== undefined) branch.city = dto.city ?? null;

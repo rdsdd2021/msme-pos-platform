@@ -759,6 +759,9 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                               tenantId: tenantId,
                               branchId: branchId,
                               deviceId: deviceId,
+                              storeName: authState.storeName,
+                              storeAddress: authState.storeAddress,
+                              storeGstin: authState.storeGstin,
                             );
 
                             // Deduct stock for ingredients/items

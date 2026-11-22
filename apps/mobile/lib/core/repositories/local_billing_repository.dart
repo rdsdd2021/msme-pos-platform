@@ -24,6 +24,9 @@ class LocalBillingRepository {
     String tenantId = 'tenant-1',
     String branchId = 'branch-1',
     String? deviceId,
+    String? storeName,
+    String? storeAddress,
+    String? storeGstin,
   }) async {
     if (items.isEmpty) {
       throw ArgumentError('Cannot process sale with empty cart');
@@ -43,12 +46,20 @@ class LocalBillingRepository {
     final totalTaxPaisa = items.fold(0, (sum, i) => sum + i.taxPaisa);
     final subtotalPaisa = grandTotalPaisa - totalTaxPaisa;
 
+    final resolvedStore = (storeName != null && storeName.trim().isNotEmpty) ? storeName.trim() : 'STORE';
+    final resolvedAddr = (storeAddress != null && storeAddress.trim().isNotEmpty) ? storeAddress.trim() : '';
+    final resolvedGst = (storeGstin != null && storeGstin.trim().isNotEmpty) ? storeGstin.trim().toUpperCase() : null;
+
     // Build thermal receipt text (ESC/POS 58mm/80mm format)
     final receiptBuffer = StringBuffer();
     receiptBuffer.writeln('================================');
-    receiptBuffer.writeln('      KIRANA SUPERMART');
-    receiptBuffer.writeln('  Shop 4, Andheri West, Mumbai');
-    receiptBuffer.writeln('    GSTIN: 27AABCU9603R1ZM');
+    receiptBuffer.writeln(resolvedStore.padLeft((32 + resolvedStore.length) ~/ 2));
+    if (resolvedAddr.isNotEmpty) {
+      receiptBuffer.writeln(resolvedAddr.padLeft((32 + resolvedAddr.length) ~/ 2));
+    }
+    if (resolvedGst != null) {
+      receiptBuffer.writeln('    GSTIN: $resolvedGst');
+    }
     receiptBuffer.writeln('--------------------------------');
     receiptBuffer.writeln('Invoice: $invoiceNumber');
     receiptBuffer.writeln('Date:    ${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}');
@@ -253,6 +264,11 @@ class LocalBillingRepository {
       sale: baseResult,
       items: items,
       customerName: customerName,
+      header: ReceiptHeader(
+        storeName: resolvedStore,
+        address: resolvedAddr.isNotEmpty ? resolvedAddr : 'Main Store',
+        gstin: resolvedGst,
+      ),
     );
 
     return OfflineSaleResult(

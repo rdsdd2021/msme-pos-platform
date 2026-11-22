@@ -11,6 +11,12 @@ jest.mock('sonner', () => ({
   },
 }));
 
+jest.mock('@/lib/api-client', () => ({
+  apiClient: {
+    updateBranch: jest.fn().mockResolvedValue({ id: 'branch-1', name: 'Main Store - Andheri' }),
+  },
+}));
+
 describe('SettingsView: Universal Store Settings & Administration Hub', () => {
   const mockBranches = [
     { id: 'branch-1', tenantId: 'tenant-1', code: 'MAIN', name: 'Main Store - Andheri', isActive: true },
@@ -107,13 +113,17 @@ describe('SettingsView: Universal Store Settings & Administration Hub', () => {
     expect(screen.getByText('Main Store - Andheri')).toBeInTheDocument();
   });
 
-  it('saves Store Profile and triggers toast notification', () => {
+  it('saves Store Profile and triggers toast notification', async () => {
     render(<SettingsView {...defaultProps} />);
 
     const saveBtn = screen.getByRole('button', { name: /Save Profile/i });
     fireEvent.click(saveBtn);
 
-    expect(toast.success).toHaveBeenCalledWith('Store profile updated successfully!');
+    await waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        expect.stringMatching(/Store & branch profile saved to database successfully!|Store profile updated/i),
+      );
+    });
   });
 
   it('saves Billing Rules and triggers toast notification', () => {

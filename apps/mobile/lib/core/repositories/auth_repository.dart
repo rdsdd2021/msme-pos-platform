@@ -430,4 +430,73 @@ class AuthRepository {
     await prefs.setString(_keyUser, jsonEncode(user.toJson()));
     await prefs.setBool(_keyLoggedOut, false);
   }
+
+  /// Fetch branch details (name, address, city, state, gstin) from server with offline cache fallback
+  Future<Map<String, dynamic>?> getBranchDetails(String tenantId, String branchId) async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) return null;
+    try {
+      final res = await _dio.get(
+        '$_baseUrl/api/v1/tenants/$tenantId/branches',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (res.data is List) {
+        final list = res.data as List;
+        final matched = list.firstWhere(
+          (b) => b['id'] == branchId,
+          orElse: () => list.isNotEmpty ? list.first : null,
+        );
+        if (matched != null) {
+          final map = Map<String, dynamic>.from(matched as Map);
+          final prefs = _prefs ?? await SharedPreferences.getInstance();
+          await prefs.setString('cached_branch_${tenantId}_$branchId', jsonEncode(map));
+          return map;
+        }
+      }
+    } catch (_) {
+      // Fallback to local cache if offline
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_branch_${tenantId}_$branchId');
+      if (cached != null) {
+        return Map<String, dynamic>.from(jsonDecode(cached) as Map);
+      }
+    }
+    return null;
+  }
+
+  /// Update branch details (name, address, city, state, gstin) on server and cache locally
+  Future<Map<String, dynamic>> updateBranchDetails({
+    required String tenantId,
+    required String branchId,
+    String? name,
+    String? gstin,
+    String? stateCode,
+    String? addressLine1,
+    String? addressLine2,
+    String? city,
+    String? postalCode,
+  }) async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) throw Exception('Not authenticated');
+
+    final payload = <String, dynamic>{};
+    if (name != null) payload['name'] = name.trim();
+    if (gstin != null && gstin.trim().isNotEmpty) payload['gstin'] = gstin.trim().toUpperCase();
+    if (stateCode != null) payload['stateCode'] = stateCode.trim();
+    if (addressLine1 != null) payload['addressLine1'] = addressLine1.trim();
+    if (addressLine2 != null) payload['addressLine2'] = addressLine2.trim();
+    if (city != null) payload['city'] = city.trim();
+    if (postalCode != null) payload['postalCode'] = postalCode.trim();
+
+    final res = await _dio.patch(
+      '$_baseUrl/api/v1/tenants/$tenantId/branches/$branchId',
+      data: payload,
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+
+    final updated = Map<String, dynamic>.from(res.data as Map);
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString('cached_branch_${tenantId}_$branchId', jsonEncode(updated));
+    return updated;
+  }
 }

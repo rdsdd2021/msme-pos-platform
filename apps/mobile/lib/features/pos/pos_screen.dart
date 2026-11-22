@@ -96,6 +96,9 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
             tenantId: tenantId,
             branchId: branchId,
             deviceId: deviceId,
+            storeName: authState.storeName,
+            storeAddress: authState.storeAddress,
+            storeGstin: authState.storeGstin,
           );
 
           // Deduct stock in catalog

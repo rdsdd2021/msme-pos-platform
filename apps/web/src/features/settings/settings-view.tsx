@@ -33,7 +33,7 @@ import {
   saveReceiptConfig,
 } from '@/lib/receipt-template';
 import { cn } from '@/lib/utils';
-import type { Branch, Device, Subscription } from '@/lib/api-client';
+import { apiClient, type Branch, type Device, type Subscription } from '@/lib/api-client';
 
 export type SettingsSubTab = 'profile' | 'receipt' | 'billing' | 'dining' | 'branches' | 'devices' | 'subscription';
 
@@ -117,27 +117,95 @@ export function SettingsView({
     }
   }, [initialTab]);
 
+  // Find current active branch from server data
+  const currentBranch = branches.find((b) => b.id === branchId) || branches[0];
+
   // --- Store Profile State ---
   const [profile, setProfile] = useState<StoreProfileConfig>(() => {
     if (typeof window !== 'undefined' && tenantId) {
       try {
         const saved = localStorage.getItem(`pos_store_profile_${tenantId}`);
-        if (saved) return JSON.parse(saved);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            ...DEFAULT_STORE_PROFILE,
+            ...parsed,
+            storeName: currentBranch?.name || tenantName || parsed.storeName || DEFAULT_STORE_PROFILE.storeName,
+            gstin: currentBranch?.gstin || parsed.gstin || DEFAULT_STORE_PROFILE.gstin,
+            addressLine: currentBranch?.addressLine1 || parsed.addressLine || DEFAULT_STORE_PROFILE.addressLine,
+            city: currentBranch?.city || parsed.city || DEFAULT_STORE_PROFILE.city,
+            state: currentBranch?.stateCode || parsed.state || DEFAULT_STORE_PROFILE.state,
+            pincode: currentBranch?.postalCode || parsed.pincode || DEFAULT_STORE_PROFILE.pincode,
+          };
+        }
       } catch {}
     }
     return {
       ...DEFAULT_STORE_PROFILE,
-      storeName: tenantName || DEFAULT_STORE_PROFILE.storeName,
+      storeName: currentBranch?.name || tenantName || DEFAULT_STORE_PROFILE.storeName,
+      gstin: currentBranch?.gstin || DEFAULT_STORE_PROFILE.gstin,
+      addressLine: currentBranch?.addressLine1 || DEFAULT_STORE_PROFILE.addressLine,
+      city: currentBranch?.city || DEFAULT_STORE_PROFILE.city,
+      state: currentBranch?.stateCode || DEFAULT_STORE_PROFILE.state,
+      pincode: currentBranch?.postalCode || DEFAULT_STORE_PROFILE.pincode,
     };
   });
 
-  const handleSaveProfile = () => {
-    if (typeof window !== 'undefined' && tenantId) {
-      try {
-        localStorage.setItem(`pos_store_profile_${tenantId}`, JSON.stringify(profile));
-      } catch {}
+  // Keep profile updated when server branches data changes
+  useEffect(() => {
+    if (currentBranch) {
+      setProfile((prev) => ({
+        ...prev,
+        storeName: currentBranch.name || prev.storeName,
+        gstin: currentBranch.gstin || prev.gstin,
+        addressLine: currentBranch.addressLine1 || prev.addressLine,
+        city: currentBranch.city || prev.city,
+        state: currentBranch.stateCode || prev.state,
+        pincode: currentBranch.postalCode || prev.pincode,
+      }));
     }
-    toast.success('Store profile updated successfully!');
+  }, [currentBranch]);
+
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      if (tenantId && currentBranch?.id) {
+        let derivedStateCode = profile.state;
+        if (profile.gstin && profile.gstin.length >= 2 && /^\d{2}/.test(profile.gstin)) {
+          derivedStateCode = profile.gstin.substring(0, 2);
+        } else if (profile.state && /\d{2}/.test(profile.state)) {
+          const m = profile.state.match(/\d{2}/);
+          if (m) derivedStateCode = m[0];
+        }
+
+        await apiClient.updateBranch(tenantId, currentBranch.id, {
+          name: profile.storeName,
+          gstin: profile.gstin ? profile.gstin.trim().toUpperCase() : undefined,
+          stateCode: derivedStateCode ? derivedStateCode.trim() : undefined,
+          addressLine1: profile.addressLine,
+          city: profile.city,
+          postalCode: profile.pincode,
+        });
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`pos_store_profile_${tenantId}`, JSON.stringify(profile));
+        }
+
+        onRefresh();
+        toast.success('Store & branch profile saved to database successfully!');
+      } else {
+        if (typeof window !== 'undefined' && tenantId) {
+          localStorage.setItem(`pos_store_profile_${tenantId}`, JSON.stringify(profile));
+        }
+        toast.success('Store profile updated!');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update store profile in database');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   // --- Billing Rules State ---
@@ -302,11 +370,16 @@ export function SettingsView({
             </div>
             <Button
               onClick={handleSaveProfile}
+              disabled={isSavingProfile}
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold h-8 cursor-pointer"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold h-8 cursor-pointer disabled:opacity-70"
             >
-              <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save Profile
+              {isSavingProfile ? (
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              {isSavingProfile ? 'Saving...' : 'Save Profile'}
             </Button>
           </div>
 

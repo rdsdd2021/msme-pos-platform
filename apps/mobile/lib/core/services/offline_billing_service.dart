@@ -56,6 +56,9 @@ class OfflineBillingService {
     String tenantId = 'tenant-1',
     String branchId = 'branch-1',
     String deviceId = 'device-pos-01',
+    String? storeName,
+    String? storeAddress,
+    String? storeGstin,
   }) async {
     return repository.createSaleAtomic(
       items: items,
@@ -65,6 +68,9 @@ class OfflineBillingService {
       tenantId: tenantId,
       branchId: branchId,
       deviceId: deviceId,
+      storeName: storeName,
+      storeAddress: storeAddress,
+      storeGstin: storeGstin,
     );
   }
 

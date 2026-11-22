@@ -81,7 +81,6 @@ export class TenantsController {
   @Patch(':tenantId/branches/:branchId')
   @UseGuards(TenantGuard, PermissionsGuard)
   @RequirePermissions(Permission.BRANCH_UPDATE)
-  @RequireTenantWide()
   @ApiOperation({ summary: 'Update branch configuration, address, or GSTIN' })
   @ApiParam({ name: 'tenantId', type: 'string', format: 'uuid' })
   @ApiParam({ name: 'branchId', type: 'string', format: 'uuid' })

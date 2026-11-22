@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/settings/store_settings_sheet.dart';
 import '../providers/auth_provider.dart';
 import '../providers/printer_provider.dart';
 import '../providers/sync_provider.dart';
@@ -26,8 +27,10 @@ class ShadcnAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final printerState = ref.watch(printerProvider);
     final syncState = ref.watch(syncStateProvider);
 
-    final storeName = authState.activeMembership?.tenantName ?? 'Kirana Supermart';
-    final branchName = authState.activeBranchId ?? 'Main Store';
+    final storeName = authState.storeName;
+    final branchName = authState.storeCity != null && authState.storeCity!.isNotEmpty
+        ? '${authState.storeCity} Branch'
+        : (authState.activeBranchId ?? 'Main Store');
     final isPrinterConnected = printerState.isReady;
     final pendingCount = syncState.pendingCount;
 
@@ -199,6 +202,21 @@ class ShadcnAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
           const SizedBox(width: 8),
 
+          // Store Settings Action
+          IconButton(
+            icon: const Icon(
+              Icons.settings_outlined,
+              size: 18,
+              color: ShadcnColors.mutedForeground,
+            ),
+            tooltip: 'Store Settings',
+            onPressed: () => _openStoreSettings(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+
+          const SizedBox(width: 4),
+
           // Logout Action
           IconButton(
             icon: const Icon(
@@ -213,6 +231,15 @@ class ShadcnAppBar extends ConsumerWidget implements PreferredSizeWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _openStoreSettings(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const StoreSettingsSheet(),
     );
   }
 

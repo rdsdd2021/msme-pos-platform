@@ -1,6 +1,6 @@
 name: pos_mobile
 description: ZeeZo POS Platform - Mobile Application
-version: 1.0.18+21
+version: 1.0.18+22
 publish_to: 'none'
 
 environment:
