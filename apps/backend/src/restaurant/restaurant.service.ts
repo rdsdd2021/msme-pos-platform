@@ -102,30 +102,59 @@ export class RestaurantService {
 
     const tables = await qb.getMany();
 
-    // Fetch active open orders for non-vacant tables
-    const nonVacantTables = tables.filter((t) => t.status !== TableStatus.VACANT);
-    const tableIds = nonVacantTables.map((t) => t.id);
-
-    const activeOrdersMap = new Map<string, RestaurantOrderEntity>();
-    if (tableIds.length > 0) {
-      const activeOrders = await this.orderRepo.find({
-        where: {
+    // Fetch active open orders for ALL tables (self-healing for out-of-sync table statuses)
+    const activeOrders = await this.orderRepo.find({
+      where: [
+        {
           tenantId,
           branchId,
-          tableId: In(tableIds),
           status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
         },
-        relations: ['lines', 'kots'],
-      });
-      activeOrders.forEach((o) => {
-        if (o.tableId) activeOrdersMap.set(o.tableId, o);
-      });
+        {
+          tenantId,
+          status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
+        },
+      ],
+      relations: ['lines', 'kots'],
+      order: { openedAt: 'DESC' },
+    });
+
+    const activeOrdersByTableId = new Map<string, RestaurantOrderEntity>();
+    const activeOrdersByTableNumber = new Map<string, RestaurantOrderEntity>();
+
+    for (const ord of activeOrders) {
+      if (ord.tableId && !activeOrdersByTableId.has(ord.tableId)) {
+        activeOrdersByTableId.set(ord.tableId, ord);
+      }
+      if (ord.tableNumberSnapshot && !activeOrdersByTableNumber.has(ord.tableNumberSnapshot.toUpperCase())) {
+        activeOrdersByTableNumber.set(ord.tableNumberSnapshot.toUpperCase(), ord);
+      }
     }
 
-    return tables.map((t) => ({
-      ...t,
-      activeOrder: activeOrdersMap.get(t.id) || null,
-    }));
+    const updatedTables = tables.map((t) => {
+      const activeOrder =
+        activeOrdersByTableId.get(t.id) ||
+        activeOrdersByTableNumber.get(t.tableNumber.toUpperCase()) ||
+        (t.tableName ? activeOrdersByTableNumber.get(t.tableName.toUpperCase()) : undefined) ||
+        null;
+
+      // Self-heal table status if order is open/billed but table was marked vacant
+      let effectiveStatus = t.status;
+      if (activeOrder && t.status === TableStatus.VACANT) {
+        effectiveStatus =
+          activeOrder.status === RestaurantOrderStatus.BILLED
+            ? TableStatus.BILLED
+            : TableStatus.ORDERED;
+      }
+
+      return {
+        ...t,
+        status: effectiveStatus,
+        activeOrder,
+      };
+    });
+
+    return updatedTables;
   }
 
   async createTable(
@@ -312,28 +341,50 @@ export class RestaurantService {
     tableId: string,
     dto: UpdateTableDto,
   ): Promise<RestaurantTableEntity> {
-    let table = isUuid(tableId)
+    const rawTableId = String(tableId || '').trim();
+    let table = isUuid(rawTableId)
       ? await this.tableRepo.findOne({
-          where: { id: tableId, tenantId, branchId },
+          where: [{ id: rawTableId, tenantId, branchId }, { id: rawTableId, tenantId }],
         })
       : null;
     if (!table) {
       table = await this.tableRepo.findOne({
-        where: { tableNumber: tableId, tenantId, branchId },
+        where: [
+          { tableNumber: rawTableId, tenantId, branchId },
+          { tableNumber: rawTableId, tenantId },
+          { tableNumber: rawTableId.toUpperCase(), tenantId, branchId },
+          { tableNumber: rawTableId.toUpperCase(), tenantId },
+        ],
       });
     }
     if (!table) {
       table = await this.tableRepo.findOne({
-        where: { tableNumber: tableId.toUpperCase(), tenantId, branchId },
+        where: [
+          { tableName: rawTableId, tenantId, branchId },
+          { tableName: rawTableId, tenantId },
+        ],
       });
     }
+    // Also try normalization: e.g. "Table 1" -> "T-01"
     if (!table) {
-      table = await this.tableRepo.findOne({
-        where: { tableName: tableId, tenantId, branchId },
-      });
+      const numMatch = rawTableId.match(/\d+/);
+      if (numMatch) {
+        const numPad = numMatch[0].padStart(2, '0');
+        const candidateNumber = `T-${numPad}`;
+        table = await this.tableRepo.findOne({
+          where: [
+            { tableNumber: candidateNumber, tenantId, branchId },
+            { tableNumber: candidateNumber, tenantId },
+          ],
+        });
+      }
     }
     if (!table) {
-      throw new NotFoundException(`Table not found`);
+      throw new NotFoundException(`Table ${tableId} not found in this branch`);
+    }
+
+    if (table.branchId) {
+      branchId = table.branchId;
     }
 
     if (dto.tableName !== undefined) table.tableName = dto.tableName?.trim() || null;
@@ -346,6 +397,21 @@ export class RestaurantService {
       if (dto.status === TableStatus.VACANT) {
         table.currentGuestCount = 0;
         table.occupiedAt = null;
+
+        // Automatically complete/close any active open orders on this table so no zombie orders linger
+        try {
+          await this.orderRepo.update(
+            {
+              tableId: table.id,
+              tenantId,
+              status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
+            },
+            {
+              status: RestaurantOrderStatus.COMPLETED,
+              closedAt: new Date(),
+            },
+          );
+        } catch (_) {}
       }
     }
 
@@ -534,39 +600,53 @@ export class RestaurantService {
         }
       }
 
-      // 2. If order not found by orderId, find active order by tableId
+      // 2. If order not found by orderId, find active order by tableId or tableNumber
       const targetTableId = dto.tableId ? String(dto.tableId).trim() : undefined;
+      const targetTableNum = dto.tableNumber ? String(dto.tableNumber).trim() : undefined;
+
+      const findTable = async (): Promise<RestaurantTableEntity | null> => {
+        const candidates = [targetTableId, targetTableNum].filter(Boolean) as string[];
+        for (const cand of candidates) {
+          if (isUuid(cand)) {
+            const t = await manager.findOne(RestaurantTableEntity, {
+              where: [{ id: cand, tenantId, branchId }, { id: cand, tenantId }],
+            });
+            if (t) return t;
+          }
+          let t = await manager.findOne(RestaurantTableEntity, {
+            where: [
+              { tableNumber: cand, tenantId, branchId },
+              { tableNumber: cand, tenantId },
+              { tableNumber: cand.toUpperCase(), tenantId, branchId },
+              { tableNumber: cand.toUpperCase(), tenantId },
+            ],
+          });
+          if (t) return t;
+          t = await manager.findOne(RestaurantTableEntity, {
+            where: [
+              { tableName: cand, tenantId, branchId },
+              { tableName: cand, tenantId },
+            ],
+          });
+          if (t) return t;
+          const numMatch = cand.match(/\d+/);
+          if (numMatch) {
+            const candCode = `T-${numMatch[0].padStart(2, '0')}`;
+            t = await manager.findOne(RestaurantTableEntity, {
+              where: [
+                { tableNumber: candCode, tenantId, branchId },
+                { tableNumber: candCode, tenantId },
+              ],
+            });
+            if (t) return t;
+          }
+        }
+        return null;
+      };
+
       let table: RestaurantTableEntity | null = null;
-      if (!order && targetTableId) {
-        if (isUuid(targetTableId)) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [{ id: targetTableId, tenantId, branchId }, { id: targetTableId, tenantId }],
-          });
-        }
-        if (!table) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
-              { tableNumber: targetTableId.toUpperCase(), tenantId },
-            ],
-          });
-        }
-        if (!table) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableNumber: targetTableId, tenantId, branchId },
-              { tableNumber: targetTableId, tenantId },
-            ],
-          });
-        }
-        if (!table) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableName: targetTableId, tenantId, branchId },
-              { tableName: targetTableId, tenantId },
-            ],
-          });
-        }
+      if (!order && (targetTableId || targetTableNum)) {
+        table = await findTable();
 
         if (table) {
           if (table.branchId) {
@@ -585,36 +665,8 @@ export class RestaurantService {
 
       // 3. If still no active order, automatically create one for the table
       if (!order) {
-        if (!table && targetTableId) {
-          if (isUuid(targetTableId)) {
-            table = await manager.findOne(RestaurantTableEntity, {
-              where: [{ id: targetTableId, tenantId, branchId }, { id: targetTableId, tenantId }],
-            });
-          }
-          if (!table) {
-            table = await manager.findOne(RestaurantTableEntity, {
-              where: [
-                { tableNumber: targetTableId.toUpperCase(), tenantId, branchId },
-                { tableNumber: targetTableId.toUpperCase(), tenantId },
-              ],
-            });
-          }
-          if (!table) {
-            table = await manager.findOne(RestaurantTableEntity, {
-              where: [
-                { tableNumber: targetTableId, tenantId, branchId },
-                { tableNumber: targetTableId, tenantId },
-              ],
-            });
-          }
-          if (!table) {
-            table = await manager.findOne(RestaurantTableEntity, {
-              where: [
-                { tableName: targetTableId, tenantId, branchId },
-                { tableName: targetTableId, tenantId },
-              ],
-            });
-          }
+        if (!table && (targetTableId || targetTableNum)) {
+          table = await findTable();
           if (table?.branchId) {
             branchId = table.branchId;
           }
@@ -628,7 +680,7 @@ export class RestaurantService {
           orderNumber,
           orderType: isTakeaway ? RestaurantOrderType.TAKEAWAY : RestaurantOrderType.DINE_IN,
           tableId: table?.id || null,
-          tableNumberSnapshot: table?.tableNumber || ((dto as any).tableNumber ? String((dto as any).tableNumber).slice(0, 32) : (dto.tableId && !isUuid(String(dto.tableId)) ? String(dto.tableId).slice(0, 32) : 'Takeaway')),
+          tableNumberSnapshot: table?.tableNumber || targetTableNum || (targetTableId && !isUuid(targetTableId) ? targetTableId : 'T-01'),
           sectionSnapshot: table?.section || 'Main Dining',
           guestCount: table?.currentGuestCount || 2,
           status: RestaurantOrderStatus.OPEN,
@@ -642,9 +694,9 @@ export class RestaurantService {
         order = await manager.save(order);
 
         if (table) {
-          table.status = TableStatus.SEATED;
+          table.status = TableStatus.ORDERED;
           table.currentGuestCount = table.currentGuestCount || 2;
-          table.occupiedAt = new Date();
+          table.occupiedAt = table.occupiedAt || new Date();
           await manager.save(table);
         }
       }
@@ -886,7 +938,13 @@ export class RestaurantService {
       this.realtimeService.emit(
         tenantId,
         'RESTAURANT_TABLE_CHANGED',
-        { kotId: result.kot.id, orderId: result.order.id, status: 'ORDERED' },
+        { kotId: result.kot.id, orderId: result.order.id, tableId: result.order.tableId, status: 'ORDERED' },
+        branchId,
+      );
+      this.realtimeService.emit(
+        tenantId,
+        'ORDER_CREATED',
+        { orderId: result.order.id, tableId: result.order.tableId, grandTotal: result.order.grandTotal },
         branchId,
       );
       this.realtimeService.emit(
@@ -896,6 +954,7 @@ export class RestaurantService {
           kotId: result.kot.id,
           kotNumber: result.kot.kotNumber,
           orderId: result.order.id,
+          tableId: result.order.tableId,
           tableNumber: result.order.tableNumberSnapshot,
           station: result.kot.kitchenStation,
           itemsCount: result.kot.lines?.length || 0,

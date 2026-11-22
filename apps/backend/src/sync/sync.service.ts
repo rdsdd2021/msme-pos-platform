@@ -730,6 +730,7 @@ export class SyncService implements OnModuleInit {
               {
                 orderId: raw.orderId,
                 tableId: raw.tableId,
+                tableNumber: raw.tableNumber,
                 items: raw.items || raw.lines,
                 kitchenStation: raw.kitchenStation,
               },
@@ -739,7 +740,7 @@ export class SyncService implements OnModuleInit {
             this.realtimeService?.emit(
               tenantId,
               'RESTAURANT_TABLE_CHANGED',
-              { action: 'DISPATCH_KOT', tableId: raw.tableId, orderId: raw.orderId },
+              { action: 'DISPATCH_KOT', tableId: res.order.tableId || raw.tableId, orderId: res.order.id },
               branchId,
             );
           }

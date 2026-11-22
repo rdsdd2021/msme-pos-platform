@@ -124,18 +124,22 @@ class LocalRestaurantRepository {
     final kotId = const Uuid().v4();
     final now = DateTime.now();
 
-    // Resolve human-readable table number so a 36-char table UUID is never used as table_number_snapshot
+    // Resolve human-readable table number and authoritative table UUID
+    String resolvedTableId = tableId;
     String resolvedTableNumber = tableNumber ?? '';
-    if (resolvedTableNumber.isEmpty || resolvedTableNumber == tableId) {
-      final tblRow = await (_db.select(_db.localRestaurantTables)
-            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
-          .getSingleOrNull();
-      resolvedTableNumber = tblRow?.tableNumber ?? tblRow?.name ?? (tableId.length <= 16 ? tableId : 'T-01');
+    final tblRow = await (_db.select(_db.localRestaurantTables)
+          ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId) | t.name.equals(tableNumber ?? '')))
+        .getSingleOrNull();
+    if (tblRow != null) {
+      resolvedTableId = tblRow.id;
+      resolvedTableNumber = tblRow.tableNumber;
+    } else if (resolvedTableNumber.isEmpty || resolvedTableNumber == tableId) {
+      resolvedTableNumber = tableId.length <= 16 ? tableId : 'T-01';
     }
 
     final syncPayload = {
       'orderId': orderId,
-      'tableId': tableId,
+      'tableId': resolvedTableId,
       'tableNumber': resolvedTableNumber,
       'branchId': branchId,
       'captainName': captainName,
@@ -243,8 +247,17 @@ class LocalRestaurantRepository {
   }) async {
     final now = DateTime.now();
 
+    String resolvedTableId = tableId;
+    final tblRow = await (_db.select(_db.localRestaurantTables)
+          ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+        .getSingleOrNull();
+    if (tblRow != null) {
+      resolvedTableId = tblRow.id;
+    }
+
     final statusPayload = {
-      'tableId': tableId,
+      'tableId': resolvedTableId,
+      'tableNumber': tblRow?.tableNumber ?? tableId,
       'status': 'billed',
       'branchId': branchId,
     };
@@ -285,7 +298,7 @@ class LocalRestaurantRepository {
     });
   }
 
-  /// Atomically settle a restaurant table: marks table vacant, closes order, enqueues UPDATE_TABLE_STATUS
+  /// Atomically settle a restaurant table: marks table vacant, closes order, enqueues UPDATE_TABLE_STATUS and SETTLE_RESTAURANT_ORDER
   Future<void> settleTableAtomic({
     required String tableId,
     required String tenantId,
@@ -296,8 +309,17 @@ class LocalRestaurantRepository {
   }) async {
     final now = DateTime.now();
 
+    String resolvedTableId = tableId;
+    final tblRow = await (_db.select(_db.localRestaurantTables)
+          ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+        .getSingleOrNull();
+    if (tblRow != null) {
+      resolvedTableId = tblRow.id;
+    }
+
     final statusPayload = {
-      'tableId': tableId,
+      'tableId': resolvedTableId,
+      'tableNumber': tblRow?.tableNumber ?? tableId,
       'status': 'vacant',
       'branchId': branchId,
     };
@@ -351,6 +373,29 @@ class LocalRestaurantRepository {
           createdAt: Value(now),
         ),
       );
+
+      // 4. Also queue SETTLE_RESTAURANT_ORDER if orderId present so server order completes
+      if (orderId != null && orderId.isNotEmpty) {
+        final settlePayload = {
+          'orderId': orderId,
+          'tableId': resolvedTableId,
+          'branchId': branchId,
+          'status': 'completed',
+        };
+        await _db.into(_db.syncOutbox).insert(
+          SyncOutboxCompanion.insert(
+            operationId: const Uuid().v4(),
+            deviceId: deviceId,
+            sequence: _outboxSequence++,
+            operationType: 'SETTLE_RESTAURANT_ORDER',
+            schemaVersion: const Value(1),
+            payload: jsonEncode(settlePayload),
+            status: const Value('pending'),
+            retryCount: const Value(0),
+            createdAt: Value(now),
+          ),
+        );
+      }
     });
   }
 

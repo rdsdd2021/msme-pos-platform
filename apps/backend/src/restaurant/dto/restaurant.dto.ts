@@ -160,6 +160,11 @@ export class DispatchKotDto {
   @IsOptional()
   tableId?: string;
 
+  @ApiProperty({ example: 'T-01', required: false })
+  @IsString()
+  @IsOptional()
+  tableNumber?: string;
+
   @ApiProperty({ type: [DispatchKotItemDto], required: false })
   @IsArray()
   @IsOptional()
