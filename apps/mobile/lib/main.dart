@@ -172,7 +172,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       items.add(const _NavItem(
         icon: Icons.storefront_outlined,
         activeIcon: Icons.storefront,
-        label: 'Store Owner',
+        label: 'Store & Settings',
       ));
     } else {
       screens.add(const MobilePosScreen());
@@ -212,7 +212,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
       items.add(const _NavItem(
         icon: Icons.storefront_outlined,
         activeIcon: Icons.storefront,
-        label: 'Store Owner',
+        label: 'Store & Settings',
       ));
     }
 

@@ -29,6 +29,7 @@ import '../../core/widgets/shadcn_sheet.dart';
 import '../../core/widgets/shadcn_quantity_stepper.dart';
 import '../../core/widgets/shadcn_empty_state.dart';
 import '../../core/widgets/camera_barcode_scanner_modal.dart';
+import '../settings/store_settings_sheet.dart';
 
 class MobilePosScreen extends ConsumerStatefulWidget {
   const MobilePosScreen({super.key});
@@ -769,7 +770,7 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
     final cartState = ref.watch(cartProvider);
 
     final categories = catalogState.availableCategories;
-    final storeName = authState.activeMembership?.tenantName ?? 'Kirana Supermart';
+    final storeName = authState.storeName;
     final branchName = authState.activeBranchId ?? 'BR-001';
 
     return HardwareBarcodeScannerListener(
@@ -778,14 +779,50 @@ class _MobilePosScreenState extends ConsumerState<MobilePosScreen> {
         backgroundColor: ShadcnColors.background,
         appBar: AppBar(
           backgroundColor: ShadcnColors.surface,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(storeName, style: ShadcnTypography.h3),
-              Text('$branchName • ${authState.user?.fullName ?? "Cashier"}', style: ShadcnTypography.caption),
-            ],
+          title: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (ctx) => const StoreSettingsSheet(),
+              );
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(storeName, style: ShadcnTypography.h3),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.edit_outlined, size: 12, color: ShadcnColors.mutedForeground),
+                    ],
+                  ),
+                  Text('$branchName • ${authState.user?.fullName ?? "Cashier"}', style: ShadcnTypography.caption),
+                ],
+              ),
+            ),
           ),
           actions: [
+            IconButton(
+              key: const Key('pos_settings_btn'),
+              icon: const Icon(Icons.settings_outlined, size: 20),
+              tooltip: 'Store & GSTIN Settings',
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (ctx) => const StoreSettingsSheet(),
+                );
+              },
+            ),
             IconButton(
               key: const Key('pos_recent_bills_btn'),
               icon: const Icon(Icons.receipt_long_outlined, size: 20),

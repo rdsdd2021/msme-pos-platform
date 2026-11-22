@@ -301,7 +301,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                       children: [
                         Text('GSTIN Registration', style: ShadcnTypography.bodySemibold),
                         ShadcnBadge(
-                          label: _isGstinValid
+                          text: _isGstinValid
                               ? 'Registered'
                               : (_gstinController.text.trim().isEmpty ? 'Unregistered' : 'Invalid Format'),
                           variant: _isGstinValid
@@ -334,7 +334,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: ShadcnColors.inputBackground,
+                        color: ShadcnColors.surface,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: ShadcnColors.border),
                       ),

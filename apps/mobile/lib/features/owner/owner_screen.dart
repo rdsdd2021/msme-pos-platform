@@ -13,6 +13,7 @@ import '../../core/theme/shadcn_typography.dart';
 import '../../core/widgets/shadcn_card.dart';
 import '../../core/widgets/shadcn_badge.dart';
 import '../../core/widgets/shadcn_button.dart';
+import '../settings/store_settings_sheet.dart';
 
 class MobileOwnerScreen extends ConsumerWidget {
   const MobileOwnerScreen({super.key});
@@ -35,6 +36,19 @@ class MobileOwnerScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Store Owner Analytics'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 20),
+            tooltip: 'Store & GSTIN Settings',
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (ctx) => const StoreSettingsSheet(),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 20),
             tooltip: 'Refresh Metrics',
@@ -73,7 +87,7 @@ class MobileOwnerScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              membership?.tenantName ?? 'Kirana Supermart',
+                              authState.storeName,
                               style: ShadcnTypography.h3,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -83,6 +97,35 @@ class MobileOwnerScreen extends ConsumerWidget {
                               style: ShadcnTypography.caption,
                               overflow: TextOverflow.ellipsis,
                             ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  authState.storeGstin != null ? Icons.verified_outlined : Icons.info_outline,
+                                  size: 13,
+                                  color: authState.storeGstin != null ? ShadcnColors.primary : ShadcnColors.mutedForeground,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  authState.storeGstin != null
+                                      ? 'GSTIN: ${authState.storeGstin}'
+                                      : 'GSTIN: Not registered',
+                                  style: ShadcnTypography.caption.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: authState.storeGstin != null ? ShadcnColors.primary : ShadcnColors.mutedForeground,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (authState.storeAddress != null && authState.storeAddress!.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                authState.storeAddress!,
+                                style: ShadcnTypography.caption,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -111,6 +154,24 @@ class MobileOwnerScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ShadcnButton(
+                      text: 'Edit Store Profile, Address & GSTIN',
+                      leadingIcon: const Icon(Icons.settings_outlined, size: 16),
+                      variant: ShadcnButtonVariant.outline,
+                      onPressed: () {
+                        HapticFeedback.selectionClick();
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (ctx) => const StoreSettingsSheet(),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
