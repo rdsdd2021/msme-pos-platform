@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, EntityManager } from 'typeorm';
 import { RestaurantTableEntity } from './entities/restaurant-table.entity';
 import { RestaurantOrderEntity } from './entities/restaurant-order.entity';
 import { RestaurantKotEntity } from './entities/restaurant-kot.entity';
@@ -335,71 +335,95 @@ export class RestaurantService {
     return saved;
   }
 
+  async findTableResilient(
+    managerOrRepo: EntityManager | Repository<RestaurantTableEntity>,
+    tenantId: string,
+    branchId: string,
+    identifiers: (string | undefined | null)[],
+  ): Promise<RestaurantTableEntity | null> {
+    const findOne = (where: any) => {
+      if ('createQueryBuilder' in managerOrRepo && typeof (managerOrRepo as any).createQueryBuilder === 'function') {
+        return (managerOrRepo as any).findOne({ where });
+      }
+      return (managerOrRepo as EntityManager).findOne(RestaurantTableEntity, { where });
+    };
+
+    for (const raw of identifiers) {
+      if (!raw) continue;
+      const cand = String(raw).trim();
+      if (!cand) continue;
+
+      // 1. Direct UUID match in tenant
+      if (isUuid(cand)) {
+        let t = await findOne([{ id: cand, tenantId, branchId }, { id: cand, tenantId }]);
+        if (t) return t;
+
+        // Cross-tenant or stale UUID fallback
+        const foreign = await findOne({ id: cand });
+        if (foreign?.tableNumber) {
+          t = await findOne([
+            { tableNumber: foreign.tableNumber, tenantId, branchId },
+            { tableNumber: foreign.tableNumber, tenantId },
+            { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
+            { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
+          ]);
+          if (t) return t;
+        }
+      }
+
+      // 2. Exact tableNumber match (e.g. "T-01", "AC-02", "TR-01", "TAK-01")
+      let t = await findOne([
+        { tableNumber: cand, tenantId, branchId },
+        { tableNumber: cand, tenantId },
+        { tableNumber: cand.toUpperCase(), tenantId, branchId },
+        { tableNumber: cand.toUpperCase(), tenantId },
+      ]);
+      if (t) return t;
+
+      // 3. Exact tableName match (e.g. "Table 1", "Table 4 (Window)", "AC Table 2")
+      t = await findOne([
+        { tableName: cand, tenantId, branchId },
+        { tableName: cand, tenantId },
+      ]);
+      if (t) return t;
+
+      // 4. Normalized prefix + number match (handles T-01..08, AC-01..04, TR-01..02, TAK-01..02)
+      const candLower = cand.toLowerCase();
+      const match = cand.match(/(AC|TR|TAK|T)?\s*[-_]?\s*(\d+)/i);
+      if (match) {
+        let prefix = 'T';
+        if (candLower.includes('ac') || match[1]?.toUpperCase() === 'AC') {
+          prefix = 'AC';
+        } else if (candLower.includes('terrace') || candLower.includes('tr') || match[1]?.toUpperCase() === 'TR') {
+          prefix = 'TR';
+        } else if (candLower.includes('takeaway') || candLower.includes('tak') || match[1]?.toUpperCase() === 'TAK') {
+          prefix = 'TAK';
+        }
+        const num = match[2].padStart(2, '0');
+        const candCode = `${prefix}-${num}`;
+        t = await findOne([
+          { tableNumber: candCode, tenantId, branchId },
+          { tableNumber: candCode, tenantId },
+        ]);
+        if (t) return t;
+      }
+    }
+
+    return null;
+  }
+
   async updateTable(
     tenantId: string,
     branchId: string,
     tableId: string,
     dto: UpdateTableDto,
   ): Promise<RestaurantTableEntity> {
-    const rawTableId = String(tableId || '').trim();
-    let table = isUuid(rawTableId)
-      ? await this.tableRepo.findOne({
-          where: [{ id: rawTableId, tenantId, branchId }, { id: rawTableId, tenantId }],
-        })
-      : null;
-    if (!table && isUuid(rawTableId)) {
-      const foreign = await this.tableRepo.findOne({
-        where: { id: rawTableId },
-      });
-      if (foreign?.tableNumber) {
-        table = await this.tableRepo.findOne({
-          where: [
-            { tableNumber: foreign.tableNumber, tenantId, branchId },
-            { tableNumber: foreign.tableNumber, tenantId },
-            { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
-            { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
-          ],
-        });
-      }
-    }
-    if (!table) {
-      table = await this.tableRepo.findOne({
-        where: [
-          { tableNumber: rawTableId, tenantId, branchId },
-          { tableNumber: rawTableId, tenantId },
-          { tableNumber: rawTableId.toUpperCase(), tenantId, branchId },
-          { tableNumber: rawTableId.toUpperCase(), tenantId },
-        ],
-      });
-    }
-    if (!table) {
-      table = await this.tableRepo.findOne({
-        where: [
-          { tableName: rawTableId, tenantId, branchId },
-          { tableName: rawTableId, tenantId },
-        ],
-      });
-    }
-    // Also try normalization: e.g. "Table 1" -> "T-01"
-    if (!table) {
-      const numMatch = rawTableId.match(/\d+/);
-      if (numMatch) {
-        const numPad = numMatch[0].padStart(2, '0');
-        const candidateNumber = `T-${numPad}`;
-        table = await this.tableRepo.findOne({
-          where: [
-            { tableNumber: candidateNumber, tenantId, branchId },
-            { tableNumber: candidateNumber, tenantId },
-          ],
-        });
-      }
-    }
-    if (!table) {
-      table = await this.tableRepo.findOne({
-        where: [{ tenantId, branchId }, { tenantId }],
-        order: { sortOrder: 'ASC' },
-      });
-    }
+    const table = await this.findTableResilient(this.tableRepo, tenantId, branchId, [
+      tableId,
+      dto.tableNumber,
+      (dto as any).tableName,
+    ]);
+
     if (!table) {
       throw new NotFoundException(`Table ${tableId} not found in this branch`);
     }
@@ -474,72 +498,11 @@ export class RestaurantService {
   ): Promise<RestaurantOrderEntity> {
     const result = await this.dataSource.transaction(async (manager) => {
       let table: RestaurantTableEntity | null = null;
-      if (dto.tableId) {
-        const rawTableId = String(dto.tableId).trim();
-        if (isUuid(rawTableId)) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [{ id: rawTableId, tenantId, branchId }, { id: rawTableId, tenantId }],
-          });
-          // Cross-tenant or stale ID self-healing: if UUID belongs to another tenant/branch, match by its tableNumber
-          if (!table) {
-            const foreign = await manager.findOne(RestaurantTableEntity, {
-              where: { id: rawTableId },
-            });
-            if (foreign?.tableNumber) {
-              table = await manager.findOne(RestaurantTableEntity, {
-                where: [
-                  { tableNumber: foreign.tableNumber, tenantId, branchId },
-                  { tableNumber: foreign.tableNumber, tenantId },
-                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
-                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
-                ],
-              });
-            }
-          }
-        }
-        if (!table) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableNumber: rawTableId.toUpperCase(), tenantId, branchId },
-              { tableNumber: rawTableId.toUpperCase(), tenantId },
-            ],
-          });
-        }
-        if (!table) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableNumber: rawTableId, tenantId, branchId },
-              { tableNumber: rawTableId, tenantId },
-            ],
-          });
-        }
-        if (!table) {
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableName: rawTableId, tenantId, branchId },
-              { tableName: rawTableId, tenantId },
-            ],
-          });
-        }
-        if (!table) {
-          const numMatch = rawTableId.match(/\d+/);
-          if (numMatch) {
-            const candCode = `T-${numMatch[0].padStart(2, '0')}`;
-            table = await manager.findOne(RestaurantTableEntity, {
-              where: [
-                { tableNumber: candCode, tenantId, branchId },
-                { tableNumber: candCode, tenantId },
-              ],
-            });
-          }
-        }
-        if (!table) {
-          // Resilient fallback: fallback to first table in branch/tenant instead of throwing
-          table = await manager.findOne(RestaurantTableEntity, {
-            where: [{ tenantId, branchId }, { tenantId }],
-            order: { sortOrder: 'ASC' },
-          });
-        }
+      if (dto.tableId || dto.tableNumber) {
+        table = await this.findTableResilient(manager, tenantId, branchId, [
+          dto.tableId,
+          dto.tableNumber,
+        ]);
 
         if (table) {
           // Authoritatively align branchId with table's persistent branch
@@ -661,68 +624,12 @@ export class RestaurantService {
       const targetTableId = dto.tableId ? String(dto.tableId).trim() : undefined;
       const targetTableNum = dto.tableNumber ? String(dto.tableNumber).trim() : undefined;
 
-      const findTable = async (): Promise<RestaurantTableEntity | null> => {
-        const candidates = [targetTableId, targetTableNum].filter(Boolean) as string[];
-        for (const cand of candidates) {
-          if (isUuid(cand)) {
-            const t = await manager.findOne(RestaurantTableEntity, {
-              where: [{ id: cand, tenantId, branchId }, { id: cand, tenantId }],
-            });
-            if (t) return t;
-
-            // Cross-tenant or stale UUID fallback
-            const foreign = await manager.findOne(RestaurantTableEntity, {
-              where: { id: cand },
-            });
-            if (foreign?.tableNumber) {
-              const matched = await manager.findOne(RestaurantTableEntity, {
-                where: [
-                  { tableNumber: foreign.tableNumber, tenantId, branchId },
-                  { tableNumber: foreign.tableNumber, tenantId },
-                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId, branchId },
-                  { tableNumber: foreign.tableNumber.toUpperCase(), tenantId },
-                ],
-              });
-              if (matched) return matched;
-            }
-          }
-          let t = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableNumber: cand, tenantId, branchId },
-              { tableNumber: cand, tenantId },
-              { tableNumber: cand.toUpperCase(), tenantId, branchId },
-              { tableNumber: cand.toUpperCase(), tenantId },
-            ],
-          });
-          if (t) return t;
-          t = await manager.findOne(RestaurantTableEntity, {
-            where: [
-              { tableName: cand, tenantId, branchId },
-              { tableName: cand, tenantId },
-            ],
-          });
-          if (t) return t;
-          const numMatch = cand.match(/\d+/);
-          if (numMatch) {
-            const candCode = `T-${numMatch[0].padStart(2, '0')}`;
-            t = await manager.findOne(RestaurantTableEntity, {
-              where: [
-                { tableNumber: candCode, tenantId, branchId },
-                { tableNumber: candCode, tenantId },
-              ],
-            });
-            if (t) return t;
-          }
-        }
-        return await manager.findOne(RestaurantTableEntity, {
-          where: [{ tenantId, branchId }, { tenantId }],
-          order: { sortOrder: 'ASC' },
-        });
-      };
-
       let table: RestaurantTableEntity | null = null;
       if (!order && (targetTableId || targetTableNum)) {
-        table = await findTable();
+        table = await this.findTableResilient(manager, tenantId, branchId, [
+          targetTableId,
+          targetTableNum,
+        ]);
 
         if (table) {
           if (table.branchId) {
@@ -742,7 +649,10 @@ export class RestaurantService {
       // 3. If still no active order, automatically create one for the table
       if (!order) {
         if (!table && (targetTableId || targetTableNum)) {
-          table = await findTable();
+          table = await this.findTableResilient(manager, tenantId, branchId, [
+            targetTableId,
+            targetTableNum,
+          ]);
           if (table?.branchId) {
             branchId = table.branchId;
           }
@@ -1141,40 +1051,10 @@ export class RestaurantService {
   ): Promise<{ sourceTable: RestaurantTableEntity; targetTable: RestaurantTableEntity }> {
     return this.dataSource.transaction(async (manager) => {
       const rawSource = dto.sourceTableId ? String(dto.sourceTableId).trim() : '';
-      let source: RestaurantTableEntity | null = null;
-      if (isUuid(rawSource)) {
-        source = await manager.findOne(RestaurantTableEntity, {
-          where: { id: rawSource, tenantId, branchId },
-        });
-      }
-      if (!source && rawSource) {
-        source = await manager.findOne(RestaurantTableEntity, {
-          where: { tableNumber: rawSource.toUpperCase(), tenantId, branchId },
-        });
-      }
-      if (!source && rawSource) {
-        source = await manager.findOne(RestaurantTableEntity, {
-          where: { tableNumber: rawSource, tenantId, branchId },
-        });
-      }
+      const source = await this.findTableResilient(manager, tenantId, branchId, [rawSource]);
 
       const rawTarget = dto.targetTableId ? String(dto.targetTableId).trim() : '';
-      let target: RestaurantTableEntity | null = null;
-      if (isUuid(rawTarget)) {
-        target = await manager.findOne(RestaurantTableEntity, {
-          where: { id: rawTarget, tenantId, branchId },
-        });
-      }
-      if (!target && rawTarget) {
-        target = await manager.findOne(RestaurantTableEntity, {
-          where: { tableNumber: rawTarget.toUpperCase(), tenantId, branchId },
-        });
-      }
-      if (!target && rawTarget) {
-        target = await manager.findOne(RestaurantTableEntity, {
-          where: { tableNumber: rawTarget, tenantId, branchId },
-        });
-      }
+      const target = await this.findTableResilient(manager, tenantId, branchId, [rawTarget]);
 
       if (!source || !target) {
         throw new NotFoundException('Source or target table not found');

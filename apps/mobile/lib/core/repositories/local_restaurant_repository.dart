@@ -43,12 +43,66 @@ class LocalRestaurantRepository {
     return (_db.select(_db.localRestaurantKotLines)..where((l) => l.orderId.equals(orderId))).get();
   }
 
+  /// Safely resolves a table row in local SQLite without throwing StateError if duplicate codes exist across tenants
+  Future<LocalRestaurantTable?> _resolveTable(
+    String tableId, {
+    String? tableNumber,
+    String? tenantId,
+    String? branchId,
+  }) async {
+    final query = _db.select(_db.localRestaurantTables);
+    if (tenantId != null && tenantId.isNotEmpty) {
+      query.where((t) => t.tenantId.equals(tenantId));
+    }
+    if (branchId != null && branchId.isNotEmpty) {
+      query.where((t) => t.branchId.equals(branchId));
+    }
+    query.where((t) =>
+        t.id.equals(tableId) |
+        t.tableNumber.equals(tableId) |
+        (tableNumber != null && tableNumber.isNotEmpty
+            ? (t.tableNumber.equals(tableNumber) | t.name.equals(tableNumber))
+            : const Constant(false)));
+
+    final matches = await (query..limit(1)).get();
+    if (matches.isNotEmpty) return matches.first;
+
+    // Fallback without branchId if tenant matches
+    if (tenantId != null && tenantId.isNotEmpty) {
+      final fallbackQuery = _db.select(_db.localRestaurantTables)
+        ..where((t) => t.tenantId.equals(tenantId))
+        ..where((t) =>
+            t.id.equals(tableId) |
+            t.tableNumber.equals(tableId) |
+            (tableNumber != null && tableNumber.isNotEmpty
+                ? (t.tableNumber.equals(tableNumber) | t.name.equals(tableNumber))
+                : const Constant(false)))
+        ..limit(1);
+      final fallbackMatches = await fallbackQuery.get();
+      if (fallbackMatches.isNotEmpty) return fallbackMatches.first;
+    }
+
+    // Global fallback
+    final globalMatches = await (_db.select(_db.localRestaurantTables)
+          ..where((t) =>
+              t.id.equals(tableId) |
+              t.tableNumber.equals(tableId) |
+              (tableNumber != null && tableNumber.isNotEmpty
+                  ? (t.tableNumber.equals(tableNumber) | t.name.equals(tableNumber))
+                  : const Constant(false)))
+          ..limit(1))
+        .get();
+    return globalMatches.firstOrNull;
+  }
+
   /// Get active CartItems for a table from SQLite (hydrates dishes from KOT lines)
-  Future<List<CartItem>> getTableActiveCartItems(String tableId) async {
+  Future<List<CartItem>> getTableActiveCartItems(
+    String tableId, {
+    String? tenantId,
+    String? branchId,
+  }) async {
     try {
-      final matchingTable = await (_db.select(_db.localRestaurantTables)
-            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
-          .getSingleOrNull();
+      final matchingTable = await _resolveTable(tableId, tenantId: tenantId, branchId: branchId);
 
       final targetIds = {tableId};
       if (matchingTable != null) {
@@ -56,12 +110,16 @@ class LocalRestaurantRepository {
         targetIds.add(matchingTable.tableNumber);
       }
 
-      final activeOrders = await (_db.select(_db.localRestaurantOrders)
-            ..where((o) => o.tableId.isIn(targetIds) | o.tableNumberSnapshot.isIn(targetIds))
-            ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
-            ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]))
-          .get();
+      final orderQuery = _db.select(_db.localRestaurantOrders)
+        ..where((o) => o.tableId.isIn(targetIds) | o.tableNumberSnapshot.isIn(targetIds))
+        ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
+        ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]);
 
+      if (tenantId != null && tenantId.isNotEmpty) {
+        orderQuery.where((o) => o.tenantId.equals(tenantId));
+      }
+
+      final activeOrders = await orderQuery.get();
       if (activeOrders.isEmpty) return [];
 
       final activeOrderIds = activeOrders.map((o) => o.id).toList();
@@ -127,9 +185,12 @@ class LocalRestaurantRepository {
     // Resolve human-readable table number and authoritative table UUID
     String resolvedTableId = tableId;
     String resolvedTableNumber = tableNumber ?? '';
-    final tblRow = await (_db.select(_db.localRestaurantTables)
-          ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId) | t.name.equals(tableNumber ?? '')))
-        .getSingleOrNull();
+    final tblRow = await _resolveTable(
+      tableId,
+      tableNumber: tableNumber,
+      tenantId: tenantId,
+      branchId: branchId,
+    );
     if (tblRow != null) {
       resolvedTableId = tblRow.id;
       resolvedTableNumber = tblRow.tableNumber;
@@ -157,7 +218,8 @@ class LocalRestaurantRepository {
     await _db.transaction(() async {
       // 1. Update table status to ordered
       await (_db.update(_db.localRestaurantTables)
-            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+            ..where((t) => (t.id.equals(resolvedTableId) | t.id.equals(tableId) | t.tableNumber.equals(resolvedTableNumber)) &
+                (tenantId.isNotEmpty ? t.tenantId.equals(tenantId) : const Constant(true))))
           .write(
         LocalRestaurantTablesCompanion(
           status: const Value('ordered'),
@@ -172,13 +234,13 @@ class LocalRestaurantRepository {
 
       if (existingOrder == null) {
         final activeOrderForTable = await (_db.select(_db.localRestaurantOrders)
-              ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId) | o.tableNumberSnapshot.equals(resolvedTableNumber))
+              ..where((o) => o.tableId.equals(resolvedTableId) | o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(resolvedTableNumber))
               ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered']))
               ..orderBy([(o) => OrderingTerm(expression: o.openedAt, mode: OrderingMode.desc)]))
             .get();
 
         if (activeOrderForTable.isEmpty) {
-          final isTakeaway = tableId.startsWith('TAK-') || tableId.toLowerCase().contains('takeaway');
+          final isTakeaway = resolvedTableNumber.startsWith('TAK-') || resolvedTableNumber.toLowerCase().contains('takeaway');
           await _db.into(_db.localRestaurantOrders).insertOnConflictUpdate(
             LocalRestaurantOrdersCompanion(
               id: Value(orderId),
@@ -186,10 +248,10 @@ class LocalRestaurantRepository {
               branchId: Value(branchId),
               orderNumber: Value('ORD-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}'),
               orderType: Value(isTakeaway ? 'takeaway' : 'dine_in'),
-              tableId: Value(tableId),
+              tableId: Value(resolvedTableId),
               tableNumberSnapshot: Value(resolvedTableNumber),
-              sectionSnapshot: const Value('Main Dining'),
-              guestCount: const Value(2),
+              sectionSnapshot: Value(tblRow?.section ?? 'Main Dining'),
+              guestCount: Value(tblRow?.currentGuestCount != null && tblRow!.currentGuestCount > 0 ? tblRow.currentGuestCount : 2),
               status: const Value('ordered'),
               captainNameSnapshot: Value(captainName),
               openedAt: Value(now),
@@ -219,7 +281,7 @@ class LocalRestaurantRepository {
         );
       }
 
-      // 3. Queue DISPATCH_KOT outbox operation
+      // 4. Queue DISPATCH_KOT outbox operation
       await _db.into(_db.syncOutbox).insert(
         SyncOutboxCompanion.insert(
           operationId: const Uuid().v4(),
@@ -248,23 +310,24 @@ class LocalRestaurantRepository {
     final now = DateTime.now();
 
     String resolvedTableId = tableId;
-    final tblRow = await (_db.select(_db.localRestaurantTables)
-          ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
-        .getSingleOrNull();
+    String resolvedTableNumber = tableId;
+    final tblRow = await _resolveTable(tableId, tenantId: tenantId, branchId: branchId);
     if (tblRow != null) {
       resolvedTableId = tblRow.id;
+      resolvedTableNumber = tblRow.tableNumber;
     }
 
     final statusPayload = {
       'tableId': resolvedTableId,
-      'tableNumber': tblRow?.tableNumber ?? tableId,
+      'tableNumber': resolvedTableNumber,
       'status': 'billed',
       'branchId': branchId,
     };
 
     await _db.transaction(() async {
       await (_db.update(_db.localRestaurantTables)
-            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+            ..where((t) => (t.id.equals(resolvedTableId) | t.id.equals(tableId) | t.tableNumber.equals(resolvedTableNumber)) &
+                (tenantId.isNotEmpty ? t.tenantId.equals(tenantId) : const Constant(true))))
           .write(
         LocalRestaurantTablesCompanion(
           status: const Value('billed'),
@@ -274,7 +337,8 @@ class LocalRestaurantRepository {
 
       // Also mark active orders for this table as billed in local SQLite
       await (_db.update(_db.localRestaurantOrders)
-            ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId))
+            ..where((o) => (o.tableId.equals(resolvedTableId) | o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(resolvedTableNumber)) &
+                (tenantId.isNotEmpty ? o.tenantId.equals(tenantId) : const Constant(true)))
             ..where((o) => o.status.isIn(const ['open', 'ordered'])))
           .write(
         const LocalRestaurantOrdersCompanion(
@@ -310,16 +374,16 @@ class LocalRestaurantRepository {
     final now = DateTime.now();
 
     String resolvedTableId = tableId;
-    final tblRow = await (_db.select(_db.localRestaurantTables)
-          ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
-        .getSingleOrNull();
+    String resolvedTableNumber = tableId;
+    final tblRow = await _resolveTable(tableId, tenantId: tenantId, branchId: branchId);
     if (tblRow != null) {
       resolvedTableId = tblRow.id;
+      resolvedTableNumber = tblRow.tableNumber;
     }
 
     final statusPayload = {
       'tableId': resolvedTableId,
-      'tableNumber': tblRow?.tableNumber ?? tableId,
+      'tableNumber': resolvedTableNumber,
       'status': 'vacant',
       'branchId': branchId,
     };
@@ -327,7 +391,8 @@ class LocalRestaurantRepository {
     await _db.transaction(() async {
       // 1. Update local table to vacant
       await (_db.update(_db.localRestaurantTables)
-            ..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId)))
+            ..where((t) => (t.id.equals(resolvedTableId) | t.id.equals(tableId) | t.tableNumber.equals(resolvedTableNumber)) &
+                (tenantId.isNotEmpty ? t.tenantId.equals(tenantId) : const Constant(true))))
           .write(
         LocalRestaurantTablesCompanion(
           status: const Value('vacant'),
@@ -348,7 +413,8 @@ class LocalRestaurantRepository {
         );
       } else {
         await (_db.update(_db.localRestaurantOrders)
-              ..where((o) => o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(tableId))
+              ..where((o) => (o.tableId.equals(resolvedTableId) | o.tableId.equals(tableId) | o.tableNumberSnapshot.equals(resolvedTableNumber)) &
+                  (tenantId.isNotEmpty ? o.tenantId.equals(tenantId) : const Constant(true)))
               ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered'])))
             .write(
           LocalRestaurantOrdersCompanion(
@@ -396,6 +462,146 @@ class LocalRestaurantRepository {
           ),
         );
       }
+    });
+  }
+
+  /// Atomically updates a table's status (e.g. seated, vacant, dirty) and queues UPDATE_TABLE_STATUS in SyncOutbox
+  Future<void> markTableStatusAtomic({
+    required String tableId,
+    required String status,
+    required String tenantId,
+    required String branchId,
+    required String deviceId,
+    int? guestCount,
+  }) async {
+    final now = DateTime.now();
+
+    String resolvedTableId = tableId;
+    String resolvedTableNumber = tableId;
+    final tblRow = await _resolveTable(tableId, tenantId: tenantId, branchId: branchId);
+    if (tblRow != null) {
+      resolvedTableId = tblRow.id;
+      resolvedTableNumber = tblRow.tableNumber;
+    }
+
+    final statusPayload = {
+      'tableId': resolvedTableId,
+      'tableNumber': resolvedTableNumber,
+      'status': status,
+      'branchId': branchId,
+      if (guestCount != null && guestCount > 0) 'guestCount': guestCount,
+    };
+
+    await _db.transaction(() async {
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => (t.id.equals(resolvedTableId) | t.id.equals(tableId) | t.tableNumber.equals(resolvedTableNumber)) &
+                (tenantId.isNotEmpty ? t.tenantId.equals(tenantId) : const Constant(true))))
+          .write(
+        LocalRestaurantTablesCompanion(
+          status: Value(status),
+          currentGuestCount: guestCount != null && guestCount > 0
+              ? Value(guestCount)
+              : (status == 'vacant' ? const Value(0) : const Value.absent()),
+          occupiedAt: status == 'vacant'
+              ? const Value(null)
+              : (status == 'seated' && tblRow?.occupiedAt == null ? Value(now) : const Value.absent()),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: deviceId,
+          sequence: _outboxSequence++,
+          operationType: 'UPDATE_TABLE_STATUS',
+          schemaVersion: const Value(1),
+          payload: jsonEncode(statusPayload),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(now),
+        ),
+      );
+    });
+  }
+
+  /// Atomically transfers an active order and table status to a target table and queues TRANSFER_TABLE in SyncOutbox
+  Future<void> transferTableAtomic({
+    required String sourceTableId,
+    required String targetTableId,
+    required String tenantId,
+    required String branchId,
+    required String deviceId,
+  }) async {
+    final now = DateTime.now();
+
+    final sourceRow = await _resolveTable(sourceTableId, tenantId: tenantId, branchId: branchId);
+    final targetRow = await _resolveTable(targetTableId, tenantId: tenantId, branchId: branchId);
+
+    final resolvedSourceId = sourceRow?.id ?? sourceTableId;
+    final resolvedTargetId = targetRow?.id ?? targetTableId;
+
+    final transferPayload = {
+      'sourceTableId': resolvedSourceId,
+      'targetTableId': resolvedTargetId,
+      'branchId': branchId,
+    };
+
+    await _db.transaction(() async {
+      // 1. Move active orders from source to target
+      await (_db.update(_db.localRestaurantOrders)
+            ..where((o) => (o.tableId.equals(resolvedSourceId) | o.tableId.equals(sourceTableId) | o.tableNumberSnapshot.equals(sourceRow?.tableNumber ?? sourceTableId)) &
+                (tenantId.isNotEmpty ? o.tenantId.equals(tenantId) : const Constant(true)))
+            ..where((o) => o.status.isIn(const ['open', 'billed', 'ordered'])))
+          .write(
+        LocalRestaurantOrdersCompanion(
+          tableId: Value(resolvedTargetId),
+          tableNumberSnapshot: Value(targetRow?.tableNumber ?? targetTableId),
+          sectionSnapshot: Value(targetRow?.section ?? 'Main Dining'),
+        ),
+      );
+
+      // 2. Set target table status to source table status
+      final currentStatus = sourceRow?.status ?? 'seated';
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => (t.id.equals(resolvedTargetId) | t.id.equals(targetTableId)) &
+                (tenantId.isNotEmpty ? t.tenantId.equals(tenantId) : const Constant(true))))
+          .write(
+        LocalRestaurantTablesCompanion(
+          status: Value(currentStatus),
+          currentGuestCount: Value(sourceRow?.currentGuestCount ?? 2),
+          occupiedAt: Value(sourceRow?.occupiedAt ?? now),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 3. Set source table to vacant
+      await (_db.update(_db.localRestaurantTables)
+            ..where((t) => (t.id.equals(resolvedSourceId) | t.id.equals(sourceTableId)) &
+                (tenantId.isNotEmpty ? t.tenantId.equals(tenantId) : const Constant(true))))
+          .write(
+        LocalRestaurantTablesCompanion(
+          status: const Value('vacant'),
+          currentGuestCount: const Value(0),
+          occupiedAt: const Value(null),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 4. Queue TRANSFER_TABLE outbox mutation
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          operationId: const Uuid().v4(),
+          deviceId: deviceId,
+          sequence: _outboxSequence++,
+          operationType: 'TRANSFER_TABLE',
+          schemaVersion: const Value(1),
+          payload: jsonEncode(transferPayload),
+          status: const Value('pending'),
+          retryCount: const Value(0),
+          createdAt: Value(now),
+        ),
+      );
     });
   }
 

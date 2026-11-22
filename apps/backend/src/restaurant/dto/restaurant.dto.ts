@@ -50,6 +50,11 @@ export class CreateTableDto {
 }
 
 export class UpdateTableDto {
+  @ApiProperty({ example: 'T-01', required: false })
+  @IsString()
+  @IsOptional()
+  tableNumber?: string;
+
   @ApiProperty({ example: 'Window Table 4', required: false })
   @IsString()
   @IsOptional()
@@ -87,6 +92,11 @@ export class CreateRestaurantOrderDto {
   @IsString()
   @IsOptional()
   tableId?: string;
+
+  @ApiProperty({ example: 'T-01', required: false })
+  @IsString()
+  @IsOptional()
+  tableNumber?: string;
 
   @ApiProperty({ enum: RestaurantOrderType, example: RestaurantOrderType.DINE_IN })
   @IsEnum(RestaurantOrderType)

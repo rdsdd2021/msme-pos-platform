@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 import '../models/cart_item.dart';
 import '../models/product.dart';
 import '../repositories/local_restaurant_repository.dart';
@@ -39,6 +41,7 @@ enum TableStatus {
 
 class RestaurantTable {
   final String id;
+  final String? tableNumber;
   final String name;
   final String section;
   final int capacity;
@@ -52,6 +55,7 @@ class RestaurantTable {
 
   const RestaurantTable({
     required this.id,
+    this.tableNumber,
     required this.name,
     this.section = 'Main Dining',
     this.capacity = 4,
@@ -105,6 +109,7 @@ class RestaurantTable {
 
   RestaurantTable copyWith({
     String? id,
+    String? tableNumber,
     String? name,
     String? section,
     int? capacity,
@@ -118,6 +123,7 @@ class RestaurantTable {
   }) {
     return RestaurantTable(
       id: id ?? this.id,
+      tableNumber: tableNumber ?? this.tableNumber,
       name: name ?? this.name,
       section: section ?? this.section,
       capacity: capacity ?? this.capacity,
@@ -134,6 +140,7 @@ class RestaurantTable {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'tableNumber': tableNumber ?? id,
       'name': name,
       'section': section,
       'capacity': capacity,
@@ -227,6 +234,7 @@ class RestaurantTable {
 
     return RestaurantTable(
       id: json['id'] as String,
+      tableNumber: json['tableNumber'] as String? ?? json['id'] as String?,
       name: json['name'] as String,
       section: json['section'] as String? ?? 'Main Dining',
       capacity: json['capacity'] as int? ?? 4,
@@ -282,7 +290,6 @@ class RestaurantState {
 class RestaurantNotifier extends StateNotifier<RestaurantState> {
   final LocalRestaurantRepository? _repo;
   final Ref? _ref;
-  dynamic _tablesSubscription;
 
   String _getStorageKey() {
     final tenantId = _ref?.read(authProvider).activeMembership?.tenantId;
@@ -294,25 +301,25 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
   static final List<RestaurantTable> _defaultTables = [
     // Main Dining (8 tables)
-    const RestaurantTable(id: 'T-01', name: 'Table 1', section: 'Main Dining', capacity: 2),
-    const RestaurantTable(id: 'T-02', name: 'Table 2', section: 'Main Dining', capacity: 4),
-    const RestaurantTable(id: 'T-03', name: 'Table 3', section: 'Main Dining', capacity: 4),
-    const RestaurantTable(id: 'T-04', name: 'Table 4 (Window)', section: 'Main Dining', capacity: 4),
-    const RestaurantTable(id: 'T-05', name: 'Table 5 (Corner)', section: 'Main Dining', capacity: 6),
-    const RestaurantTable(id: 'T-06', name: 'Table 6', section: 'Main Dining', capacity: 6),
-    const RestaurantTable(id: 'T-07', name: 'Table 7', section: 'Main Dining', capacity: 8),
-    const RestaurantTable(id: 'T-08', name: 'Table 8', section: 'Main Dining', capacity: 2),
+    const RestaurantTable(id: 'T-01', tableNumber: 'T-01', name: 'Table 1', section: 'Main Dining', capacity: 2),
+    const RestaurantTable(id: 'T-02', tableNumber: 'T-02', name: 'Table 2', section: 'Main Dining', capacity: 4),
+    const RestaurantTable(id: 'T-03', tableNumber: 'T-03', name: 'Table 3', section: 'Main Dining', capacity: 4),
+    const RestaurantTable(id: 'T-04', tableNumber: 'T-04', name: 'Table 4 (Window)', section: 'Main Dining', capacity: 4),
+    const RestaurantTable(id: 'T-05', tableNumber: 'T-05', name: 'Table 5 (Corner)', section: 'Main Dining', capacity: 6),
+    const RestaurantTable(id: 'T-06', tableNumber: 'T-06', name: 'Table 6', section: 'Main Dining', capacity: 6),
+    const RestaurantTable(id: 'T-07', tableNumber: 'T-07', name: 'Table 7', section: 'Main Dining', capacity: 8),
+    const RestaurantTable(id: 'T-08', tableNumber: 'T-08', name: 'Table 8', section: 'Main Dining', capacity: 2),
     // AC Hall (4 tables)
-    const RestaurantTable(id: 'AC-01', name: 'AC Table 1', section: 'AC Hall', capacity: 4),
-    const RestaurantTable(id: 'AC-02', name: 'AC Table 2', section: 'AC Hall', capacity: 4),
-    const RestaurantTable(id: 'AC-03', name: 'AC Table 3', section: 'AC Hall', capacity: 6),
-    const RestaurantTable(id: 'AC-04', name: 'AC Table 4', section: 'AC Hall', capacity: 8),
+    const RestaurantTable(id: 'AC-01', tableNumber: 'AC-01', name: 'AC Table 1', section: 'AC Hall', capacity: 4),
+    const RestaurantTable(id: 'AC-02', tableNumber: 'AC-02', name: 'AC Table 2', section: 'AC Hall', capacity: 4),
+    const RestaurantTable(id: 'AC-03', tableNumber: 'AC-03', name: 'AC Table 3', section: 'AC Hall', capacity: 6),
+    const RestaurantTable(id: 'AC-04', tableNumber: 'AC-04', name: 'AC Table 4', section: 'AC Hall', capacity: 8),
     // Terrace (2 tables)
-    const RestaurantTable(id: 'TR-01', name: 'Terrace 1', section: 'Terrace', capacity: 4),
-    const RestaurantTable(id: 'TR-02', name: 'Terrace 2', section: 'Terrace', capacity: 4),
+    const RestaurantTable(id: 'TR-01', tableNumber: 'TR-01', name: 'Terrace 1', section: 'Terrace', capacity: 4),
+    const RestaurantTable(id: 'TR-02', tableNumber: 'TR-02', name: 'Terrace 2', section: 'Terrace', capacity: 4),
     // Takeaway / Delivery Counters (2 counters)
-    const RestaurantTable(id: 'TAK-01', name: 'Takeaway Counter 1', section: 'Takeaway', capacity: 1),
-    const RestaurantTable(id: 'TAK-02', name: 'Takeaway Counter 2', section: 'Takeaway', capacity: 1),
+    const RestaurantTable(id: 'TAK-01', tableNumber: 'TAK-01', name: 'Takeaway Counter 1', section: 'Takeaway', capacity: 1),
+    const RestaurantTable(id: 'TAK-02', tableNumber: 'TAK-02', name: 'Takeaway Counter 2', section: 'Takeaway', capacity: 1),
   ];
 
   RestaurantNotifier([this._repo, this._ref]) : super(RestaurantState(tables: _defaultTables)) {
@@ -341,12 +348,14 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   }
 
   Future<void> _syncTablesFromDb(List<dynamic> dbTables) async {
-    final currentMap = {for (final t in state.tables) t.id: t};
+    final currentById = {for (final t in state.tables) t.id: t};
+    final currentByNumber = {for (final t in state.tables) if (t.tableNumber != null) t.tableNumber!: t};
+    final currentByName = {for (final t in state.tables) t.name: t};
 
     final List<RestaurantTable> merged = [];
     for (final tbl in dbTables) {
       final tblId = tbl.id as String;
-      final existing = currentMap[tblId] ?? currentMap[tbl.tableNumber];
+      final existing = currentById[tblId] ?? currentByNumber[tbl.tableNumber] ?? currentByName[tbl.name ?? ''] ?? currentByName[tbl.tableNumber];
 
       TableStatus parsedStatus;
       try {
@@ -379,7 +388,10 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         }
 
         // Query committed lines from local SQLite (populated by sync pull or local KOT outbox)
-        final dbLines = await _repo?.getTableActiveCartItems(tblId) ?? [];
+        final auth = _ref?.read(authProvider);
+        final tenantId = auth?.activeMembership?.tenantId;
+        final branchId = auth?.activeBranchId;
+        final dbLines = await _repo?.getTableActiveCartItems(tblId, tenantId: tenantId, branchId: branchId) ?? [];
         if (dbLines.isNotEmpty) {
           activeLines = dbLines;
           confirmedLines = dbLines;
@@ -420,6 +432,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       merged.add(
         RestaurantTable(
           id: tblId,
+          tableNumber: tbl.tableNumber ?? existing?.tableNumber ?? tblId,
           name: tbl.name ?? tbl.tableNumber ?? existing?.name ?? 'Table',
           section: tbl.section ?? existing?.section ?? 'Main Dining',
           capacity: tbl.seatingCapacity ?? existing?.capacity ?? 4,
@@ -438,12 +451,6 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     await _saveToCache();
   }
 
-  @override
-  void dispose() {
-    _tablesSubscription?.cancel();
-    super.dispose();
-  }
-
   Future<void> _loadFromCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -455,8 +462,19 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         if (loaded.isNotEmpty) {
           // Filter out legacy tables (e.g. 't-1' or 'takeaway-1') so defaults are unified with backend
           final validLoaded = loaded.where((t) => !t.id.startsWith('t-') && t.id != 'takeaway-1' && t.id != 'takeaway-2').toList();
-          final loadedIds = {for (final t in validLoaded) t.id};
-          final missing = _defaultTables.where((t) => !loadedIds.contains(t.id)).toList();
+          final loadedCodes = <String>{};
+          for (final t in validLoaded) {
+            loadedCodes.add(t.id);
+            if (t.tableNumber != null && t.tableNumber!.isNotEmpty) {
+              loadedCodes.add(t.tableNumber!);
+            }
+            loadedCodes.add(t.name);
+          }
+          final missing = _defaultTables.where((t) {
+            return !loadedCodes.contains(t.id) &&
+                   !loadedCodes.contains(t.tableNumber ?? '') &&
+                   !loadedCodes.contains(t.name);
+          }).toList();
           state = state.copyWith(tables: [...validLoaded, ...missing]);
         }
       }
@@ -491,6 +509,29 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     state = state.copyWith(selectedSection: section);
   }
 
+  Future<void> _syncTableStatusToOutbox(String tableId, String status, {int? guestCount}) async {
+    try {
+      final auth = _ref?.read(authProvider);
+      final tenantId = auth?.activeMembership?.tenantId ?? auth?.user?.primaryMembership?.tenantId ?? '';
+      final branchId = (auth?.activeBranchId != null && auth!.activeBranchId!.isNotEmpty && auth.activeBranchId != 'branch-1')
+          ? auth.activeBranchId!
+          : (auth?.activeMembership?.branchId ?? auth?.user?.primaryMembership?.branchId ?? '');
+      if (tenantId.isEmpty || _repo == null) return;
+      final deviceId = await AppConfig.getDeviceId();
+      await _repo!.markTableStatusAtomic(
+        tableId: tableId,
+        status: status,
+        tenantId: tenantId,
+        branchId: branchId,
+        deviceId: deviceId,
+        guestCount: guestCount,
+      );
+      _ref?.read(syncStateProvider.notifier).syncNow();
+    } catch (e) {
+      debugPrint('[RestaurantNotifier] Error syncing table status: $e');
+    }
+  }
+
   void setGuestCount(String tableId, int count) {
     final valid = count.clamp(1, 20);
     final updated = state.tables.map((t) {
@@ -499,6 +540,8 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     }).toList();
     state = state.copyWith(tables: updated);
     _saveToCache();
+    final currentTable = updated.firstWhere((t) => t.id == tableId, orElse: () => state.tables.first);
+    _syncTableStatusToOutbox(tableId, currentTable.status.name, guestCount: valid);
   }
 
   void setCaptainNotes(String tableId, String notes) {
@@ -549,7 +592,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
     state = state.copyWith(tables: updated);
     _saveToCache();
-    _repo?.updateTableStatus(tableId, 'seated');
+    _syncTableStatusToOutbox(tableId, 'seated');
   }
 
   void markOrderConfirmed(String tableId) {
@@ -596,6 +639,9 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
     state = state.copyWith(tables: updated);
     _saveToCache();
+    if (updated.firstWhere((t) => t.id == tableId, orElse: () => state.tables.first).status == TableStatus.vacant) {
+      _syncTableStatusToOutbox(tableId, 'vacant');
+    }
   }
 
   void updateLineNotes(String tableId, String targetKey, String notes) {
@@ -645,7 +691,33 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
     state = state.copyWith(tables: updated);
     _saveToCache();
+
+    // Asynchronously queue atomic database update and outbox mutation
+    _syncTransferToOutbox(sourceTableId, targetTableId);
     return true;
+  }
+
+  Future<void> _syncTransferToOutbox(String sourceTableId, String targetTableId) async {
+    try {
+      final auth = _ref?.read(authProvider);
+      final tenantId = auth?.activeMembership?.tenantId ?? auth?.user?.primaryMembership?.tenantId ?? '';
+      final branchId = (auth?.activeBranchId != null && auth!.activeBranchId!.isNotEmpty && auth.activeBranchId != 'branch-1')
+          ? auth.activeBranchId!
+          : (auth?.activeMembership?.branchId ?? auth?.user?.primaryMembership?.branchId ?? '');
+      if (tenantId.isNotEmpty && _repo != null) {
+        final deviceId = await AppConfig.getDeviceId();
+        await _repo!.transferTableAtomic(
+          sourceTableId: sourceTableId,
+          targetTableId: targetTableId,
+          tenantId: tenantId,
+          branchId: branchId,
+          deviceId: deviceId,
+        );
+        _ref?.read(syncStateProvider.notifier).syncNow();
+      }
+    } catch (e) {
+      debugPrint('[RestaurantNotifier] Error transferring table: $e');
+    }
   }
 
   void markTableBilled(String tableId) {
@@ -684,6 +756,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     }).toList();
     state = state.copyWith(tables: updated);
     _saveToCache();
+    _syncTableStatusToOutbox(tableId, 'dirty');
   }
 
   void markTableClean(String tableId) {
@@ -695,6 +768,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     }).toList();
     state = state.copyWith(tables: updated);
     _saveToCache();
+    _syncTableStatusToOutbox(tableId, 'vacant');
   }
 
   void clearAndVacateTable(String tableId, {bool markDirty = false}) {
