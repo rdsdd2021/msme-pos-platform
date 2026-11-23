@@ -9,6 +9,7 @@ import 'package:pos_mobile/core/providers/cart_provider.dart';
 import 'package:pos_mobile/core/repositories/local_catalog_repository.dart';
 import 'package:pos_mobile/features/restaurant/restaurant_tables_screen.dart';
 import 'package:pos_mobile/features/restaurant/table_order_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -388,6 +389,40 @@ void main() {
       expect(all.any((p) => p.id == userProduct.id), isTrue);
 
       await db.close();
+    });
+
+    test('RestaurantNotifier toggles GST on/off and updates table running totals', () async {
+      SharedPreferences.setMockInitialValues({});
+      final notifier = RestaurantNotifier();
+
+      expect(notifier.state.isGstEnabled, isTrue);
+
+      final dish = Product(
+        id: 'dish-1',
+        name: 'Veg Biryani',
+        sku: 'DISH-VB-1',
+        category: 'Main Course',
+        unit: 'PORTION',
+        sellingPricePaisa: 20000,
+        purchaseCostPaisa: 0,
+        gstRate: 5,
+        currentStock: 10,
+      );
+
+      notifier.addItemToTable('T-01', dish, qty: 1);
+      final t1 = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
+      expect(t1.activeOrderLines.first.subtotalPaisa, 20000);
+      expect(t1.activeOrderLines.first.taxPaisa, 1000); // 5% GST on 20000 = 1000
+      expect(t1.runningTotalPaisa, 21000); // 20000 + 1000
+
+      // Toggle GST OFF (Eatery is exempt / non-GST)
+      await notifier.setGstEnabled(false);
+      expect(notifier.state.isGstEnabled, isFalse);
+
+      final t1Off = notifier.state.tables.firstWhere((t) => t.id == 'T-01');
+      expect(t1Off.activeOrderLines.first.subtotalPaisa, 20000);
+      expect(t1Off.activeOrderLines.first.taxPaisa, 0); // 0% GST!
+      expect(t1Off.runningTotalPaisa, 20000); // Exactly subtotal, no GST!
     });
   });
 }

@@ -253,7 +253,7 @@ export function SplitBillModal({
                   <span>₹{parseFloat(order.subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>GST (5% Restaurant):</span>
+                  <span>{parseFloat(order.taxTotal) > 0.005 ? 'GST (Restaurant):' : 'GST (0% - Exempt):'}</span>
                   <span>₹{parseFloat(order.taxTotal).toFixed(2)}</span>
                 </div>
                 {parseFloat(order.discountTotal) > 0 && (
@@ -288,7 +288,8 @@ export function SplitBillModal({
                   ₹{grandTotalNum.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-slate-300 mt-1">
-                  Subtotal: ₹{parseFloat(order.subtotal).toFixed(2)} + GST (5%): ₹{parseFloat(order.taxTotal).toFixed(2)}
+                  Subtotal: ₹{parseFloat(order.subtotal).toFixed(2)}
+                  {parseFloat(order.taxTotal) > 0.005 ? ` + GST: ₹${parseFloat(order.taxTotal).toFixed(2)}` : ' (Tax Exempt / 0% GST)'}
                   {Math.abs(roundingAdjustment) >= 0.01 && (
                     <span className="text-emerald-300 ml-1">
                       (Round: {roundingAdjustment > 0 ? '+' : ''}₹{roundingAdjustment.toFixed(2)})

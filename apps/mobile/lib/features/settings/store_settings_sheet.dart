@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/restaurant_provider.dart';
 import '../../core/providers/sync_provider.dart';
 import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
@@ -27,6 +28,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
   late TextEditingController _postalCodeController;
 
   bool _isSaving = false;
+  bool _chargeGst = true;
   String? _errorMessage;
 
   static const Map<String, String> _indianStates = {
@@ -95,6 +97,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
     _postalCodeController = TextEditingController(
       text: details?['postalCode'] as String? ?? '',
     );
+    _chargeGst = ref.read(restaurantProvider).isGstEnabled;
   }
 
   @override
@@ -163,6 +166,9 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
             city: _cityController.text.trim(),
             postalCode: _postalCodeController.text.trim(),
           );
+
+      // Save restaurant dining GST preference
+      await ref.read(restaurantProvider.notifier).setGstEnabled(_chargeGst);
 
       // Trigger background sync to refresh state
       ref.read(syncStateProvider.notifier).syncNow();
@@ -359,6 +365,54 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                             }
                           },
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Restaurant GST Toggle Switch
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: ShadcnColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: ShadcnColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text('Charge Restaurant GST', style: ShadcnTypography.bodySemibold),
+                                    const SizedBox(width: 8),
+                                    ShadcnBadge(
+                                      text: _chargeGst ? '5.00%' : '0% Off',
+                                      variant: _chargeGst ? ShadcnBadgeVariant.success : ShadcnBadgeVariant.secondary,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _chargeGst
+                                      ? '5% GST will be added on dine-in food orders, bills, and tax invoices.'
+                                      : 'Turn OFF if you are an unregistered eatery (<₹20L turnover). No GST will be added on orders.',
+                                  style: ShadcnTypography.caption,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _chargeGst,
+                            activeColor: ShadcnColors.primary,
+                            onChanged: (val) {
+                              setState(() {
+                                _chargeGst = val;
+                              });
+                            },
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),

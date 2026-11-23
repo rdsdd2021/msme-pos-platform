@@ -1088,6 +1088,7 @@ export interface FloorSectionConfig {
 
 export interface RestaurantSettings {
   floorSections: FloorSectionConfig[];
+  enableGst?: boolean;
   defaultGstPercent: string;
   serviceChargePercent: string;
   packagingCharge: string;

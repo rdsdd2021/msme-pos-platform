@@ -90,9 +90,10 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
   }
 
   ReceiptDocument _buildPreBillReceiptDocument(RestaurantTable currentTable) {
+    final isGstEnabled = ref.read(restaurantProvider).isGstEnabled;
     final subtotal = currentTable.runningTotalPaisa;
-    final cgst = (subtotal * 0.025).round();
-    final sgst = (subtotal * 0.025).round();
+    final cgst = isGstEnabled ? (subtotal * 0.025).round() : 0;
+    final sgst = isGstEnabled ? (subtotal * 0.025).round() : 0;
     final grandTotal = subtotal + cgst + sgst;
 
     return ReceiptDocument(
@@ -113,8 +114,8 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
           quantity: i.quantity,
           unit: i.product.unit,
           unitPricePaisa: i.unitPricePaisa,
-          taxRatePercent: 5,
-          taxPaisa: (i.totalPaisa * 0.05).round(),
+          taxRatePercent: isGstEnabled ? 5 : 0,
+          taxPaisa: isGstEnabled ? (i.totalPaisa * 0.05).round() : 0,
           totalPaisa: i.totalPaisa,
         );
       }).toList(),
@@ -587,7 +588,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text('Grand Total Payable', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ShadcnColors.foreground)),
-                            Text('${currentTable.itemCount} items • GST Included', style: ShadcnTypography.caption),
+                            Text('${currentTable.itemCount} items • ${ref.watch(restaurantProvider).isGstEnabled ? "GST Included" : "0% GST Exempt"}', style: ShadcnTypography.caption),
                           ],
                         ),
                         Text(totalFormatted, style: ShadcnTypography.currencyLarge.copyWith(color: ShadcnColors.primary)),

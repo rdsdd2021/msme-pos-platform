@@ -39,6 +39,7 @@ export function RestaurantSettingsView() {
 
   // Settings State
   const [floorSections, setFloorSections] = useState<FloorSectionConfig[]>(DEFAULT_SECTIONS);
+  const [enableGst, setEnableGst] = useState(true);
   const [defaultGstPercent, setDefaultGstPercent] = useState('5.00');
   const [serviceChargePercent, setServiceChargePercent] = useState('0.00');
   const [packagingCharge, setPackagingCharge] = useState('0.00');
@@ -58,6 +59,11 @@ export function RestaurantSettingsView() {
       if (data) {
         if (data.floorSections && data.floorSections.length > 0) {
           setFloorSections(data.floorSections);
+        }
+        if (data.enableGst !== undefined) {
+          setEnableGst(data.enableGst);
+        } else if (data.defaultGstPercent !== undefined) {
+          setEnableGst(data.defaultGstPercent !== '0.00');
         }
         if (data.defaultGstPercent) setDefaultGstPercent(data.defaultGstPercent);
         if (data.serviceChargePercent) setServiceChargePercent(data.serviceChargePercent);
@@ -105,11 +111,16 @@ export function RestaurantSettingsView() {
       setErrorMessage(null);
       setSuccessBanner(null);
 
+      const effectiveGstPercent = enableGst
+        ? (defaultGstPercent === '0.00' ? '5.00' : defaultGstPercent)
+        : '0.00';
+
       await apiClient.updateRestaurantSettings(
         tenantId,
         {
           floorSections,
-          defaultGstPercent,
+          enableGst,
+          defaultGstPercent: effectiveGstPercent,
           serviceChargePercent,
           packagingCharge,
           autoPrintKotOnFire,
@@ -255,27 +266,76 @@ export function RestaurantSettingsView() {
           <div>
             <h3 className="text-sm font-bold text-slate-900">Restaurant GST &amp; Service Charges</h3>
             <p className="text-xs text-slate-500">
-              Indian restaurant tax rules: standalone food service is taxed at 5% GST without ITC.
+              Configure whether this restaurant charges GST. Standalone food service is taxed at 5% GST without ITC.
             </p>
           </div>
         </div>
 
+        {/* Prominent GST ON / OFF Toggle */}
+        <div className="mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate-900">Charge Restaurant GST</span>
+              <span
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  enableGst
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-slate-200 text-slate-700 border border-slate-300'
+                }`}
+              >
+                {enableGst ? 'GST Active' : 'GST Exempt / Off'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 max-w-xl">
+              {enableGst
+                ? 'GST is automatically calculated and added on food orders, bills, and tax invoices according to the rate configured below.'
+                : 'Turn this OFF if your restaurant/food stall operates under the GST threshold (<₹20L turnover) or is tax exempt. All bills, orders, and KOTs will be ₹0.00 GST.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enableGst}
+            onClick={() => {
+              const next = !enableGst;
+              setEnableGst(next);
+              if (!next) {
+                setDefaultGstPercent('0.00');
+              } else if (defaultGstPercent === '0.00') {
+                setDefaultGstPercent('5.00');
+              }
+            }}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+              enableGst ? 'bg-emerald-600' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                enableGst ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div>
+          <div className={!enableGst ? 'opacity-50 pointer-events-none' : ''}>
             <Label className="text-xs font-bold text-slate-700 mb-1.5 block">
               Restaurant GST Rate (%)
             </Label>
             <select
-              value={defaultGstPercent}
+              value={enableGst ? defaultGstPercent : '0.00'}
+              disabled={!enableGst}
               onChange={(e) => setDefaultGstPercent(e.target.value)}
-              className="h-9 w-full text-xs font-semibold rounded-lg border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-9 w-full text-xs font-semibold rounded-lg border border-slate-300 px-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
             >
               <option value="5.00">5.00% (Standard standalone restaurant - No ITC)</option>
               <option value="18.00">18.00% (Luxury restaurant or liquor license)</option>
               <option value="0.00">0.00% (Tax exempt / Non-GST merchant)</option>
             </select>
             <p className="text-[11px] text-slate-400 mt-1">
-              Applied automatically to all food &amp; beverage items on KOT settlement.
+              {enableGst
+                ? 'Applied automatically to all food & beverage items on KOT settlement.'
+                : 'Disabled because Charge Restaurant GST is toggled OFF.'}
             </p>
           </div>
 

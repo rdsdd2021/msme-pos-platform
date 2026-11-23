@@ -36,6 +36,7 @@ import {
   RestaurantTable,
   RestaurantOrder,
   RestaurantKot,
+  RestaurantSettings,
   DispatchKotItemRequest,
   apiClient,
 } from '@/lib/api-client';
@@ -122,6 +123,31 @@ export function TableOrderDrawer({
   const activeOrderRef = React.useRef<RestaurantOrder | null>(null);
   activeOrderRef.current = activeOrder;
 
+  // Restaurant dining settings (for GST active toggle and rate)
+  const [diningSettings, setDiningSettings] = useState<RestaurantSettings | null>(null);
+
+  useEffect(() => {
+    if (!open || !table) return;
+    let isMounted = true;
+    apiClient.getRestaurantSettings(table.tenantId, table.branchId)
+      .then((settings) => {
+        if (isMounted && settings) {
+          setDiningSettings(settings);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [open, table?.tenantId, table?.branchId]);
+
+  const isGstEnabled = diningSettings
+    ? (diningSettings.enableGst !== false && diningSettings.defaultGstPercent !== '0.00')
+    : true;
+  const gstRate = isGstEnabled
+    ? (parseFloat(diningSettings?.defaultGstPercent || '5.00') / 100)
+    : 0;
+
   // Computed live totals including draft items
   const draftSubtotal = React.useMemo(() => {
     return draftItems.reduce((acc, it) => acc + (it.unitPrice || 0) * (it.quantity || 1), 0);
@@ -129,7 +155,7 @@ export function TableOrderDrawer({
   const activeSubtotal = parseFloat(activeOrder?.subtotal || '0');
   const displaySubtotal = activeSubtotal + draftSubtotal;
   const activeTax = parseFloat(activeOrder?.taxTotal || '0');
-  const draftTax = draftSubtotal * 0.05; // 5% composite restaurant GST
+  const draftTax = draftSubtotal * gstRate;
   const displayTax = activeTax + draftTax;
   const displayGrandTotal = displaySubtotal + displayTax;
 
@@ -573,14 +599,19 @@ export function TableOrderDrawer({
             <span>Subtotal:</span>
             <span>₹${subtotal.toFixed(2)}</span>
           </div>
+          ${taxTotal > 0.005 ? `
           <div class="totals-row">
-            <span>CGST (2.5%):</span>
+            <span>CGST (${(gstRate * 50).toFixed(1)}%):</span>
             <span>₹${cgst.toFixed(2)}</span>
           </div>
           <div class="totals-row">
-            <span>SGST (2.5%):</span>
+            <span>SGST (${(gstRate * 50).toFixed(1)}%):</span>
             <span>₹${sgst.toFixed(2)}</span>
-          </div>
+          </div>` : `
+          <div class="totals-row">
+            <span>Tax (GST):</span>
+            <span>₹0.00 (Exempt)</span>
+          </div>`}
           <div class="grand-total">
             <span>GRAND TOTAL:</span>
             <span>₹${grandTotal.toFixed(2)}</span>
@@ -1170,7 +1201,7 @@ export function TableOrderDrawer({
                       <span className="font-mono">₹{displaySubtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>GST (5% Restaurant)</span>
+                      <span>{isGstEnabled ? `GST (${(gstRate * 100).toFixed(0)}% Restaurant)` : 'GST (0% - Tax Exempt)'}</span>
                       <span className="font-mono">₹{displayTax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-black text-base text-emerald-400 border-t border-slate-800/80 pt-1.5 mt-1">

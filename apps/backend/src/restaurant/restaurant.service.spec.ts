@@ -456,6 +456,7 @@ describe('RestaurantService', () => {
 
       const settings = await service.getRestaurantSettings('tenant-1');
       expect(settings).toBeDefined();
+      expect(settings.enableGst).toBe(true);
       expect(settings.defaultGstPercent).toBe('5.00');
       expect(settings.floorSections.length).toBeGreaterThan(0);
     });
@@ -468,14 +469,83 @@ describe('RestaurantService', () => {
       });
 
       const updated = await service.updateRestaurantSettings('tenant-1', 'branch-1', {
+        enableGst: false,
         serviceChargePercent: '5.00',
-        defaultGstPercent: '5.00',
+        defaultGstPercent: '0.00',
         autoPrintKotOnFire: true,
       });
 
       expect(mockTenantRepo.save).toHaveBeenCalled();
+      expect(updated.enableGst).toBe(false);
+      expect(updated.defaultGstPercent).toBe('0.00');
       expect(updated.serviceChargePercent).toBe('5.00');
       expect(updated.autoPrintKotOnFire).toBe(true);
+    });
+
+    it('settles order with 0% GST when restaurant GST is disabled', async () => {
+      mockTenantRepo.findOne.mockResolvedValue({
+        id: 'tenant-1',
+        name: 'Exempt Eatery',
+        settings: {
+          diningSettings: {
+            enableGst: false,
+            defaultGstPercent: '0.00',
+          },
+        },
+      });
+
+      const mockOrder: any = {
+        id: 'order-non-gst-1',
+        tenantId: 'tenant-1',
+        branchId: 'branch-1',
+        tableId: 'table-1',
+        status: RestaurantOrderStatus.OPEN,
+        subtotal: '200.00',
+        taxTotal: '0.00',
+        grandTotal: '200.00',
+        lines: [
+          {
+            id: 'line-1',
+            productId: 'prod-1',
+            productNameSnapshot: 'Special Thali',
+            unitPrice: '200.00',
+            quantity: '1.000',
+            lineTotal: '200.00',
+            status: KotStatus.SERVED,
+          },
+        ],
+      };
+
+      mockOrderRepo.findOne.mockResolvedValue(mockOrder);
+
+      const result = await service.settleOrder('tenant-1', 'branch-1', 'user-1', {
+        orderId: 'order-non-gst-1',
+        paymentMethod: PaymentMethod.CASH,
+      });
+
+      expect(mockBillingService.createSale).toHaveBeenCalledWith(
+        'tenant-1',
+        'user-1',
+        expect.objectContaining({
+          items: [
+            {
+              productId: 'prod-1',
+              customName: 'Special Thali',
+              unitPrice: '200.00',
+              quantity: '1.000',
+              discountAmount: undefined,
+              gstRatePercent: '0.00',
+            },
+          ],
+          payments: [
+            {
+              paymentMethod: PaymentMethod.CASH,
+              amount: '200.00',
+            },
+          ],
+        }),
+      );
+      expect(result.order.status).toBe(RestaurantOrderStatus.COMPLETED);
     });
   });
 

@@ -251,10 +251,14 @@ class RestaurantTable {
 class RestaurantState {
   final List<RestaurantTable> tables;
   final String selectedSection;
+  final bool isGstEnabled;
+  final double defaultGstPercent;
 
   const RestaurantState({
     required this.tables,
     this.selectedSection = 'All',
+    this.isGstEnabled = true,
+    this.defaultGstPercent = 5.0,
   });
 
   List<String> get sections {
@@ -279,10 +283,14 @@ class RestaurantState {
   RestaurantState copyWith({
     List<RestaurantTable>? tables,
     String? selectedSection,
+    bool? isGstEnabled,
+    double? defaultGstPercent,
   }) {
     return RestaurantState(
       tables: tables ?? this.tables,
       selectedSection: selectedSection ?? this.selectedSection,
+      isGstEnabled: isGstEnabled ?? this.isGstEnabled,
+      defaultGstPercent: defaultGstPercent ?? this.defaultGstPercent,
     );
   }
 }
@@ -333,6 +341,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
   void _initFromRepo() {
     _loadFromCache();
     refreshFromDb();
+    fetchDiningSettings();
   }
 
   Future<void> refreshFromDb() async {
@@ -455,6 +464,18 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = _getStorageKey();
+
+      final gstKey = '${key}_gst_enabled';
+      final gstPercentKey = '${key}_gst_percent';
+      final cachedGst = prefs.getBool(gstKey);
+      final cachedGstPercent = prefs.getDouble(gstPercentKey);
+      if (cachedGst != null) {
+        state = state.copyWith(
+          isGstEnabled: cachedGst,
+          defaultGstPercent: cachedGstPercent ?? (cachedGst ? 5.0 : 0.0),
+        );
+      }
+
       final cachedJson = prefs.getString(key);
       if (cachedJson != null && cachedJson.isNotEmpty) {
         final decoded = jsonDecode(cachedJson) as List<dynamic>;
@@ -477,6 +498,84 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           }).toList();
           state = state.copyWith(tables: [...validLoaded, ...missing]);
         }
+      }
+    } catch (_) {}
+  }
+
+  /// Fetch authoritative dining and GST settings from cloud backend
+  Future<void> fetchDiningSettings() async {
+    try {
+      final authRepo = _ref?.read(authRepositoryProvider);
+      final authState = _ref?.read(authProvider);
+      final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId;
+      final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId;
+      if (authRepo == null || tenantId == null || tenantId.isEmpty) return;
+
+      final res = await authRepo.getRestaurantDiningSettings(tenantId, branchId);
+      if (res != null) {
+        final enableGst = res['enableGst'] as bool? ?? (res['defaultGstPercent'] != '0.00');
+        final percentStr = res['defaultGstPercent'] as String? ?? (enableGst ? '5.00' : '0.00');
+        final rate = double.tryParse(percentStr) ?? (enableGst ? 5.0 : 0.0);
+        state = state.copyWith(
+          isGstEnabled: enableGst,
+          defaultGstPercent: rate,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        final key = _getStorageKey();
+        await prefs.setBool('${key}_gst_enabled', enableGst);
+        await prefs.setDouble('${key}_gst_percent', rate);
+      }
+    } catch (_) {}
+  }
+
+  /// Toggle or update GST active state across local state, cache and cloud
+  Future<void> setGstEnabled(bool enabled) async {
+    final effectivePercent = enabled ? (state.defaultGstPercent > 0 ? state.defaultGstPercent : 5.0) : 0.0;
+
+    // Update active tables lines' products to reflect new gstRate
+    final updatedTables = state.tables.map((t) {
+      if (t.activeOrderLines.isEmpty) return t;
+      final updatedLines = t.activeOrderLines.map((l) {
+        return l.copyWith(
+          product: l.product.copyWith(
+            gstRate: enabled ? (l.product.gstRate > 0 ? l.product.gstRate : 5) : 0,
+          ),
+        );
+      }).toList();
+      return t.copyWith(activeOrderLines: updatedLines);
+    }).toList();
+
+    state = state.copyWith(
+      tables: updatedTables,
+      isGstEnabled: enabled,
+      defaultGstPercent: effectivePercent,
+    );
+
+    // Save to SharedPreferences
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _getStorageKey();
+      await prefs.setBool('${key}_gst_enabled', enabled);
+      await prefs.setDouble('${key}_gst_percent', effectivePercent);
+      await _saveToCache();
+    } catch (_) {}
+
+    // Synchronize to backend if authenticated
+    try {
+      final authRepo = _ref?.read(authRepositoryProvider);
+      final authState = _ref?.read(authProvider);
+      final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId;
+      final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId;
+      if (authRepo != null && tenantId != null && tenantId.isNotEmpty) {
+        await authRepo.updateRestaurantDiningSettings(
+          tenantId: tenantId,
+          branchId: branchId,
+          settings: {
+            'enableGst': enabled,
+            'defaultGstPercent': enabled ? effectivePercent.toStringAsFixed(2) : '0.00',
+          },
+        );
       }
     } catch (_) {}
   }
@@ -561,21 +660,26 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     String? variantName,
     int? variantPricePaisa,
   }) {
+    final effectiveProduct = state.isGstEnabled
+        ? product
+        : product.copyWith(gstRate: 0);
+
     final updated = state.tables.map((t) {
       if (t.id != tableId) return t;
 
       final lines = List<CartItem>.from(t.activeOrderLines);
-      final targetKey = variantName != null ? '${product.id}__$variantName' : product.id;
+      final targetKey = variantName != null ? '${effectiveProduct.id}__$variantName' : effectiveProduct.id;
       final idx = lines.indexWhere((l) => l.lineKey == targetKey);
 
       if (idx >= 0) {
         lines[idx] = lines[idx].copyWith(
+          product: effectiveProduct,
           quantity: lines[idx].quantity + qty,
           notes: notes ?? lines[idx].notes,
         );
       } else {
         lines.add(CartItem(
-          product: product,
+          product: effectiveProduct,
           quantity: qty,
           notes: notes,
           variantName: variantName,

@@ -891,9 +891,12 @@ export class RestaurantService {
 
       savedKot.lines = await manager.save(kotLines);
 
-      // Recalculate running order totals (Standard 5% Restaurant GST: 2.5% CGST + 2.5% SGST)
+      // Recalculate running order totals based on restaurant GST dining settings
+      const settings = await this.getRestaurantSettings(tenantId, branchId);
+      const isGstEnabled = settings.enableGst !== false && settings.defaultGstPercent !== '0.00';
+      const gstRate = isGstEnabled ? (parseFloat(settings.defaultGstPercent || '5.00') / 100) : 0;
+
       const currentSubtotal = parseFloat(order.subtotal || '0') + additionalSubtotal;
-      const gstRate = 0.05; // 5% GST
       const taxTotal = Math.round(currentSubtotal * gstRate * 100) / 100;
       const grandTotal = Math.round((currentSubtotal + taxTotal) * 100) / 100;
 
@@ -1160,6 +1163,12 @@ export class RestaurantService {
       throw new BadRequestException('Order has already been settled and completed');
     }
 
+    // Fetch restaurant dining settings for GST rate
+    const settings = await this.getRestaurantSettings(tenantId, branchId);
+    const isGstEnabled = settings.enableGst !== false && settings.defaultGstPercent !== '0.00';
+    const gstRatePercent = isGstEnabled ? (settings.defaultGstPercent || '5.00') : '0.00';
+    const gstRate = isGstEnabled ? (parseFloat(gstRatePercent) / 100) : 0;
+
     // Convert restaurant order lines into cart lines for createSale with verified portion prices
     const items = activeLines.map((l) => ({
       productId: l.productId,
@@ -1167,7 +1176,7 @@ export class RestaurantService {
       unitPrice: l.unitPrice,
       quantity: l.quantity,
       discountAmount: undefined,
-      gstRatePercent: '5.00', // Standard restaurant GST rate
+      gstRatePercent,
     }));
 
     // Recalculate active totals to match settled lines exactly with CGST Section 170 nearest rupee rounding
@@ -1175,7 +1184,7 @@ export class RestaurantService {
       (sum, l) => sum + parseFloat(l.lineTotal || '0'),
       0,
     );
-    const settledTax = Math.round(settledSubtotal * 0.05 * 100) / 100;
+    const settledTax = Math.round(settledSubtotal * gstRate * 100) / 100;
     const rawGrandTotal = Math.round((settledSubtotal + settledTax) * 100) / 100;
     const roundedGrandTotal = Math.round(rawGrandTotal);
     const settledGrandTotalStr = (roundedGrandTotal > 0 ? roundedGrandTotal : rawGrandTotal).toFixed(2);
@@ -1274,6 +1283,7 @@ export class RestaurantService {
         { id: 'takeaway', name: 'Takeaway Counter', defaultCapacity: 1, tableCount: 2 },
         { id: 'terrace', name: 'Terrace & Outdoor', defaultCapacity: 4, tableCount: 2 },
       ],
+      enableGst: true,
       defaultGstPercent: '5.00',
       serviceChargePercent: '0.00',
       packagingCharge: '0.00',
@@ -1296,8 +1306,13 @@ export class RestaurantService {
       return defaults;
     }
 
+    const isGstEnabled = saved.enableGst !== undefined
+      ? saved.enableGst
+      : (saved.defaultGstPercent !== undefined ? saved.defaultGstPercent !== '0.00' : defaults.enableGst);
+
     return {
       floorSections: saved.floorSections || defaults.floorSections,
+      enableGst: isGstEnabled,
       defaultGstPercent: saved.defaultGstPercent || defaults.defaultGstPercent,
       serviceChargePercent: saved.serviceChargePercent || defaults.serviceChargePercent,
       packagingCharge: saved.packagingCharge || defaults.packagingCharge,
@@ -1318,10 +1333,26 @@ export class RestaurantService {
     }
 
     const current = await this.getRestaurantSettings(tenantId, branchId);
+
+    const newEnableGst = dto.enableGst !== undefined
+      ? dto.enableGst
+      : (dto.defaultGstPercent !== undefined ? dto.defaultGstPercent !== '0.00' : current.enableGst);
+
+    let newDefaultGstPercent = dto.defaultGstPercent !== undefined
+      ? dto.defaultGstPercent
+      : current.defaultGstPercent;
+
+    if (!newEnableGst) {
+      newDefaultGstPercent = '0.00';
+    } else if (newDefaultGstPercent === '0.00') {
+      newDefaultGstPercent = '5.00';
+    }
+
     const updatedDiningSettings: RestaurantSettingsResponse = {
       ...current,
       ...(dto.floorSections ? { floorSections: dto.floorSections } : {}),
-      ...(dto.defaultGstPercent !== undefined ? { defaultGstPercent: dto.defaultGstPercent } : {}),
+      enableGst: newEnableGst,
+      defaultGstPercent: newDefaultGstPercent,
       ...(dto.serviceChargePercent !== undefined ? { serviceChargePercent: dto.serviceChargePercent } : {}),
       ...(dto.packagingCharge !== undefined ? { packagingCharge: dto.packagingCharge } : {}),
       ...(dto.autoPrintKotOnFire !== undefined ? { autoPrintKotOnFire: dto.autoPrintKotOnFire } : {}),
@@ -1503,6 +1534,10 @@ Return ONLY raw JSON in this exact structure:
       }
     }
 
+    const settings = await this.getRestaurantSettings(tenantId, branchId);
+    const isGstEnabled = settings.enableGst !== false && settings.defaultGstPercent !== '0.00';
+    const defaultProductGst = isGstEnabled ? (settings.defaultGstPercent || '5.00') : '0.00';
+
     // Provision each dish
     for (let i = 0; i < dishes.length; i++) {
       const d = dishes[i];
@@ -1533,7 +1568,7 @@ Return ONLY raw JSON in this exact structure:
         sellingPrice: priceStr,
         mrp: priceStr,
         purchaseCost: costStr,
-        gstRatePercent: '5.00',
+        gstRatePercent: defaultProductGst,
         hsnCode: d.hsnCode || '2106',
         foodType: foodTypeEnum,
         kitchenStation: stationEnum,

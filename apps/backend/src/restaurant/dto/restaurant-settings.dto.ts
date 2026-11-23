@@ -23,8 +23,12 @@ export class UpdateRestaurantSettingsDto {
   floorSections?: FloorSectionConfigDto[];
 
   @IsOptional()
+  @IsBoolean()
+  enableGst?: boolean;
+
+  @IsOptional()
   @IsString()
-  defaultGstPercent?: string; // '5.00' | '18.00'
+  defaultGstPercent?: string; // '5.00' | '18.00' | '0.00'
 
   @IsOptional()
   @IsString()
@@ -54,6 +58,7 @@ export interface RestaurantSettingsResponse {
     defaultCapacity: number;
     tableCount: number;
   }>;
+  enableGst: boolean;
   defaultGstPercent: string;
   serviceChargePercent: string;
   packagingCharge: string;

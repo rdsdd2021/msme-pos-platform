@@ -499,4 +499,65 @@ class AuthRepository {
     await prefs.setString('cached_branch_${tenantId}_$branchId', jsonEncode(updated));
     return updated;
   }
+
+  /// Fetch restaurant dining settings (GST enabled, rate, floor sections) with offline cache fallback
+  Future<Map<String, dynamic>?> getRestaurantDiningSettings(String tenantId, [String? branchId]) async {
+    final token = await getAccessToken();
+    final cacheKey = 'cached_dining_settings_${tenantId}_${branchId ?? "default"}';
+    if (token != null && token.isNotEmpty) {
+      try {
+        final query = branchId != null ? '?branchId=$branchId' : '';
+        final res = await _dio.get(
+          '$_baseUrl/api/v1/tenants/$tenantId/restaurant/settings$query',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        if (res.data is Map) {
+          final map = Map<String, dynamic>.from(res.data as Map);
+          final prefs = _prefs ?? await SharedPreferences.getInstance();
+          await prefs.setString(cacheKey, jsonEncode(map));
+          return map;
+        }
+      } catch (_) {}
+    }
+    // Offline fallback
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    final cached = prefs.getString(cacheKey);
+    if (cached != null) {
+      try {
+        return Map<String, dynamic>.from(jsonDecode(cached) as Map);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Update restaurant dining settings (enableGst, defaultGstPercent, etc.)
+  Future<Map<String, dynamic>> updateRestaurantDiningSettings({
+    required String tenantId,
+    required Map<String, dynamic> settings,
+    String? branchId,
+  }) async {
+    final token = await getAccessToken();
+    final cacheKey = 'cached_dining_settings_${tenantId}_${branchId ?? "default"}';
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final query = branchId != null ? '?branchId=$branchId' : '';
+        final res = await _dio.patch(
+          '$_baseUrl/api/v1/tenants/$tenantId/restaurant/settings$query',
+          data: settings,
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        if (res.data is Map) {
+          final updated = Map<String, dynamic>.from(res.data as Map);
+          await prefs.setString(cacheKey, jsonEncode(updated));
+          return updated;
+        }
+      } catch (_) {}
+    }
+
+    // Offline update: cache locally
+    await prefs.setString(cacheKey, jsonEncode(settings));
+    return settings;
+  }
 }
