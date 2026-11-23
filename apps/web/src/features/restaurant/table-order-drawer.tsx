@@ -119,6 +119,17 @@ export function TableOrderDrawer({
   const prevTableIdRef = React.useRef<string | null>(null);
   const prevOpenRef = React.useRef<boolean>(false);
 
+  // Computed live totals including draft items
+  const draftSubtotal = React.useMemo(() => {
+    return draftItems.reduce((acc, it) => acc + (it.unitPrice || 0) * (it.quantity || 1), 0);
+  }, [draftItems]);
+  const activeSubtotal = parseFloat(activeOrder?.subtotal || '0');
+  const displaySubtotal = activeSubtotal + draftSubtotal;
+  const activeTax = parseFloat(activeOrder?.taxTotal || '0');
+  const draftTax = draftSubtotal * 0.05; // 5% composite restaurant GST
+  const displayTax = activeTax + draftTax;
+  const displayGrandTotal = displaySubtotal + displayTax;
+
   // Reload active order data (handles SSE real-time updates and manual refresh)
   const loadOrderData = React.useCallback(async () => {
     if (!open || !table) return;
@@ -1158,16 +1169,16 @@ export function TableOrderDrawer({
                   {/* Running Bill Totals & Tax Breakdown */}
                   <div className="bg-slate-900 text-white p-3.5 space-y-1.5 border-t border-slate-800">
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>Subtotal</span>
-                      <span className="font-mono">₹{parseFloat(activeOrder?.subtotal || '0').toFixed(2)}</span>
+                      <span>Subtotal {draftItems.length > 0 && <span className="text-[10px] text-amber-400 font-semibold">(incl. draft)</span>}</span>
+                      <span className="font-mono">₹{displaySubtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-slate-400">
                       <span>GST (5% Restaurant)</span>
-                      <span className="font-mono">₹{parseFloat(activeOrder?.taxTotal || '0').toFixed(2)}</span>
+                      <span className="font-mono">₹{displayTax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-black text-base text-emerald-400 border-t border-slate-800/80 pt-1.5 mt-1">
                       <span>Grand Total</span>
-                      <span className="font-mono text-lg">₹{parseFloat(activeOrder?.grandTotal || '0').toFixed(2)}</span>
+                      <span className="font-mono text-lg">₹{displayGrandTotal.toFixed(2)}</span>
                     </div>
                   </div>
 

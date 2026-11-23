@@ -342,8 +342,15 @@ export class RestaurantService {
     identifiers: (string | undefined | null)[],
   ): Promise<RestaurantTableEntity | null> {
     const findOne = (where: any) => {
-      if ('createQueryBuilder' in managerOrRepo && typeof (managerOrRepo as any).createQueryBuilder === 'function') {
-        return (managerOrRepo as any).findOne({ where });
+      if ('target' in managerOrRepo) {
+        return (managerOrRepo as Repository<RestaurantTableEntity>).findOne({ where });
+      }
+      if ('getRepository' in managerOrRepo && typeof (managerOrRepo as any).getRepository === 'function') {
+        try {
+          return (managerOrRepo as any).getRepository(RestaurantTableEntity).findOne({ where });
+        } catch {
+          // Fall back to manager.findOne with entity class
+        }
       }
       return (managerOrRepo as EntityManager).findOne(RestaurantTableEntity, { where });
     };
