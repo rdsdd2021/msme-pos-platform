@@ -106,6 +106,7 @@ export function TableOrderDrawer({
   // Draft KOT items
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
   const [isFiringKot, setIsFiringKot] = useState(false);
+  const [cartTab, setCartTab] = useState<'draft' | 'history'>('draft');
 
   // Transfer Table modal
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -118,6 +119,8 @@ export function TableOrderDrawer({
   // References to preserve draft items across background polling cycles
   const prevTableIdRef = React.useRef<string | null>(null);
   const prevOpenRef = React.useRef<boolean>(false);
+  const activeOrderRef = React.useRef<RestaurantOrder | null>(null);
+  activeOrderRef.current = activeOrder;
 
   // Computed live totals including draft items
   const draftSubtotal = React.useMemo(() => {
@@ -134,7 +137,7 @@ export function TableOrderDrawer({
   const loadOrderData = React.useCallback(async () => {
     if (!open || !table) return;
     try {
-      const orderId = table.activeOrder?.id || activeOrder?.id;
+      const orderId = table.activeOrder?.id || activeOrderRef.current?.id;
       if (orderId) {
         const orderRes = await apiClient.getRestaurantOrder(table.tenantId, orderId);
         setActiveOrder(orderRes);
@@ -159,7 +162,8 @@ export function TableOrderDrawer({
     } catch (err: any) {
       console.warn('Could not load active order:', err);
     }
-  }, [open, table?.id, table?.tenantId, table?.branchId, table?.activeOrder?.id, activeOrder?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, table?.id, table?.tenantId, table?.branchId, table?.activeOrder?.id]);
 
   // Load active order and products when drawer opens
   useEffect(() => {
@@ -177,6 +181,7 @@ export function TableOrderDrawer({
     if (isNewlyOpened || isDifferentTable) {
       setError(null);
       setDraftItems([]);
+      setCartTab('draft');
       if (table.currentGuestCount && table.currentGuestCount > 0) {
         setGuestCount(table.currentGuestCount);
       }
@@ -207,34 +212,22 @@ export function TableOrderDrawer({
     };
 
     loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, table?.id, table?.tenantId, loadOrderData]);
 
-  // Listen to SSE real-time events while drawer is open
+  // Listen to SSE real-time events while drawer is open (no competing polling interval)
   useRealtimeEvents({
     tenantId: table?.tenantId,
     enabled: open,
     onRestaurantTableChanged: () => {
       loadOrderData();
-      if (draftItems.length === 0) {
-        onRefreshTable();
-      }
     },
     onKotCreated: () => {
       loadOrderData();
-      if (draftItems.length === 0) {
-        onRefreshTable();
-      }
     },
     onKotStatusChanged: () => {
       loadOrderData();
     },
-    onPoll: () => {
-      loadOrderData();
-      if (draftItems.length === 0) {
-        onRefreshTable();
-      }
-    },
-    pollIntervalMs: 8000,
   });
 
   // Categories extracted from products
@@ -285,6 +278,7 @@ export function TableOrderDrawer({
 
   // Add Product to draft KOT
   const handleAddProductToDraft = (product: any) => {
+    setCartTab('draft');
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       setVariantDish(product);
       return;
@@ -313,6 +307,7 @@ export function TableOrderDrawer({
 
   // Add specific variant/portion to draft KOT
   const handleConfirmAddVariant = (product: any, variant: { name: string; price: number | string }) => {
+    setCartTab('draft');
     const itemKey = `${product.id}__${variant.name}`;
     const displayName = `${product.name} (${variant.name})`;
     const price = typeof variant.price === 'number' ? variant.price : parseFloat(variant.price || '0');
@@ -412,6 +407,8 @@ export function TableOrderDrawer({
       // Reload fresh order details
       const refreshedOrder = await apiClient.getRestaurantOrder(table.tenantId, orderId);
       setActiveOrder(refreshedOrder);
+      // Automatically switch to Dispatched KOTs tab so the cashier immediately sees the fired ticket
+      setCartTab('history');
       onRefreshTable();
     } catch (err: any) {
       setError(err?.message || 'Failed to dispatch KOT ticket to kitchen.');
@@ -994,7 +991,7 @@ export function TableOrderDrawer({
 
                 {/* Right Pane: Draft KOT Cart & Active KOT History (42% width) */}
                 <div className="w-[42%] flex flex-col bg-slate-50 border-l border-slate-200">
-                  <Tabs defaultValue="draft" className="flex-1 flex flex-col overflow-hidden">
+                  <Tabs value={cartTab} onValueChange={(val) => setCartTab(val as 'draft' | 'history')} className="flex-1 flex flex-col overflow-hidden">
                     <div className="px-4 pt-2.5 bg-white border-b border-slate-200 shadow-2xs">
                       <TabsList className="grid grid-cols-2 w-full h-9 p-1 bg-slate-100 rounded-xl">
                         <TabsTrigger value="draft" className="text-xs font-bold gap-1.5 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-xs">

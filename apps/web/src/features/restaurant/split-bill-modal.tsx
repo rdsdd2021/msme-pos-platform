@@ -181,7 +181,7 @@ export function SplitBillModal({
 
       const res = await apiClient.settleRestaurantOrder(order.tenantId, order.branchId, payload);
       setSettledInvoice(res.invoice);
-      onSettlementSuccess();
+      // Keep modal open on the receipt confirmation screen so the user can inspect payment and print
     } catch (err: any) {
       setError(err?.message || 'Failed to settle order. Please try again.');
     } finally {
@@ -193,8 +193,20 @@ export function SplitBillModal({
     window.print();
   };
 
+  const handleDone = () => {
+    onSettlementSuccess();
+    onOpenChange(false);
+  };
+
+  const handleDialogOpenChange = (isOpen: boolean) => {
+    if (!isOpen && settledInvoice) {
+      onSettlementSuccess();
+    }
+    onOpenChange(isOpen);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
@@ -261,8 +273,8 @@ export function SplitBillModal({
               <Button variant="outline" onClick={handlePrint} className="gap-2">
                 <Printer className="w-4 h-4" /> Print Tax Receipt
               </Button>
-              <Button onClick={() => onOpenChange(false)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                Done
+              <Button onClick={handleDone} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6">
+                Done & Close Table
               </Button>
             </DialogFooter>
           </div>

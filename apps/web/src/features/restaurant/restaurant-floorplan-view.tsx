@@ -56,6 +56,8 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
 
   // Selected table for Drawer
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null);
+  const selectedTableRef = React.useRef<RestaurantTable | null>(null);
+  selectedTableRef.current = selectedTable;
   const [orderDrawerOpen, setOrderDrawerOpen] = useState(false);
   const [menuModalOpen, setMenuModalOpen] = useState(false);
 
@@ -72,10 +74,12 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
   const [newTableCapacity, setNewTableCapacity] = useState(4);
   const [isCreatingTable, setIsCreatingTable] = useState(false);
 
-  // Fetch Tables
-  const fetchTables = useCallback(async () => {
+  // Fetch Tables (with silent background mode to eliminate UI flicker)
+  const fetchTables = useCallback(async (isSilent = false) => {
     if (!activeTenant?.tenantId || !activeBranch?.id) return;
-    setLoading(true);
+    if (!isSilent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const data = await apiClient.getRestaurantTables(
@@ -84,44 +88,48 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
       );
       setTables(data || []);
       // If a table is currently selected in drawer, update its reference
-      if (selectedTable) {
-        const updated = data.find((t) => t.id === selectedTable.id);
+      if (selectedTableRef.current) {
+        const updated = data.find((t) => t.id === selectedTableRef.current?.id);
         if (updated) setSelectedTable(updated);
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to fetch restaurant floor tables.');
+      if (!isSilent) {
+        setError(err?.message || 'Failed to fetch restaurant floor tables.');
+      }
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
-  }, [activeTenant?.tenantId, activeBranch?.id, selectedTable]);
+  }, [activeTenant?.tenantId, activeBranch?.id]);
 
   useEffect(() => {
-    fetchTables();
-  }, [activeTenant?.tenantId, activeBranch?.id]);
+    fetchTables(false);
+  }, [activeTenant?.tenantId, activeBranch?.id, fetchTables]);
 
   // Live Realtime updates when mobile waiters or other cashiers update tables or KOTs
   useRealtimeEvents({
     tenantId: activeTenant?.tenantId,
     onRestaurantTableChanged: () => {
-      fetchTables();
+      fetchTables(true);
     },
     onOrderCreated: () => {
-      fetchTables();
+      fetchTables(true);
     },
     onKotCreated: () => {
-      fetchTables();
+      fetchTables(true);
     },
     onKotStatusChanged: () => {
-      fetchTables();
+      fetchTables(true);
     },
     onRestaurantSettingsChanged: () => {
-      fetchTables();
+      fetchTables(true);
     },
     onCatalogChanged: () => {
-      fetchTables();
+      fetchTables(true);
     },
     onPoll: () => {
-      fetchTables();
+      fetchTables(true);
     },
     pollIntervalMs: 5000,
   });
@@ -314,7 +322,7 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
           <Button
             size="sm"
             variant="ghost"
-            onClick={fetchTables}
+            onClick={() => fetchTables(false)}
             disabled={loading}
             className="h-9 w-9 p-0 text-slate-600 hover:text-slate-900"
           >
