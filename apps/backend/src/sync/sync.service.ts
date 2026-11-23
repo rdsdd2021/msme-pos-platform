@@ -13,6 +13,7 @@ import { StockBalanceEntity } from '../catalog/entities/stock-balance.entity';
 import { StockLedgerEntity } from '../catalog/entities/stock-ledger.entity';
 import { BillingService } from '../billing/billing.service';
 import { RestaurantService } from '../restaurant/restaurant.service';
+import { RestaurantOrderEntity } from '../restaurant/entities/restaurant-order.entity';
 import { RealtimeEventsService } from '../realtime/realtime-events.service';
 import { CreateSaleDto } from '../billing/dto/billing.dto';
 import { PushSyncBatchDto, AllocateInvoiceRangeDto } from './dto/sync.dto';
@@ -993,9 +994,35 @@ export class SyncService implements OnModuleInit {
         } else {
           restaurantTables = tables;
         }
-        restaurantOrders = tables
+
+        const activeOrders = tables
           .map((t: any) => t.activeOrder)
           .filter((o: any) => Boolean(o));
+
+        let recentlyUpdated: any[] = [];
+        if (typeof this.dataSource?.getRepository === 'function') {
+          try {
+            const orderRepo = this.dataSource.getRepository(RestaurantOrderEntity);
+            recentlyUpdated = await orderRepo.find({
+              where: {
+                tenantId,
+                branchId: resolvedBranchId,
+                updatedAt: MoreThan(cursorDate),
+              },
+              relations: ['lines', 'kots', 'kots.lines'],
+              take: 50,
+            });
+          } catch (_) {}
+        }
+
+        const orderMap = new Map<string, any>();
+        for (const o of recentlyUpdated) {
+          orderMap.set(o.id, o);
+        }
+        for (const o of activeOrders) {
+          orderMap.set(o.id, o);
+        }
+        restaurantOrders = Array.from(orderMap.values());
       } catch (err: any) {
         this.logger.warn(`Failed pulling restaurant deltas for tenant ${tenantId}: ${err.message}`);
       }

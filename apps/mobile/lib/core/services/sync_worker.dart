@@ -367,6 +367,8 @@ class SyncWorker {
           final tblId = tbl['id'] as String? ?? '';
           if (tblId.isEmpty) continue;
 
+          final status = tbl['status'] as String? ?? 'vacant';
+
           await _db.into(_db.localRestaurantTables).insertOnConflictUpdate(
             LocalRestaurantTablesCompanion(
               id: Value(tblId),
@@ -376,7 +378,7 @@ class SyncWorker {
               name: Value(tbl['tableName'] as String? ?? tbl['name'] as String?),
               section: Value(tbl['section'] as String? ?? 'Main Dining'),
               seatingCapacity: Value(tbl['seatingCapacity'] as int? ?? 4),
-              status: Value(tbl['status'] as String? ?? 'vacant'),
+              status: Value(status),
               currentGuestCount: Value(tbl['currentGuestCount'] as int? ?? 0),
               occupiedAt: Value(tbl['occupiedAt'] != null ? DateTime.tryParse(tbl['occupiedAt'].toString()) : null),
               sortOrder: Value(tbl['sortOrder'] as int? ?? 0),
@@ -384,6 +386,17 @@ class SyncWorker {
             ),
           );
           pulledRestaurantTables++;
+
+          // If the table is vacant or dirty on the server, ensure any open local orders in SQLite are marked completed
+          if (status == 'vacant' || status == 'dirty') {
+            final tblNumber = tbl['tableNumber'] as String? ?? '';
+            await (_db.update(_db.localRestaurantOrders)
+                  ..where((o) => (o.tableId.equals(tblId) | o.tableNumberSnapshot.equals(tblNumber)) &
+                      o.status.isIn(const ['open', 'ordered', 'billed'])))
+                .write(const LocalRestaurantOrdersCompanion(
+                  status: Value('completed'),
+                ));
+          }
         }
 
         for (final ord in pullResult.restaurantOrders) {

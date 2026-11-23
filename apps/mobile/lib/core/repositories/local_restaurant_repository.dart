@@ -122,7 +122,17 @@ class LocalRestaurantRepository {
       final activeOrders = await orderQuery.get();
       if (activeOrders.isEmpty) return [];
 
-      final activeOrderIds = activeOrders.map((o) => o.id).toList();
+      // A table has at most ONE authoritative active order at a time (the newest open/ordered/billed one).
+      final currentOrder = activeOrders.first;
+      final activeOrderIds = [currentOrder.id];
+
+      // Auto-clean any stale older orders for this table in SQLite so their lines don't bleed or duplicate
+      if (activeOrders.length > 1) {
+        final olderOrderIds = activeOrders.skip(1).map((o) => o.id).toList();
+        (_db.update(_db.localRestaurantOrders)..where((o) => o.id.isIn(olderOrderIds)))
+            .write(const LocalRestaurantOrdersCompanion(status: Value('completed')));
+      }
+
       final kotLines = await (_db.select(_db.localRestaurantKotLines)
             ..where((l) => l.orderId.isIn(activeOrderIds)))
           .get();

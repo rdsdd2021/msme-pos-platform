@@ -373,9 +373,9 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       List<CartItem> confirmedLines;
       int confirmedCount;
 
-      // If the table is vacant or dirty in SQLite, BUT the waiter currently has active uncommitted draft items in memory,
-      // we must preserve those draft lines and keep the table seated so items do not disappear during background sync.
-      final hasLocalDraft = existing != null && (existing.hasNewItems || existing.activeOrderLines.isNotEmpty);
+      // If the table is vacant or dirty in SQLite, BUT the waiter currently has active uncommitted draft items in memory on this device,
+      // we must preserve those draft lines. Otherwise, if there are no uncommitted draft lines, accept the vacant state.
+      final hasLocalDraft = existing != null && existing.newDeltaLines.isNotEmpty;
 
       if ((parsedStatus == TableStatus.vacant || parsedStatus == TableStatus.dirty) && !hasLocalDraft) {
         // Table is legitimately vacant or dirty with no active local order: reset active lines and confirmed count
