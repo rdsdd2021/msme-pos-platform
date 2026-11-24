@@ -91,7 +91,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
 
   ReceiptDocument _buildPreBillReceiptDocument(RestaurantTable currentTable) {
     final isGstEnabled = ref.read(restaurantProvider).isGstEnabled;
-    final subtotal = currentTable.runningTotalPaisa;
+    final subtotal = currentTable.subtotalPaisa;
     final cgst = isGstEnabled ? (subtotal * 0.025).round() : 0;
     final sgst = isGstEnabled ? (subtotal * 0.025).round() : 0;
     final grandTotal = subtotal + cgst + sgst;
@@ -109,14 +109,16 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         customerName: '${currentTable.name} (${currentTable.currentGuestCount} guests)',
       ),
       lines: currentTable.activeOrderLines.map((i) {
+        final lineTax = isGstEnabled ? i.taxPaisa : 0;
+        final lineTotal = isGstEnabled ? i.totalPaisa : i.subtotalPaisa;
         return ReceiptLineItem(
           name: i.displayName,
           quantity: i.quantity,
           unit: i.product.unit,
           unitPricePaisa: i.unitPricePaisa,
           taxRatePercent: isGstEnabled ? 5 : 0,
-          taxPaisa: isGstEnabled ? (i.totalPaisa * 0.05).round() : 0,
-          totalPaisa: i.totalPaisa,
+          taxPaisa: lineTax,
+          totalPaisa: lineTotal,
         );
       }).toList(),
       taxSlabs: const [],
@@ -528,8 +530,10 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
     bool isSettling = false;
     bool isSplit = false;
     int splitCount = currentTable.currentGuestCount > 0 ? currentTable.currentGuestCount : 2;
+    final isGstOn = ref.read(restaurantProvider).isGstEnabled;
+    final currentEffectivePaisa = isGstOn ? currentTable.runningTotalPaisa : currentTable.subtotalPaisa;
     final tenderCashController = TextEditingController(
-      text: (currentTable.runningTotalPaisa / 100).toStringAsFixed(0),
+      text: (currentEffectivePaisa / 100).toStringAsFixed(0),
     );
 
     showModalBottomSheet(
@@ -539,7 +543,9 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final totalRupees = currentTable.runningTotalPaisa / 100;
+            final isGstActive = ref.watch(restaurantProvider).isGstEnabled;
+            final effectiveTotalPaisa = isGstActive ? currentTable.runningTotalPaisa : currentTable.subtotalPaisa;
+            final totalRupees = effectiveTotalPaisa / 100;
             final totalFormatted = '₹${totalRupees.toStringAsFixed(2)}';
             final tenderedRupees = double.tryParse(tenderCashController.text) ?? totalRupees;
             final changeDue = (tenderedRupees - totalRupees).clamp(0.0, 99999.0);
@@ -1100,7 +1106,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                           style: ShadcnTypography.caption,
                         ),
                         Text(
-                          '₹${(currentTable.runningTotalPaisa / 100).toStringAsFixed(2)}',
+                          '₹${(((ref.watch(restaurantProvider).isGstEnabled ? currentTable.runningTotalPaisa : currentTable.subtotalPaisa) / 100)).toStringAsFixed(2)}',
                           style: ShadcnTypography.currency.copyWith(color: ShadcnColors.primary),
                         ),
                       ],
@@ -1522,7 +1528,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                   const Text('Order Subtotal:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   Flexible(
                     child: Text(
-                      '₹${(currentTable.runningTotalPaisa / 100).toStringAsFixed(2)}',
+                      '₹${(((ref.watch(restaurantProvider).isGstEnabled ? currentTable.runningTotalPaisa : currentTable.subtotalPaisa) / 100)).toStringAsFixed(2)}',
                       style: ShadcnTypography.currencyLarge.copyWith(color: ShadcnColors.primary),
                       overflow: TextOverflow.ellipsis,
                     ),

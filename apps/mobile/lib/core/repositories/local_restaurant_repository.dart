@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../models/cart_item.dart';
@@ -100,8 +101,19 @@ class LocalRestaurantRepository {
     String tableId, {
     String? tenantId,
     String? branchId,
+    bool isGstEnabled = true,
   }) async {
     try {
+      bool isGst = isGstEnabled;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final key = 'restaurant_tables_${tenantId ?? 'default'}';
+        final cachedGst = prefs.getBool('${key}_gst_enabled');
+        if (cachedGst != null) {
+          isGst = cachedGst;
+        }
+      } catch (_) {}
+
       final matchingTable = await _resolveTable(tableId, tenantId: tenantId, branchId: branchId);
 
       final targetIds = {tableId};
@@ -161,7 +173,7 @@ class LocalRestaurantRepository {
               unit: 'PCS',
               sellingPricePaisa: line.unitPricePaisa,
               purchaseCostPaisa: line.unitPricePaisa,
-              gstRate: 5,
+              gstRate: isGst ? 5 : 0,
               currentStock: 100.0,
             ),
             quantity: qty,

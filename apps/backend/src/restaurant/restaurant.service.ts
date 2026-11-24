@@ -131,12 +131,24 @@ export class RestaurantService {
       }
     }
 
+    // Ensure active orders dynamically reflect current GST settings
+    const diningSettings = await this.getRestaurantSettings(tenantId, branchId);
+    const isGstActive = diningSettings.enableGst !== false && diningSettings.defaultGstPercent !== '0.00';
+
     const updatedTables = tables.map((t) => {
-      const activeOrder =
+      let activeOrder =
         activeOrdersByTableId.get(t.id) ||
         activeOrdersByTableNumber.get(t.tableNumber.toUpperCase()) ||
         (t.tableName ? activeOrdersByTableNumber.get(t.tableName.toUpperCase()) : undefined) ||
         null;
+
+      if (activeOrder && !isGstActive && parseFloat(activeOrder.taxTotal || '0') > 0) {
+        activeOrder = {
+          ...activeOrder,
+          taxTotal: '0.00',
+          grandTotal: activeOrder.subtotal,
+        } as RestaurantOrderEntity;
+      }
 
       // Self-heal table status if order is open/billed but table was marked vacant
       let effectiveStatus = t.status;
@@ -493,6 +505,16 @@ export class RestaurantService {
     if (!order) {
       throw new NotFoundException(`Restaurant order not found`);
     }
+
+    try {
+      const diningSettings = await this.getRestaurantSettings(tenantId, order.branchId);
+      const isGstActive = diningSettings.enableGst !== false && diningSettings.defaultGstPercent !== '0.00';
+      if (!isGstActive && parseFloat(order.taxTotal || '0') > 0) {
+        order.taxTotal = '0.00';
+        order.grandTotal = order.subtotal;
+      }
+    } catch (_) {}
+
     return order;
   }
 
@@ -1301,19 +1323,27 @@ export class RestaurantService {
 
     const saved = tenant.settings?.diningSettings;
     const defaults = this.getDefaultDiningSettings();
+    const tenantGstExplicitlyDisabled = (tenant.settings as any)?.enableGst === false;
 
     if (!saved) {
+      if (tenantGstExplicitlyDisabled) {
+        return {
+          ...defaults,
+          enableGst: false,
+          defaultGstPercent: '0.00',
+        };
+      }
       return defaults;
     }
 
-    const isGstEnabled = saved.enableGst !== undefined
+    const isGstEnabled = !tenantGstExplicitlyDisabled && (saved.enableGst !== undefined
       ? saved.enableGst
-      : (saved.defaultGstPercent !== undefined ? saved.defaultGstPercent !== '0.00' : defaults.enableGst);
+      : (saved.defaultGstPercent !== undefined ? saved.defaultGstPercent !== '0.00' : defaults.enableGst));
 
     return {
       floorSections: saved.floorSections || defaults.floorSections,
       enableGst: isGstEnabled,
-      defaultGstPercent: saved.defaultGstPercent || defaults.defaultGstPercent,
+      defaultGstPercent: !isGstEnabled ? '0.00' : (saved.defaultGstPercent || defaults.defaultGstPercent),
       serviceChargePercent: saved.serviceChargePercent || defaults.serviceChargePercent,
       packagingCharge: saved.packagingCharge || defaults.packagingCharge,
       autoPrintKotOnFire: saved.autoPrintKotOnFire !== undefined ? saved.autoPrintKotOnFire : defaults.autoPrintKotOnFire,
@@ -1363,10 +1393,41 @@ export class RestaurantService {
     const currentSettings = tenant.settings || {};
     tenant.settings = {
       ...currentSettings,
+      enableGst: newEnableGst,
       diningSettings: updatedDiningSettings,
     };
 
     await this.tenantRepo.save(tenant);
+
+    // Immediately update product GST rates to 0% if GST is disabled
+    if (!newEnableGst) {
+      try {
+        await this.productRepo.update(
+          { tenantId },
+          { gstRatePercent: '0.00' },
+        );
+      } catch (_) {}
+    }
+
+    // Immediately recalculate & synchronize all active open and billed orders for this tenant
+    const effectiveGstRate = newEnableGst ? (parseFloat(newDefaultGstPercent) / 100) : 0;
+    try {
+      const activeOrders = await this.orderRepo.find({
+        where: {
+          tenantId,
+          status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
+        },
+      });
+
+      for (const ord of activeOrders) {
+        const subtotal = parseFloat(ord.subtotal || '0');
+        const taxTotal = Math.round(subtotal * effectiveGstRate * 100) / 100;
+        const grandTotal = Math.round((subtotal + taxTotal) * 100) / 100;
+        ord.taxTotal = taxTotal.toFixed(2);
+        ord.grandTotal = grandTotal.toFixed(2);
+        await this.orderRepo.save(ord);
+      }
+    } catch (_) {}
 
     if (this.realtimeService) {
       this.realtimeService.emit(

@@ -91,7 +91,12 @@ export class BillingService {
 
       // 2. Fetch tenant settings and snapshot product details
       const tenant = await manager.findOne(TenantEntity, { where: { id: tenantId } });
-      const allowNegativeStock = (tenant?.settings as any)?.allowNegativeStock === true;
+      const tenantSettings = (tenant?.settings as any) || {};
+      const allowNegativeStock = tenantSettings?.allowNegativeStock === true;
+      const isStoreGstDisabled =
+        tenantSettings?.enableGst === false ||
+        tenantSettings?.diningSettings?.enableGst === false ||
+        tenantSettings?.diningSettings?.defaultGstPercent === '0.00';
 
       const productIds = dto.items.map((i) => i.productId);
       const products = await manager.findByIds(ProductEntity, productIds);
@@ -163,18 +168,21 @@ export class BillingService {
         }
 
         const taxableCents = itemGrossCents - discountCents;
-        const gstRate = parseFloat(item.gstRatePercent);
+        const requestedGst = parseFloat(item.gstRatePercent || '0');
+        const gstRate = isStoreGstDisabled ? 0 : (isNaN(requestedGst) ? 0 : requestedGst);
 
         let lineCgstCents = 0;
         let lineSgstCents = 0;
         let lineIgstCents = 0;
 
-        if (dto.isInterstate) {
-          lineIgstCents = Math.round((taxableCents * gstRate) / 100);
-        } else {
-          // Half to CGST, half to SGST
-          lineCgstCents = Math.round((taxableCents * (gstRate / 2)) / 100);
-          lineSgstCents = Math.round((taxableCents * (gstRate / 2)) / 100);
+        if (gstRate > 0) {
+          if (dto.isInterstate) {
+            lineIgstCents = Math.round((taxableCents * gstRate) / 100);
+          } else {
+            // Half to CGST, half to SGST
+            lineCgstCents = Math.round((taxableCents * (gstRate / 2)) / 100);
+            lineSgstCents = Math.round((taxableCents * (gstRate / 2)) / 100);
+          }
         }
 
         const lineTotalCents = taxableCents + lineCgstCents + lineSgstCents + lineIgstCents;
@@ -195,7 +203,7 @@ export class BillingService {
           unitPrice: unitPriceNum.toFixed(2),
           discountAmount: (discountCents / 100).toFixed(2),
           taxableValue: (taxableCents / 100).toFixed(2),
-          gstRatePercent: item.gstRatePercent,
+          gstRatePercent: gstRate.toFixed(2),
           cgstAmount: (lineCgstCents / 100).toFixed(2),
           sgstAmount: (lineSgstCents / 100).toFixed(2),
           igstAmount: (lineIgstCents / 100).toFixed(2),

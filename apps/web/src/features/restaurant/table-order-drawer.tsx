@@ -143,7 +143,7 @@ export function TableOrderDrawer({
 
   const isGstEnabled = diningSettings
     ? (diningSettings.enableGst !== false && diningSettings.defaultGstPercent !== '0.00')
-    : true;
+    : (activeOrder ? parseFloat(activeOrder.taxTotal || '0') > 0 : false);
   const gstRate = isGstEnabled
     ? (parseFloat(diningSettings?.defaultGstPercent || '5.00') / 100)
     : 0;
@@ -154,9 +154,9 @@ export function TableOrderDrawer({
   }, [draftItems]);
   const activeSubtotal = parseFloat(activeOrder?.subtotal || '0');
   const displaySubtotal = activeSubtotal + draftSubtotal;
-  const activeTax = parseFloat(activeOrder?.taxTotal || '0');
-  const draftTax = draftSubtotal * gstRate;
-  const displayTax = activeTax + draftTax;
+  const activeTax = isGstEnabled ? parseFloat(activeOrder?.taxTotal || '0') : 0;
+  const draftTax = isGstEnabled ? draftSubtotal * gstRate : 0;
+  const displayTax = isGstEnabled ? (activeTax + draftTax) : 0;
   const displayGrandTotal = displaySubtotal + displayTax;
 
   // Reload active order data (handles SSE real-time updates and manual refresh)
@@ -537,10 +537,10 @@ export function TableOrderDrawer({
     if (!printWindow) return;
 
     const subtotal = parseFloat(activeOrder.subtotal || '0');
-    const taxTotal = parseFloat(activeOrder.taxTotal || '0');
+    const taxTotal = isGstEnabled ? parseFloat(activeOrder.taxTotal || '0') : 0;
     const cgst = taxTotal / 2;
     const sgst = taxTotal / 2;
-    const grandTotal = parseFloat(activeOrder.grandTotal || '0');
+    const grandTotal = isGstEnabled ? parseFloat(activeOrder.grandTotal || '0') : subtotal;
 
     // Aggregate line items from order lines or kots
     const lines = activeOrder.lines || [];
@@ -1319,6 +1319,7 @@ export function TableOrderDrawer({
       {activeOrder && (
         <SplitBillModal
           order={activeOrder}
+          isGstEnabled={isGstEnabled}
           open={settleModalOpen}
           onOpenChange={setSettleModalOpen}
           onSettlementSuccess={() => {

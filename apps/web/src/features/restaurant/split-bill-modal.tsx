@@ -40,6 +40,7 @@ import {
 
 interface SplitBillModalProps {
   order: RestaurantOrder;
+  isGstEnabled?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSettlementSuccess: () => void;
@@ -49,11 +50,16 @@ type SplitMode = 'single' | 'equal' | 'custom';
 
 export function SplitBillModal({
   order,
+  isGstEnabled,
   open,
   onOpenChange,
   onSettlementSuccess,
 }: SplitBillModalProps) {
-  const rawGrandTotalNum = parseFloat(order.grandTotal) || 0;
+  const effectiveGstEnabled = isGstEnabled !== undefined
+    ? isGstEnabled
+    : (parseFloat(order.taxTotal || '0') > 0.005);
+  const effectiveTaxNum = effectiveGstEnabled ? (parseFloat(order.taxTotal) || 0) : 0;
+  const rawGrandTotalNum = effectiveGstEnabled ? (parseFloat(order.grandTotal) || 0) : (parseFloat(order.subtotal) || 0);
   // Apply CGST Section 170 nearest rupee rounding to match backend billing engine
   const grandTotalNum = Math.round(rawGrandTotalNum) || rawGrandTotalNum;
   const roundingAdjustment = grandTotalNum - rawGrandTotalNum;
@@ -253,8 +259,8 @@ export function SplitBillModal({
                   <span>₹{parseFloat(order.subtotal).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>{parseFloat(order.taxTotal) > 0.005 ? 'GST (Restaurant):' : 'GST (0% - Exempt):'}</span>
-                  <span>₹{parseFloat(order.taxTotal).toFixed(2)}</span>
+                  <span>{effectiveTaxNum > 0.005 ? 'GST (Restaurant):' : 'GST (0% - Exempt):'}</span>
+                  <span>₹{effectiveTaxNum.toFixed(2)}</span>
                 </div>
                 {parseFloat(order.discountTotal) > 0 && (
                   <div className="flex justify-between text-emerald-600">
@@ -264,7 +270,7 @@ export function SplitBillModal({
                 )}
                 <div className="flex justify-between font-bold text-base border-t pt-1 text-slate-900">
                   <span>Grand Total:</span>
-                  <span>₹{parseFloat(order.grandTotal).toFixed(2)}</span>
+                  <span>₹{rawGrandTotalNum.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -289,7 +295,7 @@ export function SplitBillModal({
                 </p>
                 <p className="text-xs text-slate-300 mt-1">
                   Subtotal: ₹{parseFloat(order.subtotal).toFixed(2)}
-                  {parseFloat(order.taxTotal) > 0.005 ? ` + GST: ₹${parseFloat(order.taxTotal).toFixed(2)}` : ' (Tax Exempt / 0% GST)'}
+                  {effectiveTaxNum > 0.005 ? ` + GST: ₹${effectiveTaxNum.toFixed(2)}` : ' (Tax Exempt / 0% GST)'}
                   {Math.abs(roundingAdjustment) >= 0.01 && (
                     <span className="text-emerald-300 ml-1">
                       (Round: {roundingAdjustment > 0 ? '+' : ''}₹{roundingAdjustment.toFixed(2)})

@@ -428,7 +428,7 @@ class RestaurantTablesScreen extends ConsumerWidget {
                               ),
                               if (isOccupied)
                                 Text(
-                                  '₹${(table.runningTotalPaisa / 100).toStringAsFixed(1)}',
+                                  '₹${((restState.isGstEnabled ? table.runningTotalPaisa : table.subtotalPaisa) / 100).toStringAsFixed(1)}',
                                   style: ShadcnTypography.currency.copyWith(
                                     color: accentColor,
                                     fontSize: 15,

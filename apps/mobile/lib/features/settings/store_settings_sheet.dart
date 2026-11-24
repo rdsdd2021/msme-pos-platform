@@ -410,6 +410,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                               setState(() {
                                 _chargeGst = val;
                               });
+                              ref.read(restaurantProvider.notifier).setGstEnabled(val);
                             },
                           ),
                         ],

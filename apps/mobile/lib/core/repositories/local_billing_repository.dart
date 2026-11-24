@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../config/app_config.dart';
 import '../database/app_database.dart';
@@ -41,10 +42,20 @@ class LocalBillingRepository {
         'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch % 100000}';
     _invoiceSequence++;
 
+    bool isGstEnabled = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'restaurant_tables_${tenantId}';
+      final cachedGst = prefs.getBool('${key}_gst_enabled');
+      if (cachedGst != null) {
+        isGstEnabled = cachedGst;
+      }
+    } catch (_) {}
+
     // Safe integer calculation in Paisa (Rule 8: Never use floating-point for money)
-    final grandTotalPaisa = items.fold(0, (sum, i) => sum + i.totalPaisa);
-    final totalTaxPaisa = items.fold(0, (sum, i) => sum + i.taxPaisa);
-    final subtotalPaisa = grandTotalPaisa - totalTaxPaisa;
+    final totalTaxPaisa = isGstEnabled ? items.fold(0, (sum, i) => sum + i.taxPaisa) : 0;
+    final subtotalPaisa = items.fold(0, (sum, i) => sum + i.subtotalPaisa);
+    final grandTotalPaisa = subtotalPaisa + totalTaxPaisa;
 
     final resolvedStore = (storeName != null && storeName.trim().isNotEmpty) ? storeName.trim() : 'STORE';
     final resolvedAddr = (storeAddress != null && storeAddress.trim().isNotEmpty) ? storeAddress.trim() : '';
@@ -77,13 +88,18 @@ class LocalBillingRepository {
           : item.displayName.padRight(13);
       final qty = item.quantity.toString().padRight(4);
       final rate = (item.unitPricePaisa / 100).toStringAsFixed(1).padLeft(6);
-      final total = (item.totalPaisa / 100).toStringAsFixed(1).padLeft(7);
+      final lineEffectivePaisa = isGstEnabled ? item.totalPaisa : item.subtotalPaisa;
+      final total = (lineEffectivePaisa / 100).toStringAsFixed(1).padLeft(7);
       receiptBuffer.writeln('$name $qty$rate$total');
     }
 
     receiptBuffer.writeln('--------------------------------');
     receiptBuffer.writeln('Subtotal:             Rs. ${(subtotalPaisa / 100.0).toStringAsFixed(2)}');
-    receiptBuffer.writeln('GST (CGST+SGST):      Rs. ${(totalTaxPaisa / 100.0).toStringAsFixed(2)}');
+    if (totalTaxPaisa > 0) {
+      receiptBuffer.writeln('GST (CGST+SGST):      Rs. ${(totalTaxPaisa / 100.0).toStringAsFixed(2)}');
+    } else {
+      receiptBuffer.writeln('Tax (GST):            Rs. 0.00 (Exempt)');
+    }
     receiptBuffer.writeln('GRAND TOTAL:          Rs. ${(grandTotalPaisa / 100.0).toStringAsFixed(2)}');
     receiptBuffer.writeln('================================');
     receiptBuffer.writeln('   Thank You! Visit Again!');
@@ -108,7 +124,7 @@ class LocalBillingRepository {
               'unitPrice': (i.unitPricePaisa / 100.0).toStringAsFixed(2),
               'quantity': i.quantity.toString(),
               'discountAmount': '0.00',
-              'gstRatePercent': i.product.gstRate.toString(),
+              'gstRatePercent': isGstEnabled ? i.product.gstRate.toString() : '0.00',
             },
           )
           .toList(),
@@ -120,7 +136,7 @@ class LocalBillingRepository {
               'customName': i.variantName != null ? i.displayName : null,
               'quantity': i.quantity.toString(),
               'unitPrice': (i.unitPricePaisa / 100.0).toStringAsFixed(2),
-              'gstRate': i.product.gstRate.toString(),
+              'gstRate': isGstEnabled ? i.product.gstRate.toString() : '0.00',
               'hsnCode': i.product.hsnCode,
             },
           )

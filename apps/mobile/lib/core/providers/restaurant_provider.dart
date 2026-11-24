@@ -68,6 +68,7 @@ class RestaurantTable {
     this.captainNotes,
   });
 
+  int get subtotalPaisa => activeOrderLines.fold(0, (sum, i) => sum + i.subtotalPaisa);
   int get runningTotalPaisa => activeOrderLines.fold(0, (sum, i) => sum + i.totalPaisa);
   int get itemCount => activeOrderLines.fold(0, (sum, i) => sum + i.quantity);
 
@@ -178,7 +179,7 @@ class RestaurantTable {
     };
   }
 
-  static RestaurantTable fromJson(Map<String, dynamic> json) {
+  static RestaurantTable fromJson(Map<String, dynamic> json, {bool isGstEnabled = true}) {
     TableStatus parsedStatus;
     try {
       final statusStr = (json['status'] as String? ?? '').toLowerCase();
@@ -203,6 +204,8 @@ class RestaurantTable {
               .toList();
         } catch (_) {}
       }
+      final rawGst = pMap['gstRate'] as int? ?? 5;
+      final productGst = isGstEnabled ? rawGst : 0;
       final product = Product(
         id: pMap['id'] as String,
         name: pMap['name'] as String,
@@ -212,7 +215,7 @@ class RestaurantTable {
         unit: pMap['unit'] as String? ?? 'PCS',
         sellingPricePaisa: pMap['sellingPricePaisa'] as int? ?? 0,
         purchaseCostPaisa: pMap['purchaseCostPaisa'] as int? ?? 0,
-        gstRate: pMap['gstRate'] as int? ?? 5,
+        gstRate: productGst,
         currentStock: (pMap['currentStock'] as num?)?.toDouble() ?? 100.0,
         hsnCode: pMap['hsnCode'] as String?,
         imageUrl: pMap['imageUrl'] as String?,
@@ -278,7 +281,7 @@ class RestaurantState {
   int get activeDinersCount => tables
       .where((t) => t.status.isOccupied || t.status == TableStatus.billed)
       .fold(0, (sum, t) => sum + t.currentGuestCount);
-  int get totalDineInRunningPaisa => tables.fold(0, (sum, t) => sum + t.runningTotalPaisa);
+  int get totalDineInRunningPaisa => tables.fold(0, (sum, t) => sum + (isGstEnabled ? t.runningTotalPaisa : t.subtotalPaisa));
 
   RestaurantState copyWith({
     List<RestaurantTable>? tables,
@@ -400,7 +403,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         final auth = _ref?.read(authProvider);
         final tenantId = auth?.activeMembership?.tenantId;
         final branchId = auth?.activeBranchId;
-        final dbLines = await _repo?.getTableActiveCartItems(tblId, tenantId: tenantId, branchId: branchId) ?? [];
+        final dbLines = await _repo?.getTableActiveCartItems(tblId, tenantId: tenantId, branchId: branchId, isGstEnabled: state.isGstEnabled) ?? [];
         if (dbLines.isNotEmpty) {
           activeLines = dbLines;
           confirmedLines = dbLines;
@@ -469,7 +472,9 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       final gstPercentKey = '${key}_gst_percent';
       final cachedGst = prefs.getBool(gstKey);
       final cachedGstPercent = prefs.getDouble(gstPercentKey);
+      bool isGst = true;
       if (cachedGst != null) {
+        isGst = cachedGst;
         state = state.copyWith(
           isGstEnabled: cachedGst,
           defaultGstPercent: cachedGstPercent ?? (cachedGst ? 5.0 : 0.0),
@@ -479,7 +484,7 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       final cachedJson = prefs.getString(key);
       if (cachedJson != null && cachedJson.isNotEmpty) {
         final decoded = jsonDecode(cachedJson) as List<dynamic>;
-        final loaded = decoded.map((e) => RestaurantTable.fromJson(e as Map<String, dynamic>)).toList();
+        final loaded = decoded.map((e) => RestaurantTable.fromJson(e as Map<String, dynamic>, isGstEnabled: isGst)).toList();
         if (loaded.isNotEmpty) {
           // Filter out legacy tables (e.g. 't-1' or 'takeaway-1') so defaults are unified with backend
           final validLoaded = loaded.where((t) => !t.id.startsWith('t-') && t.id != 'takeaway-1' && t.id != 'takeaway-2').toList();
@@ -496,7 +501,17 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
                    !loadedCodes.contains(t.tableNumber ?? '') &&
                    !loadedCodes.contains(t.name);
           }).toList();
-          state = state.copyWith(tables: [...validLoaded, ...missing]);
+
+          final allTables = [...validLoaded, ...missing];
+          final sanitizedTables = !isGst
+              ? allTables.map((t) {
+                  if (t.activeOrderLines.isEmpty) return t;
+                  final zeroLines = t.activeOrderLines.map((l) => l.copyWith(product: l.product.copyWith(gstRate: 0))).toList();
+                  return t.copyWith(activeOrderLines: zeroLines);
+                }).toList()
+              : allTables;
+
+          state = state.copyWith(tables: sanitizedTables);
         }
       }
     } catch (_) {}
@@ -525,6 +540,21 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         final key = _getStorageKey();
         await prefs.setBool('${key}_gst_enabled', enableGst);
         await prefs.setDouble('${key}_gst_percent', rate);
+
+        // Sanitize active lines immediately across all tables
+        final updatedTables = state.tables.map((t) {
+          if (t.activeOrderLines.isEmpty) return t;
+          final updatedLines = t.activeOrderLines.map((l) {
+            return l.copyWith(
+              product: l.product.copyWith(
+                gstRate: enableGst ? (l.product.gstRate > 0 ? l.product.gstRate : 5) : 0,
+              ),
+            );
+          }).toList();
+          return t.copyWith(activeOrderLines: updatedLines);
+        }).toList();
+
+        state = state.copyWith(tables: updatedTables);
       }
     } catch (_) {}
   }

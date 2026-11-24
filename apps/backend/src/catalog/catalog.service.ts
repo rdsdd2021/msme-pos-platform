@@ -383,9 +383,27 @@ export class CatalogService implements OnModuleInit {
     return saved;
   }
 
-  async getProducts(tenantId: string): Promise<ProductEntity[]> {
+  private async isTenantGstDisabled(tenantId: string): Promise<boolean> {
     try {
-      return await this.productRepo.find({
+      const rows = await this.dataSource.query(
+        `SELECT settings FROM tenants WHERE id = $1 LIMIT 1`,
+        [tenantId],
+      );
+      const settings = rows[0]?.settings || {};
+      return (
+        settings?.enableGst === false ||
+        settings?.diningSettings?.enableGst === false ||
+        settings?.diningSettings?.defaultGstPercent === '0.00'
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  async getProducts(tenantId: string): Promise<ProductEntity[]> {
+    let products: ProductEntity[] = [];
+    try {
+      products = await this.productRepo.find({
         where: { tenantId, isActive: true },
         order: { name: 'ASC' },
       });
@@ -393,7 +411,7 @@ export class CatalogService implements OnModuleInit {
       this.logger.warn(`Failed to fetch products for tenant ${tenantId}: ${err.message}. Auto-repairing schema...`);
       try {
         await this.ensureRestaurantColumns();
-        return await this.productRepo.find({
+        products = await this.productRepo.find({
           where: { tenantId, isActive: true },
           order: { name: 'ASC' },
         });
@@ -402,6 +420,15 @@ export class CatalogService implements OnModuleInit {
         return [];
       }
     }
+
+    const isGstDisabled = await this.isTenantGstDisabled(tenantId);
+    if (isGstDisabled) {
+      return products.map((p) => ({
+        ...p,
+        gstRatePercent: '0.00',
+      } as ProductEntity));
+    }
+    return products;
   }
 
   async getProductById(tenantId: string, productId: string): Promise<ProductEntity> {
@@ -410,6 +437,10 @@ export class CatalogService implements OnModuleInit {
     });
     if (!product) {
       throw new NotFoundException(`Product ${productId} not found in this store`);
+    }
+    const isGstDisabled = await this.isTenantGstDisabled(tenantId);
+    if (isGstDisabled) {
+      product.gstRatePercent = '0.00';
     }
     return product;
   }
@@ -512,12 +543,19 @@ export class CatalogService implements OnModuleInit {
     query: string,
   ): Promise<ProductEntity | null> {
     const cleanQuery = query.trim();
-    return this.productRepo.findOne({
+    const product = await this.productRepo.findOne({
       where: [
         { tenantId, barcodePrimary: cleanQuery, isActive: true },
         { tenantId, sku: cleanQuery.toUpperCase(), isActive: true },
       ],
     });
+    if (product) {
+      const isGstDisabled = await this.isTenantGstDisabled(tenantId);
+      if (isGstDisabled) {
+        product.gstRatePercent = '0.00';
+      }
+    }
+    return product;
   }
 
   // --- Inventory & Stock Movement ---
