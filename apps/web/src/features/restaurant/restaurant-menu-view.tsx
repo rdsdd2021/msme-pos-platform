@@ -56,10 +56,12 @@ export function RestaurantMenuView() {
 
   const activeTenantId = activeTenant?.tenantId;
 
-  const fetchDishes = useCallback(async () => {
+  const fetchDishes = useCallback(async (isSilent = false) => {
     if (!activeTenantId) return;
     try {
-      setLoading(true);
+      if (!isSilent) {
+        setLoading(true);
+      }
       const [prodRes, catRes] = await Promise.all([
         apiClient.getProducts(activeTenantId),
         apiClient.getCategories(activeTenantId).catch(() => []),
@@ -69,7 +71,9 @@ export function RestaurantMenuView() {
     } catch (err) {
       console.error('Failed to load menu dishes:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   }, [activeTenantId]);
 
@@ -94,13 +98,13 @@ export function RestaurantMenuView() {
   useRealtimeEvents({
     tenantId: activeTenantId,
     onCatalogChanged: () => {
-      fetchDishes();
+      fetchDishes(true);
     },
     onStockChanged: () => {
-      fetchDishes();
+      fetchDishes(true);
     },
-    pollIntervalMs: 5000,
-    onPoll: fetchDishes,
+    pollIntervalMs: 30000,
+    onPoll: () => fetchDishes(true),
   });
 
   const handleToggleAvailability = async (dish: Product) => {
@@ -280,7 +284,7 @@ export function RestaurantMenuView() {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchDishes}
+              onClick={() => fetchDishes(false)}
               disabled={loading}
               className="h-9 px-3 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 cursor-pointer"
             >

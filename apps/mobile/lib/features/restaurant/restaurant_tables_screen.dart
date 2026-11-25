@@ -63,15 +63,6 @@ class RestaurantTablesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Automatically re-fetch restaurant floor tables when sync commits changes
-    ref.listen<SyncState>(syncStateProvider, (prev, next) {
-      if (prev?.syncSequence != next.syncSequence ||
-          prev?.lastSyncTime != next.lastSyncTime ||
-          (prev?.isSyncing == true && !next.isSyncing && next.status == SyncStatus.synced)) {
-        ref.read(restaurantProvider.notifier).refreshFromDb();
-      }
-    });
-
     final restState = ref.watch(restaurantProvider);
     final notifier = ref.read(restaurantProvider.notifier);
 

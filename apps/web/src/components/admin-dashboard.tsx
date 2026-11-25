@@ -666,7 +666,7 @@ export default function AdminDashboard({
     onPoll: () => {
       fetchAllData(true);
     },
-    pollIntervalMs: 5000,
+    pollIntervalMs: 30000,
   });
 
   // Filtered Products

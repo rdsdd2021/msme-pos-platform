@@ -61,6 +61,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
   final Ref _ref;
   Timer? _autoSyncTimer;
   bool _pendingSyncRequested = false;
+  bool _isSyncInFlight = false;
 
   SyncNotifier(this._worker, this._ref) : super(const SyncState()) {
     refreshStatus();
@@ -71,8 +72,8 @@ class SyncNotifier extends StateNotifier<SyncState> {
     _autoSyncTimer?.cancel();
     _autoSyncTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
       final hasPending = await _worker.getPendingCount() > 0;
-      if (hasPending || !state.isSyncing) {
-        await syncNow();
+      if (hasPending || !_isSyncInFlight) {
+        await syncNow(silent: true);
       }
     });
   }
@@ -93,20 +94,26 @@ class SyncNotifier extends StateNotifier<SyncState> {
     );
   }
 
-  Future<bool> syncNow({String? deviceId}) async {
-    if (state.isSyncing) {
+  Future<bool> syncNow({String? deviceId, bool silent = false}) async {
+    if (_isSyncInFlight || state.isSyncing) {
       _pendingSyncRequested = true;
       return false;
     }
 
-    state = state.copyWith(isSyncing: true, lastError: null, status: SyncStatus.syncing);
+    _isSyncInFlight = true;
+    if (!silent) {
+      state = state.copyWith(isSyncing: true, lastError: null, status: SyncStatus.syncing);
+    }
 
     final resolvedDeviceId = deviceId ?? await AppConfig.getDeviceId();
     final authState = _ref.read(authProvider);
     final tenantId = authState.activeMembership?.tenantId;
     if (tenantId == null) {
       // User is not authenticated with an active store membership yet
-      state = state.copyWith(isSyncing: false, status: SyncStatus.idle);
+      _isSyncInFlight = false;
+      if (!silent || state.isSyncing) {
+        state = state.copyWith(isSyncing: false, status: SyncStatus.idle);
+      }
       return false;
     }
     final branchId = authState.activeMembership?.branchId;
@@ -124,22 +131,32 @@ class SyncNotifier extends StateNotifier<SyncState> {
       final lastTime = await _worker.getLastSyncTime();
 
       if (result.isSuccess) {
-        state = state.copyWith(
-          isSyncing: false,
-          pendingCount: count,
-          lastSyncTime: lastTime,
-          status: SyncStatus.synced,
-          lastError: null,
-          syncSequence: state.syncSequence + 1,
-        );
+        final hasCatalogChanges =
+            result.pulledProductsCount > 0 || result.pulledCategoriesCount > 0 || result.pushedCount > 0;
+        final hasTableChanges = result.pulledRestaurantTablesCount > 0 || result.pushedCount > 0;
+        final hasAnyChanges = hasCatalogChanges || hasTableChanges || result.pulledCustomersCount > 0;
 
-        // Instantly reload local catalog, customer lists and restaurant tables on every sync
-        await _ref.read(catalogProvider.notifier).reload();
+        if (!silent || hasAnyChanges || count != state.pendingCount || state.status != SyncStatus.synced) {
+          state = state.copyWith(
+            isSyncing: false,
+            pendingCount: count,
+            lastSyncTime: lastTime,
+            status: SyncStatus.synced,
+            lastError: null,
+            syncSequence: hasAnyChanges ? state.syncSequence + 1 : state.syncSequence,
+          );
+        }
+
+        // Only reload local providers when relevant delta data actually changed
+        if (hasCatalogChanges) {
+          await _ref.read(catalogProvider.notifier).reload();
+        }
         if (result.pulledCustomersCount > 0) {
           await _ref.read(customerProvider.notifier).reload();
         }
-        // Always refresh dining floor tables and orders from local SQLite to reflect cloud changes
-        await _ref.read(restaurantProvider.notifier).refreshFromDb();
+        if (hasTableChanges) {
+          await _ref.read(restaurantProvider.notifier).refreshFromDb();
+        }
 
         return true;
       } else {
@@ -163,12 +180,13 @@ class SyncNotifier extends StateNotifier<SyncState> {
       );
       return false;
     } finally {
+      _isSyncInFlight = false;
       if (state.isSyncing) {
         state = state.copyWith(isSyncing: false);
       }
       if (_pendingSyncRequested) {
         _pendingSyncRequested = false;
-        Future.microtask(() => syncNow(deviceId: deviceId));
+        Future.microtask(() => syncNow(deviceId: deviceId, silent: true));
       }
     }
   }

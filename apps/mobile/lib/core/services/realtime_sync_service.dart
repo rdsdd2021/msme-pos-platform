@@ -154,24 +154,20 @@ class RealtimeSyncService {
 
       debugPrint('[RealtimeSync] Received server event: $type');
 
-      // Trigger instantaneous UI refresh and background delta sync
+      // Trigger instantaneous UI refresh and silent background delta sync
       if (type == 'CATALOG_CHANGED' || type == 'STOCK_CHANGED') {
-        _ref.read(catalogProvider.notifier).reload();
-        _ref.read(syncStateProvider.notifier).syncNow();
+        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
       } else if (type == 'RESTAURANT_TABLE_CHANGED' ||
           type == 'KOT_CREATED' ||
           type == 'KOT_STATUS_CHANGED' ||
           type == 'ORDER_CREATED') {
-        _ref.read(restaurantProvider.notifier).refreshFromDb();
-        _ref.read(syncStateProvider.notifier).syncNow();
+        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
       } else if (type == 'CUSTOMER_UPDATED') {
-        _ref.read(customerProvider.notifier).reload();
-        _ref.read(syncStateProvider.notifier).syncNow();
+        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
       } else if (type == 'RESTAURANT_SETTINGS_CHANGED') {
-        _ref.read(restaurantProvider.notifier).refreshFromDb();
-        _ref.read(syncStateProvider.notifier).syncNow();
+        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
       } else {
-        _ref.read(syncStateProvider.notifier).syncNow();
+        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
       }
     } catch (e) {
       debugPrint('[RealtimeSync] JSON parse error: $e');

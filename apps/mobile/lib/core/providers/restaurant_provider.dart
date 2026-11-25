@@ -467,8 +467,37 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       );
     }
 
+    if (_areTableListsEqual(state.tables, merged)) {
+      return;
+    }
+
     state = state.copyWith(tables: merged);
     await _saveToCache();
+  }
+
+  bool _areTableListsEqual(List<RestaurantTable> a, List<RestaurantTable> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final ta = a[i];
+      final tb = b[i];
+      if (ta.id != tb.id ||
+          ta.name != tb.name ||
+          ta.status != tb.status ||
+          ta.currentGuestCount != tb.currentGuestCount ||
+          ta.confirmedItemCount != tb.confirmedItemCount ||
+          ta.activeOrderLines.length != tb.activeOrderLines.length ||
+          ta.confirmedLines.length != tb.confirmedLines.length) {
+        return false;
+      }
+      for (var j = 0; j < ta.activeOrderLines.length; j++) {
+        final la = ta.activeOrderLines[j];
+        final lb = tb.activeOrderLines[j];
+        if (la.lineKey != lb.lineKey || la.quantity != lb.quantity || la.notes != lb.notes) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   Future<void> _loadFromCache() async {

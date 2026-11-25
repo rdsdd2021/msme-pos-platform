@@ -264,16 +264,18 @@ export function useRealtimeEvents({
     };
   }, [connect]);
 
-  // Periodic polling fallback ensuring data is never stale even during temporary network drops
+  // Periodic polling fallback ensuring data is never stale when SSE is disconnected
+  // (or a slow 45s safety check while SSE is connected, avoiding 5s flicker loops)
   useEffect(() => {
     if (!enabled || !tenantId || pollIntervalMs <= 0) return;
 
+    const effectiveInterval = isConnected ? Math.max(pollIntervalMs, 45000) : pollIntervalMs;
     const interval = setInterval(() => {
       onPollRef.current?.();
-    }, pollIntervalMs);
+    }, effectiveInterval);
 
     return () => clearInterval(interval);
-  }, [enabled, tenantId, pollIntervalMs]);
+  }, [enabled, tenantId, pollIntervalMs, isConnected]);
 
   return { isConnected };
 }

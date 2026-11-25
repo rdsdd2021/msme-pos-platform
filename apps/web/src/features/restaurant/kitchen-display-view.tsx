@@ -56,13 +56,10 @@ export function KitchenDisplayView() {
     }
   }, [activeTenant?.tenantId, activeBranch?.id, stationFilter]);
 
-  // Initial load and periodic poll
+  // Initial load (live updates handled by useRealtimeEvents SSE + fallback poll)
   useEffect(() => {
     fetchKdsQueue();
-    if (!autoRefresh) return;
-    const interval = setInterval(fetchKdsQueue, 12000);
-    return () => clearInterval(interval);
-  }, [fetchKdsQueue, autoRefresh]);
+  }, [fetchKdsQueue]);
 
   // Real-time live KDS updates on order placement / table changes / KOT dispatch
   useRealtimeEvents({
@@ -89,7 +86,7 @@ export function KitchenDisplayView() {
     onPoll: () => {
       fetchKdsQueue();
     },
-    pollIntervalMs: 5000,
+    pollIntervalMs: autoRefresh ? 25000 : 0,
   });
 
   // Handle Status Update (Start Cooking, Ready, Served)

@@ -100,15 +100,6 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Automatically re-fetch catalog dishes when synchronization commits
-    ref.listen<SyncState>(syncStateProvider, (prev, next) {
-      if (prev?.syncSequence != next.syncSequence ||
-          prev?.lastSyncTime != next.lastSyncTime ||
-          (prev?.isSyncing == true && !next.isSyncing && next.status == SyncStatus.synced)) {
-        ref.read(catalogProvider.notifier).reload();
-      }
-    });
-
     final catalogState = ref.watch(catalogProvider);
     final allProducts = catalogState.allProducts;
 
