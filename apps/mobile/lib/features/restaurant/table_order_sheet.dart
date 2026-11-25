@@ -54,39 +54,42 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
 
     return ReceiptDocument(
       header: ReceiptHeader(
-        storeName: '*** KITCHEN ORDER TICKET ***',
-        address: 'Table: ${currentTable.name} (${currentTable.section})',
+        storeName: 'KOT',
+        address: currentTable.name,
+        phone: null,
+        gstin: null,
+        fssai: null,
+        tagline: null,
       ),
       meta: ReceiptInvoiceMeta(
         invoiceNumber: 'KOT-${DateTime.now().millisecondsSinceEpoch % 10000}',
         invoiceId: 'kot-${currentTable.id}',
         date: DateTime.now(),
+        cashierName: '',
         paymentMethod: 'KOT',
-        customerName: '${currentTable.name} (${currentTable.currentGuestCount} guests)',
+        customerName: currentTable.currentGuestCount > 0
+            ? '${currentTable.name} (${currentTable.currentGuestCount} Pax)'
+            : currentTable.name,
       ),
       lines: effectiveLines.map((i) {
-        final dietTag = i.product.isVeg ? '[VEG]' : (i.product.isNonVeg ? '[NV]' : (i.product.isEgg ? '[EGG]' : ''));
-        final stationTag = i.product.kitchenStation != null && i.product.kitchenStation != 'main_kitchen'
-            ? ' [${i.product.kitchenStation == 'tandoor' ? 'Tandoor' : i.product.kitchenStation == 'beverage_bar' ? 'Bar' : 'Bakery'}]'
-            : '';
-        final noteTag = i.notes != null && i.notes!.isNotEmpty ? ' [NOTE: ${i.notes}]' : '';
-        final lineDesc = '$dietTag ${i.displayName}$stationTag$noteTag'.trim();
+        final noteTag = i.notes != null && i.notes!.isNotEmpty ? ' (${i.notes})' : '';
+        final lineDesc = '${i.displayName}$noteTag'.trim();
         return ReceiptLineItem(
           name: lineDesc,
           quantity: i.quantity,
           unit: i.product.unit,
-          unitPricePaisa: i.unitPricePaisa,
+          unitPricePaisa: 0,
           taxRatePercent: 0,
           taxPaisa: 0,
-          totalPaisa: i.totalPaisa,
+          totalPaisa: 0,
         );
       }).toList(),
       taxSlabs: const [],
-      totals: ReceiptTotals(
-        subtotalPaisa: subtotal,
+      totals: const ReceiptTotals(
+        subtotalPaisa: 0,
         cgstTotalPaisa: 0,
         sgstTotalPaisa: 0,
-        grandTotalPaisa: subtotal,
+        grandTotalPaisa: 0,
       ),
     );
   }
@@ -178,14 +181,6 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         ref.read(syncStateProvider.notifier).syncNow();
       } catch (e) {
         debugPrint('[TableOrderSheet] Error queuing KOT: $e');
-      }
-
-      if (ref.read(restaurantProvider).autoPrintKotOnFire) {
-        try {
-          final notifier = ref.read(printerProvider.notifier);
-          final kotDoc = _buildKotReceiptDocument(currentTable, deltaLines);
-          await notifier.printReceipt(kotDoc);
-        } catch (_) {}
       }
 
       if (mounted) {
@@ -817,9 +812,6 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                               debugPrint('[TableOrderSheet] Settle atomic error: $err');
                             }
 
-                            final wasAlreadyBilled = currentTable.status == TableStatus.billed;
-                            final autoPrintOnSettle = ref.read(restaurantProvider).autoPrintBillOnSettle;
-
                             // Vacate table and mark dirty for clearing
                             ref.read(restaurantProvider.notifier).clearAndVacateTable(currentTable.id, markDirty: true);
 
@@ -836,14 +828,6 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                                   backgroundColor: ShadcnColors.primary,
                                 ),
                               );
-
-                              // Auto-print only if enabled and table wasn't already pre-billed
-                              if (autoPrintOnSettle && !wasAlreadyBilled && result.receiptDocument != null) {
-                                ref.read(printerProvider.notifier).printReceipt(
-                                      result.receiptDocument!,
-                                      openCashDrawer: selectedMethod == 'cash',
-                                    );
-                              }
                             }
                           },
                   ),

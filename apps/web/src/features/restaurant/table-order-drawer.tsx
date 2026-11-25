@@ -498,29 +498,26 @@ export function TableOrderDrawer({
         </head>
         <body>
           <div class="header">
-            <div class="title">*** KITCHEN ORDER TICKET ***</div>
-            <div class="meta"><strong>TABLE: ${kot.tableNumber}</strong> | ${kot.kotNumber}</div>
-            <div class="meta">Station: ${kot.kitchenStation} | Captain: ${kot.captainName || 'Staff'}</div>
-            <div class="meta">Time: ${new Date(kot.dispatchedAt).toLocaleTimeString()}</div>
+            <div class="title">KOT • ${kot.kotNumber}</div>
+            <div class="meta"><strong>${kot.tableNumber}</strong> • ${new Date(kot.dispatchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
           </div>
           <table>
-            <thead><tr><th>QTY</th><th>ITEM & INSTRUCTIONS</th></tr></thead>
+            <thead><tr><th>QTY</th><th>ITEM</th></tr></thead>
             <tbody>
               ${(kot.lines || [])
                 .map(
                   (l) => `
                 <tr>
-                  <td class="qty">${parseFloat(l.quantity).toFixed(0)}</td>
+                  <td class="qty">${parseFloat(l.quantity).toFixed(0)}x</td>
                   <td>
                     <strong>${l.productNameSnapshot}</strong>
-                    ${l.specialInstructions ? `<div class="notes">Note: ${l.specialInstructions}</div>` : ''}
+                    ${l.specialInstructions ? `<div class="notes">* ${l.specialInstructions}</div>` : ''}
                   </td>
                 </tr>`,
                 )
                 .join('')}
             </tbody>
           </table>
-          <div class="footer">Please dispatch immediately upon preparation</div>
         </body>
       </html>
     `);

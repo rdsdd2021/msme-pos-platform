@@ -185,6 +185,34 @@ class EscPosBuilder {
   void buildReceipt(ReceiptDocument doc, {bool openCashDrawer = false}) {
     initialize();
 
+    // Clean, short, simple Kitchen Order Ticket (KOT) format — no prices, taxes, or store clutter
+    if (doc.meta.paymentMethod == 'KOT') {
+      if (doc.meta.isReprint) {
+        textCentered('*** KOT REPRINT ***', bold: true);
+      }
+      textCentered(doc.meta.invoiceNumber, bold: true, doubleSize: true);
+      if (doc.meta.customerName != null && doc.meta.customerName!.isNotEmpty) {
+        textCentered(doc.meta.customerName!, bold: true);
+      }
+      final d = doc.meta.date;
+      final timeStr =
+          '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+      textCentered('Time: $timeStr');
+      divider(char: '-');
+      rawLine('QTY  ITEM');
+      divider(char: '-');
+      for (final item in doc.lines) {
+        final qtyStr = '${item.quantity}x'.padRight(5);
+        setBold(true);
+        rawLine('$qtyStr${item.name}');
+        setBold(false);
+      }
+      divider(char: '=');
+      feedLines(3);
+      cut(partial: true);
+      return;
+    }
+
     // 1. Optional Cash Drawer Kick
     if (openCashDrawer) {
       kickDrawer();
