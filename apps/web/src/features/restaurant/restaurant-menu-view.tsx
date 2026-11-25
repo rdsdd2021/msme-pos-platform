@@ -384,11 +384,10 @@ export function RestaurantMenuView() {
                 <button
                   key={tag.id}
                   onClick={() => setSelectedDietary(tag.id)}
-                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                    selectedDietary === tag.id
-                      ? 'bg-white text-slate-900 shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${selectedDietary === tag.id
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   {tag.label}
                 </button>
@@ -416,11 +415,10 @@ export function RestaurantMenuView() {
             <button
               key={course}
               onClick={() => setSelectedCourse(course)}
-              className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer ${
-                selectedCourse === course
-                  ? 'bg-slate-900 text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1.5 text-xs rounded-lg font-bold transition-all whitespace-nowrap cursor-pointer ${selectedCourse === course
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                }`}
             >
               {course}
             </button>
@@ -460,9 +458,8 @@ export function RestaurantMenuView() {
               return (
                 <div
                   key={dish.id}
-                  className={`bg-white rounded-2xl border transition-all p-4.5 flex flex-col justify-between hover:shadow-md ${
-                    isAvail ? 'border-slate-200/90 hover:border-slate-300' : 'border-rose-200 bg-rose-50/25'
-                  }`}
+                  className={`bg-white rounded-2xl border transition-all p-4.5 flex flex-col justify-between hover:shadow-md ${isAvail ? 'border-slate-200/90 hover:border-slate-300' : 'border-rose-200 bg-rose-50/25'
+                    }`}
                 >
                   <div>
                     {/* Top row: Dietary tag, category badge, and 86'd status */}
@@ -526,11 +523,10 @@ export function RestaurantMenuView() {
                       type="button"
                       disabled={togglingId === dish.id}
                       onClick={() => handleToggleAvailability(dish)}
-                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isAvail
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                          : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
-                      }`}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${isAvail
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                        : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+                        }`}
                     >
                       {isAvail ? (
                         <>

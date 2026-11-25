@@ -116,6 +116,7 @@ export function TableOrderDrawer({
 
   // Split bill settlement modal
   const [settleModalOpen, setSettleModalOpen] = useState(false);
+  const isPrintingRef = React.useRef<boolean>(false);
 
   // References to preserve draft items across background polling cycles
   const prevTableIdRef = React.useRef<string | null>(null);
@@ -469,10 +470,16 @@ export function TableOrderDrawer({
 
   // Print KOT
   const handlePrintKot = (kot: RestaurantKot) => {
-    const printWindow = window.open('', '_blank', 'width=380,height=600');
-    if (!printWindow) return;
+    if (isPrintingRef.current) return;
+    isPrintingRef.current = true;
+    try {
+      const printWindow = window.open('', '_blank', 'width=380,height=600');
+      if (!printWindow) {
+        isPrintingRef.current = false;
+        return;
+      }
 
-    printWindow.document.write(`
+      printWindow.document.write(`
       <html>
         <head>
           <title>KOT - ${kot.kotNumber}</title>
@@ -519,24 +526,39 @@ export function TableOrderDrawer({
     `);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
+    setTimeout(() => {
+      try {
+        printWindow.print();
+        printWindow.close();
+      } finally {
+        isPrintingRef.current = false;
+      }
+    }, 200);
+    } catch {
+      isPrintingRef.current = false;
+    }
   };
 
   // Print Customer Bill & update table status to BILLED
   const handlePrintBill = async () => {
-    if (!table || !activeOrder) return;
+    if (!table || !activeOrder || isPrintingRef.current) return;
+    isPrintingRef.current = true;
 
-    // 1. Mark table as BILLED on server so floorplan and mobile update via SSE
     try {
-      await apiClient.updateRestaurantTable(table.tenantId, table.branchId, table.id, {
-        status: TableStatus.BILLED,
-      });
-      onRefreshTable();
-    } catch (_) {}
+      // 1. Mark table as BILLED on server so floorplan and mobile update via SSE
+      try {
+        await apiClient.updateRestaurantTable(table.tenantId, table.branchId, table.id, {
+          status: TableStatus.BILLED,
+        });
+        onRefreshTable();
+      } catch (_) {}
 
-    // 2. Open printable receipt window
-    const printWindow = window.open('', '_blank', 'width=380,height=600');
-    if (!printWindow) return;
+      // 2. Open printable receipt window
+      const printWindow = window.open('', '_blank', 'width=380,height=600');
+      if (!printWindow) {
+        isPrintingRef.current = false;
+        return;
+      }
 
     const subtotal = parseFloat(activeOrder.subtotal || '0');
     const taxTotal = isGstEnabled ? parseFloat(activeOrder.taxTotal || '0') : 0;
@@ -627,7 +649,17 @@ export function TableOrderDrawer({
     `);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
+    setTimeout(() => {
+      try {
+        printWindow.print();
+        printWindow.close();
+      } finally {
+        isPrintingRef.current = false;
+      }
+    }, 200);
+    } catch {
+      isPrintingRef.current = false;
+    }
   };
 
   if (!table) return null;

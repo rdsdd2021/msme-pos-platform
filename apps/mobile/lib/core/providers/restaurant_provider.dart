@@ -256,12 +256,16 @@ class RestaurantState {
   final String selectedSection;
   final bool isGstEnabled;
   final double defaultGstPercent;
+  final bool autoPrintKotOnFire;
+  final bool autoPrintBillOnSettle;
 
   const RestaurantState({
     required this.tables,
     this.selectedSection = 'All',
     this.isGstEnabled = true,
     this.defaultGstPercent = 5.0,
+    this.autoPrintKotOnFire = true,
+    this.autoPrintBillOnSettle = true,
   });
 
   List<String> get sections {
@@ -288,12 +292,16 @@ class RestaurantState {
     String? selectedSection,
     bool? isGstEnabled,
     double? defaultGstPercent,
+    bool? autoPrintKotOnFire,
+    bool? autoPrintBillOnSettle,
   }) {
     return RestaurantState(
       tables: tables ?? this.tables,
       selectedSection: selectedSection ?? this.selectedSection,
       isGstEnabled: isGstEnabled ?? this.isGstEnabled,
       defaultGstPercent: defaultGstPercent ?? this.defaultGstPercent,
+      autoPrintKotOnFire: autoPrintKotOnFire ?? this.autoPrintKotOnFire,
+      autoPrintBillOnSettle: autoPrintBillOnSettle ?? this.autoPrintBillOnSettle,
     );
   }
 }
@@ -531,9 +539,13 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
         final enableGst = res['enableGst'] as bool? ?? (res['defaultGstPercent'] != '0.00');
         final percentStr = res['defaultGstPercent'] as String? ?? (enableGst ? '5.00' : '0.00');
         final rate = double.tryParse(percentStr) ?? (enableGst ? 5.0 : 0.0);
+        final autoPrintKot = res['autoPrintKotOnFire'] as bool? ?? true;
+        final autoPrintBill = res['autoPrintBillOnSettle'] as bool? ?? true;
         state = state.copyWith(
           isGstEnabled: enableGst,
           defaultGstPercent: rate,
+          autoPrintKotOnFire: autoPrintKot,
+          autoPrintBillOnSettle: autoPrintBill,
         );
 
         final prefs = await SharedPreferences.getInstance();

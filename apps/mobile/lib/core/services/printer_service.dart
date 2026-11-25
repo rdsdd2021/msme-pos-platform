@@ -330,6 +330,9 @@ class PrinterService {
   PrinterStatus _status = PrinterStatus.disconnected;
   String? _lastError;
   PrintResult? _lastPrintResult;
+  bool _isPrinting = false;
+  String? _lastPrintedKey;
+  DateTime? _lastPrintedAt;
 
   PrinterService({
     PrinterTransport? transport,
@@ -383,10 +386,19 @@ class PrinterService {
 
   /// Print a semantic receipt document.
   /// Post-commit operation: safe against printer disconnects / paper-out.
+  /// Enforces a concurrency lock and 2s deduplication window to prevent double-printing.
   Future<PrintResult> printReceipt(
     ReceiptDocument doc, {
     bool openCashDrawer = false,
   }) async {
+    if (_isPrinting) {
+      return PrintResult.failure(
+        errorMessage: 'Print job already in progress',
+        invoiceNumber: doc.meta.invoiceNumber,
+      );
+    }
+
+    _isPrinting = true;
     _status = PrinterStatus.printing;
     _lastError = null;
 
@@ -395,8 +407,24 @@ class PrinterService {
 
     final bytes = builder.toBytes();
     final textPreview = builder.toTextPreview();
+    final dedupeKey = '${doc.meta.invoiceNumber}:${bytes.length}:${doc.totals.grandTotalPaisa}';
+    final now = DateTime.now();
 
     try {
+      // Prevent accidental double-tap duplicate prints within 2 seconds for non-reprints
+      if (!doc.meta.isReprint &&
+          _lastPrintedKey == dedupeKey &&
+          _lastPrintedAt != null &&
+          now.difference(_lastPrintedAt!).inMilliseconds < 2000) {
+        _status = _transport.isConnected ? PrinterStatus.connected : PrinterStatus.disconnected;
+        return _lastPrintResult ??
+            PrintResult.ok(
+              invoiceNumber: doc.meta.invoiceNumber,
+              bytesSent: bytes.length,
+              textPreview: textPreview,
+            );
+      }
+
       if (!_transport.isConnected) {
         final connected = await _transport.connect();
         if (!connected) {
@@ -405,6 +433,9 @@ class PrinterService {
       }
 
       await _transport.sendBytes(bytes);
+
+      _lastPrintedKey = dedupeKey;
+      _lastPrintedAt = DateTime.now();
 
       if (_transport is MockPrinterTransport) {
         (_transport as MockPrinterTransport).printedTextJobs.add(textPreview);
@@ -425,6 +456,8 @@ class PrinterService {
         invoiceNumber: doc.meta.invoiceNumber,
       );
       return _lastPrintResult!;
+    } finally {
+      _isPrinting = false;
     }
   }
 

@@ -34,6 +34,8 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
   String _selectedCategory = 'All';
   String _selectedDietary = 'all'; // 'all', 'veg', 'non_veg', 'egg'
   int _activeTab = 0; // 0 = Menu Catalog, 1 = Table Order
+  bool _isPlacingOrder = false;
+  bool _isPrintingBill = false;
 
   @override
   void dispose() {
@@ -132,141 +134,166 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
   }
 
   Future<void> _handleConfirmOrder(RestaurantTable currentTable) async {
-    if (currentTable.activeOrderLines.isEmpty) return;
+    if (_isPlacingOrder || currentTable.activeOrderLines.isEmpty) return;
+    setState(() => _isPlacingOrder = true);
 
     HapticFeedback.mediumImpact();
 
-    // Determine strictly the delta lines to fire in this KOT ticket
-    final deltaLines = currentTable.newDeltaLines.isNotEmpty
-        ? currentTable.newDeltaLines
-        : currentTable.activeOrderLines;
-
-    // 1. Mark order as confirmed locally (sets confirmedLines and confirmedItemCount)
-    ref.read(restaurantProvider.notifier).markOrderConfirmed(currentTable.id);
-
-    // 2. Atomically persist KOT in local Drift SQLite and queue DISPATCH_KOT in SyncOutbox
     try {
-      final restRepo = ref.read(localRestaurantRepoProvider);
-      final authState = ref.read(authProvider);
-      final tenantId = authState.activeMembership?.tenantId ??
-          authState.user?.primaryMembership?.tenantId ??
-          '';
-      final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
-          ? authState.activeBranchId!
-          : (authState.activeMembership?.branchId ?? authState.user?.primaryMembership?.branchId ?? '');
-      final deviceId = await AppConfig.getDeviceId();
-      final captainName = authState.user?.fullName ?? 'Captain';
+      // Determine strictly the delta lines to fire in this KOT ticket
+      final deltaLines = currentTable.newDeltaLines.isNotEmpty
+          ? currentTable.newDeltaLines
+          : currentTable.activeOrderLines;
 
-      final orderId = const Uuid().v4();
+      // 1. Mark order as confirmed locally (sets confirmedLines and confirmedItemCount)
+      ref.read(restaurantProvider.notifier).markOrderConfirmed(currentTable.id);
 
-      await restRepo.dispatchKotAtomic(
-        tableId: currentTable.id,
-        tableNumber: currentTable.name,
-        orderId: orderId,
-        lines: deltaLines,
-        captainName: captainName,
-        tenantId: tenantId,
-        branchId: branchId,
-        deviceId: deviceId,
-      );
+      // 2. Atomically persist KOT in local Drift SQLite and queue DISPATCH_KOT in SyncOutbox
+      try {
+        final restRepo = ref.read(localRestaurantRepoProvider);
+        final authState = ref.read(authProvider);
+        final tenantId = authState.activeMembership?.tenantId ??
+            authState.user?.primaryMembership?.tenantId ??
+            '';
+        final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
+            ? authState.activeBranchId!
+            : (authState.activeMembership?.branchId ?? authState.user?.primaryMembership?.branchId ?? '');
+        final deviceId = await AppConfig.getDeviceId();
+        final captainName = authState.user?.fullName ?? 'Captain';
 
-      // 3. Immediately trigger background sync push to backend & KDS
-      ref.read(syncStateProvider.notifier).syncNow();
-    } catch (e) {
-      debugPrint('[TableOrderSheet] Error queuing KOT: $e');
-    }
+        final orderId = const Uuid().v4();
 
-    try {
-      final notifier = ref.read(printerProvider.notifier);
-      final kotDoc = _buildKotReceiptDocument(currentTable, deltaLines);
-      await notifier.printReceipt(kotDoc);
-    } catch (_) {}
+        await restRepo.dispatchKotAtomic(
+          tableId: currentTable.id,
+          tableNumber: currentTable.name,
+          orderId: orderId,
+          lines: deltaLines,
+          captainName: captainName,
+          tenantId: tenantId,
+          branchId: branchId,
+          deviceId: deviceId,
+        );
 
-    if (mounted) {
-      final totalFiredQty = deltaLines.fold<int>(0, (s, i) => s + i.quantity);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Order placed! KOT ($totalFiredQty items) sent to kitchen for ${currentTable.name}.'),
-          backgroundColor: ShadcnColors.primary,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        // 3. Immediately trigger background sync push to backend & KDS
+        ref.read(syncStateProvider.notifier).syncNow();
+      } catch (e) {
+        debugPrint('[TableOrderSheet] Error queuing KOT: $e');
+      }
+
+      if (ref.read(restaurantProvider).autoPrintKotOnFire) {
+        try {
+          final notifier = ref.read(printerProvider.notifier);
+          final kotDoc = _buildKotReceiptDocument(currentTable, deltaLines);
+          await notifier.printReceipt(kotDoc);
+        } catch (_) {}
+      }
+
+      if (mounted) {
+        final totalFiredQty = deltaLines.fold<int>(0, (s, i) => s + i.quantity);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order placed! KOT ($totalFiredQty items) sent to kitchen for ${currentTable.name}.'),
+            backgroundColor: ShadcnColors.primary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
   Future<void> _handlePrintKotOnly(RestaurantTable currentTable) async {
-    final kotDoc = _buildKotReceiptDocument(currentTable);
-    final res = await ref.read(printerProvider.notifier).printReceipt(kotDoc);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            res.success
-                ? 'KOT printed successfully for ${currentTable.name}!'
-                : 'Printer status: ${res.errorMessage ?? "Dispatched to Kitchen"}',
+    if (_isPrintingBill) return;
+    setState(() => _isPrintingBill = true);
+    try {
+      final kotDoc = _buildKotReceiptDocument(currentTable);
+      final res = await ref.read(printerProvider.notifier).printReceipt(kotDoc);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res.success
+                  ? 'KOT printed successfully for ${currentTable.name}!'
+                  : 'Printer status: ${res.errorMessage ?? "Dispatched to Kitchen"}',
+            ),
+            backgroundColor: ShadcnColors.primary,
           ),
-          backgroundColor: ShadcnColors.primary,
-        ),
-      );
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrintingBill = false);
     }
   }
 
   Future<void> _handlePrintBillAndSettle(RestaurantTable currentTable) async {
-    // 1. Mark table as billed in local state
-    ref.read(restaurantProvider.notifier).markTableBilled(currentTable.id);
-
-    // 2. Queue UPDATE_TABLE_STATUS outbox mutation so server table status updates to BILLED and emits SSE
+    if (_isPrintingBill) return;
+    setState(() => _isPrintingBill = true);
     try {
-      final restRepo = ref.read(localRestaurantRepoProvider);
-      final authState = ref.read(authProvider);
-      final tenantId = authState.activeMembership?.tenantId ??
-          authState.user?.primaryMembership?.tenantId ??
-          '';
-      final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
-          ? authState.activeBranchId!
-          : (authState.activeMembership?.branchId ?? authState.user?.primaryMembership?.branchId ?? '');
-      final deviceId = await AppConfig.getDeviceId();
+      // 1. Mark table as billed in local state
+      ref.read(restaurantProvider.notifier).markTableBilled(currentTable.id);
 
-      await restRepo.markTableBilledAtomic(
-        tableId: currentTable.id,
-        tenantId: tenantId,
-        branchId: branchId,
-        deviceId: deviceId,
-      );
+      // 2. Queue UPDATE_TABLE_STATUS outbox mutation so server table status updates to BILLED and emits SSE
+      try {
+        final restRepo = ref.read(localRestaurantRepoProvider);
+        final authState = ref.read(authProvider);
+        final tenantId = authState.activeMembership?.tenantId ??
+            authState.user?.primaryMembership?.tenantId ??
+            '';
+        final branchId = (authState.activeBranchId != null && authState.activeBranchId!.isNotEmpty && authState.activeBranchId != 'branch-1')
+            ? authState.activeBranchId!
+            : (authState.activeMembership?.branchId ?? authState.user?.primaryMembership?.branchId ?? '');
+        final deviceId = await AppConfig.getDeviceId();
 
-      // Trigger sync push to notify backend & Web floorplan
-      ref.read(syncStateProvider.notifier).syncNow();
-    } catch (e) {
-      debugPrint('[TableOrderSheet] Error marking table billed: $e');
-    }
+        await restRepo.markTableBilledAtomic(
+          tableId: currentTable.id,
+          tenantId: tenantId,
+          branchId: branchId,
+          deviceId: deviceId,
+        );
 
-    // 3. Generate pre-bill receipt on printer
-    final billDoc = _buildPreBillReceiptDocument(currentTable);
-    ref.read(printerProvider.notifier).printReceipt(billDoc);
+        // Trigger sync push to notify backend & Web floorplan
+        ref.read(syncStateProvider.notifier).syncNow();
+      } catch (e) {
+        debugPrint('[TableOrderSheet] Error marking table billed: $e');
+      }
 
-    // 4. Show confirmation feedback (table transitions to billed; waiter can deliver bill and click Settle Bill later)
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bill printed! Table ${currentTable.name} marked as Billed. Ready for settlement.'),
-          backgroundColor: ShadcnColors.primary,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      // 3. Generate pre-bill receipt on printer
+      final billDoc = _buildPreBillReceiptDocument(currentTable);
+      await ref.read(printerProvider.notifier).printReceipt(billDoc);
+
+      // 4. Show confirmation feedback (table transitions to billed; waiter can deliver bill and click Settle Bill later)
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bill printed! Table ${currentTable.name} marked as Billed. Ready for settlement.'),
+            backgroundColor: ShadcnColors.primary,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrintingBill = false);
     }
   }
 
-  void _handlePrintBillReceiptOnly(RestaurantTable currentTable) {
-    final billDoc = _buildPreBillReceiptDocument(currentTable);
-    ref.read(printerProvider.notifier).printReceipt(billDoc);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bill receipt printed for ${currentTable.name}!'),
-          backgroundColor: ShadcnColors.primary,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  Future<void> _handlePrintBillReceiptOnly(RestaurantTable currentTable) async {
+    if (_isPrintingBill) return;
+    setState(() => _isPrintingBill = true);
+    try {
+      final billDoc = _buildPreBillReceiptDocument(currentTable).copyWithReprint();
+      await ref.read(printerProvider.notifier).printReceipt(billDoc);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Bill receipt reprinted for ${currentTable.name}!'),
+            backgroundColor: ShadcnColors.primary,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrintingBill = false);
     }
   }
 
@@ -790,6 +817,9 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                               debugPrint('[TableOrderSheet] Settle atomic error: $err');
                             }
 
+                            final wasAlreadyBilled = currentTable.status == TableStatus.billed;
+                            final autoPrintOnSettle = ref.read(restaurantProvider).autoPrintBillOnSettle;
+
                             // Vacate table and mark dirty for clearing
                             ref.read(restaurantProvider.notifier).clearAndVacateTable(currentTable.id, markDirty: true);
 
@@ -807,8 +837,8 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
                                 ),
                               );
 
-                              // Auto-print receipt if available
-                              if (result.receiptDocument != null) {
+                              // Auto-print only if enabled and table wasn't already pre-billed
+                              if (autoPrintOnSettle && !wasAlreadyBilled && result.receiptDocument != null) {
                                 ref.read(printerProvider.notifier).printReceipt(
                                       result.receiptDocument!,
                                       openCashDrawer: selectedMethod == 'cash',
