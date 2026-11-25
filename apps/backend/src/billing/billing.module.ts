@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BillingService } from './billing.service';
 import { BillingController } from './billing.controller';
 import { GstReportingService } from './gst-reporting.service';
+import { AnalyticsService } from './analytics.service';
 import { InvoiceEntity } from './entities/invoice.entity';
 import { InvoiceLineEntity } from './entities/invoice-line.entity';
 import { PaymentEntity } from './entities/payment.entity';
@@ -38,7 +39,7 @@ import { TenantsModule } from '../tenants/tenants.module';
     TenantsModule,
   ],
   controllers: [BillingController],
-  providers: [BillingService, GstReportingService],
-  exports: [BillingService, GstReportingService],
+  providers: [BillingService, GstReportingService, AnalyticsService],
+  exports: [BillingService, GstReportingService, AnalyticsService],
 })
 export class BillingModule {}

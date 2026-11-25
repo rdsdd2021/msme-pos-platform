@@ -673,4 +673,42 @@ class AuthRepository {
       );
     }
   }
+
+  /// Fetch business sales analytics (day, week, month) with offline cache fallback
+  Future<Map<String, dynamic>?> getBusinessAnalytics({
+    required String tenantId,
+    String period = 'day',
+    String? branchId,
+  }) async {
+    final token = await getAccessToken();
+    final cacheKey = 'cached_analytics_${tenantId}_${branchId ?? "all"}_$period';
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final queryParams = <String, dynamic>{'period': period};
+        if (branchId != null && branchId.isNotEmpty && branchId != 'branch-1') {
+          queryParams['branchId'] = branchId;
+        }
+        final res = await _dio.get(
+          '$_baseUrl/api/v1/tenants/$tenantId/billing/analytics',
+          queryParameters: queryParams,
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        if (res.data is Map) {
+          final map = Map<String, dynamic>.from(res.data as Map);
+          await prefs.setString(cacheKey, jsonEncode(map));
+          return map;
+        }
+      } catch (_) {}
+    }
+
+    final cached = prefs.getString(cacheKey);
+    if (cached != null && cached.isNotEmpty) {
+      try {
+        return Map<String, dynamic>.from(jsonDecode(cached) as Map);
+      } catch (_) {}
+    }
+    return null;
+  }
 }

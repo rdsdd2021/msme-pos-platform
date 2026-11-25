@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/offline_billing_service.dart';
+import 'auth_provider.dart';
 
 class TodayMetrics {
   final int billCount;
@@ -37,6 +38,20 @@ final todayMetricsProvider = FutureProvider.autoDispose<TodayMetrics>((ref) asyn
     khataPaisa: data['khataPaisa'] as int? ?? 0,
     totalKhataDuePaisa: data['totalKhataDuePaisa'] as int? ?? 0,
     lowStockCount: data['lowStockCount'] as int? ?? 0,
+  );
+});
+
+final businessAnalyticsProvider = FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((ref, period) async {
+  final authState = ref.watch(authProvider);
+  final tenantId = authState.activeMembership?.tenantId ?? authState.user?.primaryMembership?.tenantId;
+  if (tenantId == null || tenantId.isEmpty || tenantId == 'tenant-1') return null;
+
+  final branchId = authState.activeBranchId ?? authState.activeMembership?.branchId;
+  final authRepo = ref.read(authRepositoryProvider);
+  return authRepo.getBusinessAnalytics(
+    tenantId: tenantId,
+    period: period,
+    branchId: branchId,
   );
 });
 

@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestj
 import { AuthGuard } from '@nestjs/passport';
 import { BillingService } from './billing.service';
 import { GstReportingService } from './gst-reporting.service';
+import { AnalyticsService, AnalyticsPeriod } from './analytics.service';
 import { TenantGuard } from '../tenants/guards/tenant.guard';
 import { PermissionsGuard } from '../tenants/guards/permissions.guard';
 import { RequirePermissions } from '../tenants/guards/require-permissions.decorator';
@@ -30,7 +31,23 @@ export class BillingController {
   constructor(
     private readonly billingService: BillingService,
     private readonly gstReportingService: GstReportingService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
+
+  @Get('analytics')
+  @RequirePermissions(Permission.REPORTS_FINANCIAL_READ)
+  @ApiOperation({ summary: 'Business sales analytics by day/week/month, product, category, table and payment method' })
+  @ApiQuery({ name: 'period', enum: ['day', 'week', 'month'], required: false })
+  @ApiQuery({ name: 'branchId', type: 'string', required: false })
+  async getBusinessAnalytics(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Request() req: { tenantContext: TenantContext },
+    @Query('period') period?: AnalyticsPeriod,
+    @Query('branchId') branchId?: string,
+  ) {
+    const resolvedBranchId = req.tenantContext?.branchId || branchId;
+    return this.analyticsService.getBusinessAnalytics(tenantId, period || 'day', resolvedBranchId);
+  }
 
   @Post('sales')
   @RequirePermissions(Permission.BILLING_POS_CREATE)

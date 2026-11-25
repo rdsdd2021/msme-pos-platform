@@ -14,6 +14,7 @@ import '../../core/widgets/shadcn_card.dart';
 import '../../core/widgets/shadcn_badge.dart';
 import '../../core/widgets/shadcn_button.dart';
 import '../settings/store_settings_sheet.dart';
+import 'analytics_dashboard_screen.dart';
 
 class MobileOwnerScreen extends ConsumerWidget {
   const MobileOwnerScreen({super.key});
@@ -231,6 +232,24 @@ class MobileOwnerScreen extends ConsumerWidget {
                   ],
                 );
               },
+            ),
+
+            const SizedBox(height: 12),
+
+            // Visual Sales & Category Analytics Entry Card
+            SizedBox(
+              width: double.infinity,
+              child: ShadcnButton(
+                text: 'Open Visual Analytics (Day / Week / Month)',
+                leadingIcon: const Icon(Icons.bar_chart_rounded, size: 18),
+                variant: ShadcnButtonVariant.primary,
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AnalyticsDashboardScreen()),
+                  );
+                },
+              ),
             ),
 
             const SizedBox(height: 16),

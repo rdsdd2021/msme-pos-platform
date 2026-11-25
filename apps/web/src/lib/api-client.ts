@@ -914,6 +914,64 @@ export interface DailySalesReport {
   paymentBreakdown: Record<string, string>;
 }
 
+export interface BusinessAnalyticsResponse {
+  period: 'day' | 'week' | 'month';
+  startDate: string;
+  endDate: string;
+  summary: {
+    totalSales: string;
+    previousPeriodSales: string;
+    growthPercent: number;
+    invoiceCount: number;
+    averageOrderValue: string;
+    totalTax: string;
+    totalDiscount: string;
+    totalItemsSold: number;
+  };
+  salesTrend: Array<{
+    label: string;
+    dateKey: string;
+    revenue: number;
+    orders: number;
+  }>;
+  byProduct: Array<{
+    productId: string;
+    name: string;
+    categoryName: string;
+    quantitySold: number;
+    revenue: number;
+    sharePercent: number;
+  }>;
+  byCategory: Array<{
+    categoryId: string | null;
+    categoryName: string;
+    itemCount: number;
+    quantitySold: number;
+    revenue: number;
+    sharePercent: number;
+  }>;
+  byTable: Array<{
+    tableNumber: string;
+    section: string;
+    orderCount: number;
+    guestCount: number;
+    revenue: number;
+    avgBill: number;
+  }>;
+  byPaymentMethod: Array<{
+    method: string;
+    amount: number;
+    count: number;
+    sharePercent: number;
+  }>;
+  peakHours: Array<{
+    hour: number;
+    label: string;
+    orders: number;
+    revenue: number;
+  }>;
+}
+
 export interface Device {
   id: string;
   tenantId: string;
@@ -1729,6 +1787,18 @@ class ApiClient {
   async getDailySalesReport(tenantId: string, branchId: string, date: string): Promise<DailySalesReport> {
     return this.request<DailySalesReport>(
       `/tenants/${tenantId}/operations/reports/daily-sales?branchId=${branchId}&date=${date}`,
+    );
+  }
+
+  async getBusinessAnalytics(
+    tenantId: string,
+    period: 'day' | 'week' | 'month' = 'day',
+    branchId?: string,
+  ): Promise<BusinessAnalyticsResponse> {
+    const params = new URLSearchParams({ period });
+    if (branchId) params.set('branchId', branchId);
+    return this.request<BusinessAnalyticsResponse>(
+      `/tenants/${tenantId}/billing/analytics?${params.toString()}`,
     );
   }
 

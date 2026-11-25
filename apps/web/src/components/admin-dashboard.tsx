@@ -27,6 +27,7 @@ import { StockMovementType } from '@pos/shared-types';
 import { Badge } from '@/components/ui/badge';
 import { InvoicesListView } from '@/features/billing/invoices-list-view';
 import { GstReportsView } from './gst-reports-view';
+import { ExecutiveAnalyticsView } from '@/features/analytics/executive-analytics-view';
 import { ProductListView } from '@/features/catalog/product-list-view';
 import { ProductDrawer, ProductFormData } from '@/features/catalog/product-drawer';
 import { CategoryManager } from '@/features/catalog/category-manager';
@@ -1860,69 +1861,10 @@ export default function AdminDashboard({
 
             {/* 2. Analytics Tab */}
             {activeTab === 'analytics' && (
-              <div className="space-y-4" data-testid="analytics-content">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">Live Sales & Tax Audit Summary</h2>
-                    <p className="text-xs text-slate-500">Real-time daily sales overview</p>
-                  </div>
-                  <button
-                    onClick={fetchAllData}
-                    className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium hover:bg-slate-50 cursor-pointer shadow-sm"
-                  >
-                    🔄 Refresh Live
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gross Turnover</p>
-                    <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-turnover">
-                      ₹{report?.totalSales || '0.00'}
-                    </p>
-                    <p className="text-[11px] text-emerald-600 mt-1 font-medium">Real-time store sales</p>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Invoices Issued</p>
-                    <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-invoices">
-                      {report?.invoiceCount || 0}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-1">Completed customer bills</p>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Total GST Tax</p>
-                    <p className="text-2xl font-black text-slate-900 mt-2" data-testid="stat-tax">
-                      ₹{report?.totalTax || '0.00'}
-                    </p>
-                    <p className="text-[11px] text-blue-600 mt-1 font-medium">CGST + SGST + IGST</p>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Cash Collected</p>
-                    <p className="text-2xl font-black text-emerald-700 mt-2">
-                      ₹{report?.paymentBreakdown?.['cash'] || '0.00'}
-                    </p>
-                    <p className="text-[11px] text-slate-500 mt-1">UPI: ₹{report?.paymentBreakdown?.['upi'] || '0.00'}</p>
-                  </div>
-                </div>
-
-                {/* Tender Breakdown Table */}
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                  <h3 className="font-bold text-sm text-slate-900 mb-3">Payment Methods Breakdown</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {['cash', 'upi', 'card', 'credit'].map((method) => (
-                      <div key={method} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <span className="text-[11px] uppercase font-bold text-slate-500">{method}</span>
-                        <p className="text-base font-black text-slate-900 mt-1">
-                          ₹{report?.paymentBreakdown?.[method] || '0.00'}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <ExecutiveAnalyticsView
+                tenantId={activeTenant?.tenantId}
+                branchId={activeBranch?.id}
+              />
             )}
 
             {/* 3. Customer Khata Tab */}
