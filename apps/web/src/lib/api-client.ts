@@ -1360,12 +1360,33 @@ class ApiClient {
 
   async createCategory(
     tenantId: string,
-    dto: { name: string; code: string; parentId?: string; sortOrder?: number },
+    dto: { name: string; code?: string; parentId?: string; sortOrder?: number },
   ): Promise<Category> {
     return this.request<Category>(`/tenants/${tenantId}/catalog/categories`, {
       method: 'POST',
       body: JSON.stringify(dto),
     });
+  }
+
+  async updateCategory(
+    tenantId: string,
+    categoryId: string,
+    dto: { name?: string; code?: string; parentId?: string; sortOrder?: number; isActive?: boolean },
+  ): Promise<Category> {
+    return this.request<Category>(`/tenants/${tenantId}/catalog/categories/${categoryId}`, {
+      method: 'PUT',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async deleteCategory(
+    tenantId: string,
+    categoryId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(
+      `/tenants/${tenantId}/catalog/categories/${categoryId}`,
+      { method: 'DELETE' },
+    );
   }
 
   async getUnits(tenantId: string): Promise<Unit[]> {

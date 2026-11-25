@@ -48,16 +48,6 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
   final List<_VariantRow> _variantRows = [];
   bool _isSaving = false;
 
-  final List<String> _courses = [
-    'Starters & Appetizers',
-    'Main Course',
-    'Breads & Rice',
-    'Tandoori & Grills',
-    'Beverages & Shakes',
-    'Desserts & Sweets',
-    'Snacks & Fast Food',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -71,9 +61,14 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
     );
 
     _selectedImageUrl = d?.imageUrl;
-    _selectedCourse = (d != null && _courses.contains(d.category))
-        ? d.category
-        : _courses[1]; // Default to Main Course
+    final available = ref.read(catalogProvider).menuCategories;
+    if (d != null && d.category.isNotEmpty) {
+      _selectedCourse = d.category;
+    } else if (available.contains('Main Course')) {
+      _selectedCourse = 'Main Course';
+    } else {
+      _selectedCourse = available.isNotEmpty ? available.first : 'Main Course';
+    }
     _selectedFoodType = d?.foodType ?? 'veg';
     _selectedKitchenStation = d?.kitchenStation ?? 'main_kitchen';
     _isAvailable = d?.isAvailable ?? true;
@@ -325,18 +320,68 @@ class _AddEditRestaurantDishDialogState extends ConsumerState<AddEditRestaurantD
                 // Course Category
                 Text('Course / Menu Category', style: ShadcnTypography.caption.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _selectedCourse,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: _courses.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13)))).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _selectedCourse = val);
-                  },
-                ),
+                Builder(builder: (context) {
+                  final dynamicCourses = <String>{
+                    ...ref.watch(catalogProvider).menuCategories,
+                    if (_selectedCourse.isNotEmpty) _selectedCourse,
+                  }.toList();
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: dynamicCourses.contains(_selectedCourse) ? _selectedCourse : dynamicCourses.first,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: dynamicCourses
+                              .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedCourse = val);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Add New Category',
+                        icon: const Icon(Icons.add_circle_outline, color: ShadcnColors.primary),
+                        onPressed: () async {
+                          final ctrl = TextEditingController();
+                          final newCat = await showDialog<String>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('New Category', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              content: TextField(
+                                controller: ctrl,
+                                autofocus: true,
+                                decoration: const InputDecoration(
+                                  hintText: 'e.g. Momos, Combos, South Indian',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: ShadcnColors.primary, foregroundColor: Colors.white),
+                                  onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+                                  child: const Text('Add'),
+                                ),
+                              ],
+                            ),
+                          );
+                          ctrl.dispose();
+                          if (newCat != null && newCat.isNotEmpty) {
+                            await ref.read(catalogProvider.notifier).addCategory(newCat);
+                            if (mounted) setState(() => _selectedCourse = newCat);
+                          }
+                        },
+                      ),
+                    ],
+                  );
+                }),
                 const SizedBox(height: 14),
 
                 // Dietary Tag Selection

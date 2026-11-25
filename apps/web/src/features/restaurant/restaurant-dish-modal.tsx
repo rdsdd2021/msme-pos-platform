@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
-import { apiClient, Product, CreateProductRequest } from '@/lib/api-client';
+import { apiClient, Product, Category, CreateProductRequest } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { FoodDietaryType, KitchenStation } from '@pos/shared-types';
 
@@ -37,7 +37,7 @@ interface RestaurantDishModalProps {
   tenantId?: string;
 }
 
-const COURSES = [
+const DEFAULT_COURSES = [
   'Starters & Appetizers',
   'Main Course',
   'Breads & Rice',
@@ -56,7 +56,8 @@ export function RestaurantDishModal({
 }: RestaurantDishModalProps) {
   const { activeTenant } = useAuthStore();
   const [name, setName] = useState('');
-  const [category, setCategory] = useState(COURSES[0]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [customCategory, setCustomCategory] = useState('');
   const [foodType, setFoodType] = useState<FoodDietaryType>(FoodDietaryType.VEG);
   const [kitchenStation, setKitchenStation] = useState<KitchenStation>(KitchenStation.MAIN_KITCHEN);
@@ -74,16 +75,40 @@ export function RestaurantDishModal({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const activeTenantId = tenantId || activeTenant?.tenantId;
+    if (open && activeTenantId) {
+      apiClient
+        .getCategories(activeTenantId)
+        .then((cats) => {
+          const list = cats || [];
+          setCategories(list);
+          if (dishToEdit?.categoryId) {
+            setSelectedCategoryId(dishToEdit.categoryId);
+          } else if (dishToEdit?.categoryName || dishToEdit?.category) {
+            const targetName = (dishToEdit.categoryName || dishToEdit.category || '').toLowerCase();
+            const matched = list.find((c) => c.name.toLowerCase() === targetName);
+            if (matched) {
+              setSelectedCategoryId(matched.id);
+            } else if (list.length > 0) {
+              setSelectedCategoryId(list[0].id);
+            }
+          } else if (list.length > 0) {
+            setSelectedCategoryId(list[0].id);
+          } else {
+            setSelectedCategoryId(`DEFAULT:${DEFAULT_COURSES[1]}`);
+          }
+        })
+        .catch(() => {
+          setCategories([]);
+        });
+    }
+  }, [open, tenantId, activeTenant?.tenantId, dishToEdit]);
+
+  useEffect(() => {
     if (dishToEdit) {
       setName(dishToEdit.name || '');
-      const cat = dishToEdit.categoryId || 'Main Course';
-      if (COURSES.includes(cat)) {
-        setCategory(cat);
-        setCustomCategory('');
-      } else {
-        setCategory('Other');
-        setCustomCategory(cat);
-      }
+      setSelectedCategoryId(dishToEdit.categoryId || '');
+      setCustomCategory('');
       setFoodType((dishToEdit.foodType as FoodDietaryType) || FoodDietaryType.VEG);
       setKitchenStation((dishToEdit.kitchenStation as KitchenStation) || KitchenStation.MAIN_KITCHEN);
       setSellingPrice(dishToEdit.sellingPrice || '');
@@ -103,7 +128,6 @@ export function RestaurantDishModal({
       setImageUrl(dishToEdit.imageUrl || '');
     } else {
       setName('');
-      setCategory(COURSES[0]);
       setCustomCategory('');
       setFoodType(FoodDietaryType.VEG);
       setKitchenStation(KitchenStation.MAIN_KITCHEN);
@@ -157,13 +181,48 @@ export function RestaurantDishModal({
     }
 
     try {
-      const finalCategory = category === 'Other' ? customCategory.trim() || 'Kitchen' : category;
+      let resolvedCategoryId: string | undefined = undefined;
+      if (selectedCategoryId === '__NEW__') {
+        const newCatName = customCategory.trim();
+        if (newCatName) {
+          const existing = categories.find((c) => c.name.toLowerCase() === newCatName.toLowerCase());
+          if (existing) {
+            resolvedCategoryId = existing.id;
+          } else {
+            const slug = newCatName.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 16);
+            const created = await apiClient.createCategory(activeTenantId, {
+              name: newCatName,
+              code: `CAT-${slug || 'MENU'}-${Date.now().toString(36).slice(-4).toUpperCase()}`,
+              sortOrder: categories.length + 1,
+            });
+            resolvedCategoryId = created.id;
+          }
+        }
+      } else if (selectedCategoryId.startsWith('DEFAULT:')) {
+        const defaultName = selectedCategoryId.replace('DEFAULT:', '');
+        const existing = categories.find((c) => c.name.toLowerCase() === defaultName.toLowerCase());
+        if (existing) {
+          resolvedCategoryId = existing.id;
+        } else {
+          const slug = defaultName.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase().slice(0, 16);
+          const created = await apiClient.createCategory(activeTenantId, {
+            name: defaultName,
+            code: `CAT-${slug || 'MENU'}-${Date.now().toString(36).slice(-4).toUpperCase()}`,
+            sortOrder: categories.length + 1,
+          });
+          resolvedCategoryId = created.id;
+        }
+      } else if (selectedCategoryId) {
+        resolvedCategoryId = selectedCategoryId;
+      }
+
       const validVariants = hasVariants
         ? variants.filter((v) => v.name.trim() && v.price.trim())
         : undefined;
 
       const payload: CreateProductRequest = {
         name: name.trim(),
+        categoryId: resolvedCategoryId,
         sellingPrice: parseFloat(sellingPrice).toFixed(2),
         mrp: parseFloat(sellingPrice).toFixed(2),
         purchaseCost: '0.00',
@@ -239,23 +298,30 @@ export function RestaurantDishModal({
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-slate-700">Course / Category</Label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  {COURSES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
-                  <option value="Other">Custom Category...</option>
+                  {categories.length === 0 &&
+                    DEFAULT_COURSES.map((c) => (
+                      <option key={`DEFAULT:${c}`} value={`DEFAULT:${c}`}>
+                        {c}
+                      </option>
+                    ))}
+                  <option value="__NEW__">+ Add New Category...</option>
                 </select>
-                {category === 'Other' && (
+                {selectedCategoryId === '__NEW__' && (
                   <Input
                     value={customCategory}
                     onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="Enter custom category"
+                    placeholder="Enter new category name (e.g. Momos, Combos)"
                     className="h-9 text-xs mt-1.5"
+                    required
                   />
                 )}
               </div>

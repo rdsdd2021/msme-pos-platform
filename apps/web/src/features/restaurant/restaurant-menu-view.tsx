@@ -25,11 +25,11 @@ import { apiClient, Product, Category } from '@/lib/api-client';
 import { useAuthStore } from '@/store/auth.store';
 import { RestaurantDishModal } from './restaurant-dish-modal';
 import { RestaurantAiMenuModal } from './restaurant-ai-menu-modal';
+import { RestaurantCategoriesModal } from './restaurant-categories-modal';
 import { FoodDietaryType, KitchenStation } from '@pos/shared-types';
 import { useRealtimeEvents } from '@/hooks/use-realtime-events';
 
-const COURSES = [
-  'All Courses',
+const DEFAULT_COURSES = [
   'Starters & Appetizers',
   'Main Course',
   'Breads & Rice',
@@ -50,6 +50,7 @@ export function RestaurantMenuView() {
   const [selectedCourse, setSelectedCourse] = useState<string>('All Courses');
   const [dishModalOpen, setDishModalOpen] = useState(false);
   const [aiMenuModalOpen, setAiMenuModalOpen] = useState(false);
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
   const [dishToEdit, setDishToEdit] = useState<Product | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -145,6 +146,20 @@ export function RestaurantMenuView() {
     (p) => p.foodType === FoodDietaryType.EGG || p.foodType === 'egg',
   ).length;
   const soldOutCount = products.filter((p) => p.isAvailable === false).length;
+
+  const courseTabs = useMemo(() => {
+    const names = new Set<string>(['All Courses']);
+    if (categories.length > 0) {
+      categories.forEach((c) => names.add(c.name));
+    } else {
+      DEFAULT_COURSES.forEach((c) => names.add(c));
+    }
+    products.forEach((p) => {
+      const catName = getDishCategoryName(p);
+      if (catName) names.add(catName);
+    });
+    return Array.from(names);
+  }, [categories, products, getDishCategoryName]);
 
   // Filtered dishes
   const filteredDishes = useMemo(() => {
@@ -275,6 +290,16 @@ export function RestaurantMenuView() {
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setCategoriesModalOpen(true)}
+              data-testid="btn-manage-categories"
+              className="h-9 px-3.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200 font-bold text-xs gap-1.5 shadow-2xs cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-600" />
+              <span>Categories</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => setAiMenuModalOpen(true)}
               data-testid="btn-ai-menu-upload"
               className="h-9 px-3.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 font-bold text-xs gap-1.5 shadow-2xs cursor-pointer"
@@ -387,7 +412,7 @@ export function RestaurantMenuView() {
 
         {/* Course Tabs Navigation */}
         <div className="flex items-center gap-1 mt-3 overflow-x-auto pb-1 scrollbar-none">
-          {COURSES.map((course) => (
+          {courseTabs.map((course) => (
             <button
               key={course}
               onClick={() => setSelectedCourse(course)}
@@ -554,6 +579,16 @@ export function RestaurantMenuView() {
         open={aiMenuModalOpen}
         onOpenChange={setAiMenuModalOpen}
         onImportSuccess={() => {
+          fetchDishes();
+        }}
+      />
+
+      {/* Manage Menu Categories Modal */}
+      <RestaurantCategoriesModal
+        open={categoriesModalOpen}
+        onOpenChange={setCategoriesModalOpen}
+        tenantId={activeTenantId}
+        onUpdated={() => {
           fetchDishes();
         }}
       />

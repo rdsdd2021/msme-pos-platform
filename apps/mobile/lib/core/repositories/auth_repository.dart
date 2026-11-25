@@ -560,4 +560,117 @@ class AuthRepository {
     await prefs.setString(cacheKey, jsonEncode(settings));
     return settings;
   }
+
+  /// Fetch catalog categories from server with SharedPreferences offline cache fallback
+  Future<List<Map<String, dynamic>>> getCategories(String tenantId) async {
+    final token = await getAccessToken();
+    final cacheKey = 'cached_categories_$tenantId';
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final res = await _dio.get(
+          '$_baseUrl/api/v1/tenants/$tenantId/catalog/categories',
+          options: Options(headers: {'Authorization': 'Bearer $token'}),
+        );
+        if (res.data is List) {
+          final list = (res.data as List)
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          await prefs.setString(cacheKey, jsonEncode(list));
+          return list;
+        }
+      } catch (_) {}
+    }
+
+    final cached = prefs.getString(cacheKey);
+    if (cached != null && cached.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(cached) as List;
+        return decoded.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  /// Create a new menu/product category
+  Future<Map<String, dynamic>> createCategory({
+    required String tenantId,
+    required String name,
+    String? code,
+    int sortOrder = 0,
+  }) async {
+    final token = await getAccessToken();
+    final slug = name
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '')
+        .toUpperCase();
+    final safeSlug = slug.length > 16 ? slug.substring(0, 16) : (slug.isEmpty ? 'CAT' : slug);
+    final resolvedCode = (code != null && code.trim().isNotEmpty)
+        ? code.trim().toUpperCase()
+        : 'CAT-$safeSlug-${DateTime.now().millisecondsSinceEpoch % 10000}';
+
+    if (token != null && token.isNotEmpty) {
+      final res = await _dio.post(
+        '$_baseUrl/api/v1/tenants/$tenantId/catalog/categories',
+        data: {
+          'name': name.trim(),
+          'code': resolvedCode,
+          'sortOrder': sortOrder,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (res.data is Map) {
+        return Map<String, dynamic>.from(res.data as Map);
+      }
+    }
+    return {
+      'id': 'local-${DateTime.now().millisecondsSinceEpoch}',
+      'tenantId': tenantId,
+      'name': name.trim(),
+      'code': resolvedCode,
+      'sortOrder': sortOrder,
+      'isActive': true,
+    };
+  }
+
+  /// Rename/update an existing menu/product category
+  Future<Map<String, dynamic>> updateCategory({
+    required String tenantId,
+    required String categoryId,
+    required String name,
+    int? sortOrder,
+  }) async {
+    final token = await getAccessToken();
+    if (token != null && token.isNotEmpty && !categoryId.startsWith('local-')) {
+      final res = await _dio.put(
+        '$_baseUrl/api/v1/tenants/$tenantId/catalog/categories/$categoryId',
+        data: {
+          'name': name.trim(),
+          if (sortOrder != null) 'sortOrder': sortOrder,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (res.data is Map) {
+        return Map<String, dynamic>.from(res.data as Map);
+      }
+    }
+    return {'id': categoryId, 'name': name.trim()};
+  }
+
+  /// Deactivate/delete a category
+  Future<void> deleteCategory({
+    required String tenantId,
+    required String categoryId,
+  }) async {
+    final token = await getAccessToken();
+    if (token != null && token.isNotEmpty && !categoryId.startsWith('local-')) {
+      await _dio.delete(
+        '$_baseUrl/api/v1/tenants/$tenantId/catalog/categories/$categoryId',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    }
+  }
 }

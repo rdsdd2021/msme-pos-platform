@@ -324,6 +324,19 @@ class LocalCatalogRepository {
     );
   }
 
+  /// Rename categoryName across all local products matching oldName
+  Future<void> renameCategoryOnProducts(String oldName, String newName, {String? tenantId}) async {
+    final trimmedOld = oldName.trim();
+    final trimmedNew = newName.trim();
+    if (trimmedOld.isEmpty || trimmedNew.isEmpty || trimmedOld == trimmedNew) return;
+    final query = _db.update(_db.localProducts)
+      ..where((p) => p.categoryName.equals(trimmedOld));
+    await query.write(LocalProductsCompanion(
+      categoryName: Value(trimmedNew),
+      updatedAt: Value(DateTime.now()),
+    ));
+  }
+
   /// Adjust stock quantity (Restock / Damage / Audit)
   Future<void> adjustStock({
     required String productId,

@@ -13,14 +13,26 @@ final localCatalogRepoProvider = Provider<LocalCatalogRepository>((ref) {
 
 const initialProducts = <Product>[];
 
+const defaultMenuCategories = <String>[
+  'Starters & Appetizers',
+  'Main Course',
+  'Breads & Rice',
+  'Tandoori & Grills',
+  'Beverages & Shakes',
+  'Desserts & Sweets',
+  'Snacks & Fast Food',
+];
+
 class CatalogState {
   final List<Product> allProducts;
+  final List<Map<String, dynamic>> categories;
   final String selectedCategory;
   final String searchQuery;
   final bool isLoading;
 
   const CatalogState({
     required this.allProducts,
+    this.categories = const [],
     this.selectedCategory = 'All',
     this.searchQuery = '',
     this.isLoading = false,
@@ -28,11 +40,34 @@ class CatalogState {
 
   List<String> get availableCategories {
     final cats = <String>{'All'};
+    for (final c in categories) {
+      final name = (c['name'] as String? ?? '').trim();
+      if (name.isNotEmpty) cats.add(name);
+    }
     for (final p in allProducts) {
       if (p.category.isNotEmpty) {
         cats.add(p.category);
       }
     }
+    return cats.toList();
+  }
+
+  List<String> get menuCategories {
+    final cats = <String>{};
+    if (categories.isNotEmpty) {
+      for (final c in categories) {
+        final name = (c['name'] as String? ?? '').trim();
+        if (name.isNotEmpty) cats.add(name);
+      }
+    } else {
+      cats.addAll(defaultMenuCategories);
+    }
+    for (final p in allProducts) {
+      if (p.category.isNotEmpty && p.category != 'General' && p.category != 'Groceries') {
+        cats.add(p.category);
+      }
+    }
+    if (cats.isEmpty) cats.addAll(defaultMenuCategories);
     return cats.toList();
   }
 
@@ -50,12 +85,14 @@ class CatalogState {
 
   CatalogState copyWith({
     List<Product>? allProducts,
+    List<Map<String, dynamic>>? categories,
     String? selectedCategory,
     String? searchQuery,
     bool? isLoading,
   }) {
     return CatalogState(
       allProducts: allProducts ?? this.allProducts,
+      categories: categories ?? this.categories,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchQuery: searchQuery ?? this.searchQuery,
       isLoading: isLoading ?? this.isLoading,
@@ -83,11 +120,85 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
       } else {
         state = state.copyWith(isLoading: false);
       }
+      await fetchCategories();
     } catch (_) {
       if (mounted) {
         state = state.copyWith(isLoading: false);
       }
     }
+  }
+
+  Future<void> fetchCategories() async {
+    final tid = activeTenantId;
+    if (tid == null || tid.isEmpty || tid == 'tenant-1') return;
+    try {
+      final authRepo = _ref?.read(authRepositoryProvider);
+      if (authRepo == null) return;
+      final cats = await authRepo.getCategories(tid);
+      if (mounted) {
+        state = state.copyWith(categories: cats);
+      }
+    } catch (_) {}
+  }
+
+  Future<Map<String, dynamic>?> addCategory(String name) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return null;
+    final tid = activeTenantId;
+    if (tid == null || tid.isEmpty || tid == 'tenant-1') {
+      final local = {'id': 'local-${DateTime.now().millisecondsSinceEpoch}', 'name': trimmed};
+      state = state.copyWith(categories: [...state.categories, local]);
+      return local;
+    }
+    final authRepo = _ref?.read(authRepositoryProvider);
+    if (authRepo == null) return null;
+    final created = await authRepo.createCategory(
+      tenantId: tid,
+      name: trimmed,
+      sortOrder: state.categories.length + 1,
+    );
+    await fetchCategories();
+    if (state.categories.every((c) => (c['name'] as String?)?.toLowerCase() != trimmed.toLowerCase())) {
+      state = state.copyWith(categories: [...state.categories, created]);
+    }
+    return created;
+  }
+
+  Future<void> renameCategory(String? categoryId, String oldName, String newName) async {
+    final trimmedNew = newName.trim();
+    if (trimmedNew.isEmpty) return;
+    final tid = activeTenantId;
+    final authRepo = _ref?.read(authRepositoryProvider);
+    if (tid != null && tid.isNotEmpty && tid != 'tenant-1' && authRepo != null) {
+      if (categoryId != null && categoryId.isNotEmpty && !categoryId.startsWith('local-')) {
+        await authRepo.updateCategory(tenantId: tid, categoryId: categoryId, name: trimmedNew);
+      } else {
+        await authRepo.createCategory(tenantId: tid, name: trimmedNew);
+      }
+    }
+    await _repo.renameCategoryOnProducts(oldName, trimmedNew, tenantId: tid);
+    final updatedCats = state.categories.map((c) {
+      if ((categoryId != null && c['id'] == categoryId) || (c['name'] as String?) == oldName) {
+        return {...c, 'name': trimmedNew};
+      }
+      return c;
+    }).toList();
+    state = state.copyWith(categories: updatedCats);
+    await reload();
+    await fetchCategories();
+  }
+
+  Future<void> deleteCategory(String? categoryId, String name) async {
+    final tid = activeTenantId;
+    final authRepo = _ref?.read(authRepositoryProvider);
+    if (tid != null && tid.isNotEmpty && tid != 'tenant-1' && authRepo != null && categoryId != null && !categoryId.startsWith('local-')) {
+      await authRepo.deleteCategory(tenantId: tid, categoryId: categoryId);
+    }
+    final updatedCats = state.categories
+        .where((c) => (categoryId != null ? c['id'] != categoryId : true) && c['name'] != name)
+        .toList();
+    state = state.copyWith(categories: updatedCats);
+    await fetchCategories();
   }
 
   Future<void> loadCatalog() => _init();
@@ -217,6 +328,7 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     final tid = tenantId ?? activeTenantId;
     final items = await _repo.getAllProducts(tenantId: tid);
     state = state.copyWith(allProducts: items);
+    await fetchCategories();
   }
 }
 

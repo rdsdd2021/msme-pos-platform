@@ -8,6 +8,7 @@ import '../../core/theme/shadcn_colors.dart';
 import '../../core/theme/shadcn_typography.dart';
 import 'widgets/add_edit_restaurant_dish_dialog.dart';
 import 'widgets/ai_menu_upload_dialog.dart';
+import 'widgets/manage_categories_dialog.dart';
 
 class RestaurantMenuScreen extends ConsumerStatefulWidget {
   const RestaurantMenuScreen({super.key});
@@ -21,17 +22,6 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
   String _searchQuery = '';
   String _selectedDietaryFilter = 'ALL'; // 'ALL', 'VEG', 'NON_VEG', 'EGG'
   String _selectedCourseFilter = 'ALL';
-
-  final List<String> _courses = [
-    'ALL',
-    'Starters & Appetizers',
-    'Main Course',
-    'Breads & Rice',
-    'Tandoori & Grills',
-    'Beverages & Shakes',
-    'Desserts & Sweets',
-    'Snacks & Fast Food',
-  ];
 
   @override
   void dispose() {
@@ -59,6 +49,13 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AddEditRestaurantDishDialog(dish: dish),
+    );
+  }
+
+  void _openManageCategoriesDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => const ManageCategoriesDialog(),
     );
   }
 
@@ -146,6 +143,11 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
       appBar: AppBar(
         title: const Text('Restaurant Menu & Dishes'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.category_outlined),
+            tooltip: 'Manage Categories',
+            onPressed: _openManageCategoriesDialog,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh Menu',
@@ -301,29 +303,38 @@ class _RestaurantMenuScreenState extends ConsumerState<RestaurantMenuScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
-              children: _courses.map((course) {
-                final isSelected = _selectedCourseFilter == course;
-                final label = course == 'ALL' ? 'All Courses' : course;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? Colors.white : ShadcnColors.foreground,
+              children: [
+                ...['ALL', ...catalogState.menuCategories].map((course) {
+                  final isSelected = _selectedCourseFilter == course;
+                  final label = course == 'ALL' ? 'All Courses' : course;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? Colors.white : ShadcnColors.foreground,
+                        ),
                       ),
+                      selected: isSelected,
+                      selectedColor: ShadcnColors.secondary,
+                      backgroundColor: ShadcnColors.card,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _selectedCourseFilter = course);
+                      },
                     ),
-                    selected: isSelected,
-                    selectedColor: ShadcnColors.secondary,
-                    backgroundColor: ShadcnColors.card,
-                    onSelected: (selected) {
-                      if (selected) setState(() => _selectedCourseFilter = course);
-                    },
-                  ),
-                );
-              }).toList(),
+                  );
+                }),
+                ActionChip(
+                  avatar: const Icon(Icons.edit_outlined, size: 14, color: ShadcnColors.primary),
+                  label: const Text('Categories', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  backgroundColor: ShadcnColors.primary.withOpacity(0.08),
+                  side: BorderSide(color: ShadcnColors.primary.withOpacity(0.25)),
+                  onPressed: _openManageCategoriesDialog,
+                ),
+              ],
             ),
           ),
           const Divider(height: 12, color: ShadcnColors.border),

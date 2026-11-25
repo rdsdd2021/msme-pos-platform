@@ -23,10 +23,10 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   name!: string;
 
-  @ApiProperty({ example: 'CAT-GROC' })
+  @ApiProperty({ example: 'CAT-GROC', required: false })
   @IsString()
-  @IsNotEmpty()
-  code!: string;
+  @IsOptional()
+  code?: string;
 
   @ApiProperty({ required: false })
   @IsUUID()

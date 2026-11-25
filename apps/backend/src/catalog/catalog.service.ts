@@ -109,21 +109,38 @@ export class CatalogService implements OnModuleInit {
   // --- Category Management ---
 
   async createCategory(tenantId: string, dto: CreateCategoryDto): Promise<CategoryEntity> {
+    const cleanName = dto.name.trim();
+    const rawCode = dto.code && dto.code.trim()
+      ? dto.code.trim().toUpperCase()
+      : `CAT-${cleanName.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').substring(0, 16).toUpperCase() || 'CUSTOM'}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
+
     const existing = await this.categoryRepo.findOne({
-      where: { tenantId, code: dto.code.toUpperCase() },
+      where: { tenantId, code: rawCode },
     });
     if (existing) {
-      throw new ConflictException(`Category code ${dto.code} already exists`);
+      if (existing.isActive !== false) {
+        throw new ConflictException(`Category code ${rawCode} already exists`);
+      }
+      // Reactivate previously deactivated category
+      existing.name = cleanName;
+      existing.parentId = dto.parentId ?? existing.parentId ?? null;
+      existing.sortOrder = dto.sortOrder ?? existing.sortOrder ?? 0;
+      existing.isActive = true;
+      const reactivated = await this.categoryRepo.save(existing);
+      this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { categoryId: reactivated.id, action: 'CREATE' });
+      return reactivated;
     }
 
     const category = this.categoryRepo.create({
       tenantId,
-      code: dto.code.toUpperCase(),
-      name: dto.name,
+      code: rawCode,
+      name: cleanName,
       parentId: dto.parentId ?? null,
       sortOrder: dto.sortOrder ?? 0,
     });
-    return this.categoryRepo.save(category);
+    const saved = await this.categoryRepo.save(category);
+    this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { categoryId: saved.id, action: 'CREATE' });
+    return saved;
   }
 
   async getCategories(tenantId: string): Promise<CategoryEntity[]> {
@@ -149,18 +166,20 @@ export class CatalogService implements OnModuleInit {
       const existing = await this.categoryRepo.findOne({
         where: { tenantId, code: dto.code.toUpperCase() },
       });
-      if (existing) {
+      if (existing && existing.id !== categoryId) {
         throw new ConflictException(`Category code ${dto.code} already exists`);
       }
       category.code = dto.code.toUpperCase();
     }
 
-    if (dto.name !== undefined) category.name = dto.name;
+    if (dto.name !== undefined) category.name = dto.name.trim();
     if (dto.parentId !== undefined) category.parentId = dto.parentId;
     if (dto.sortOrder !== undefined) category.sortOrder = dto.sortOrder;
     if (dto.isActive !== undefined) category.isActive = dto.isActive;
 
-    return this.categoryRepo.save(category);
+    const saved = await this.categoryRepo.save(category);
+    this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { categoryId: saved.id, action: 'UPDATE' });
+    return saved;
   }
 
   async deleteCategory(
@@ -176,6 +195,7 @@ export class CatalogService implements OnModuleInit {
 
     category.isActive = false;
     await this.categoryRepo.save(category);
+    this.realtimeService?.emit(tenantId, 'CATALOG_CHANGED', { categoryId, action: 'DELETE' });
     return { success: true, message: 'Category deactivated successfully' };
   }
 
@@ -421,14 +441,21 @@ export class CatalogService implements OnModuleInit {
       }
     }
 
+    let categoryMap = new Map<string, string>();
+    try {
+      const cats = (await this.categoryRepo.find({ where: { tenantId } })) || [];
+      categoryMap = new Map(cats.map((c) => [c.id, c.name]));
+    } catch (_) {}
+
     const isGstDisabled = await this.isTenantGstDisabled(tenantId);
-    if (isGstDisabled) {
-      return products.map((p) => ({
+    return products.map((p) => {
+      const catName = p.categoryId ? (categoryMap.get(p.categoryId) ?? null) : null;
+      return {
         ...p,
-        gstRatePercent: '0.00',
-      } as ProductEntity));
-    }
-    return products;
+        ...(catName ? { categoryName: catName, category: catName } : {}),
+        ...(isGstDisabled ? { gstRatePercent: '0.00' } : {}),
+      } as ProductEntity;
+    });
   }
 
   async getProductById(tenantId: string, productId: string): Promise<ProductEntity> {

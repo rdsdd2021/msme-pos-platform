@@ -260,7 +260,8 @@ export function TableOrderDrawer({
   const categories = React.useMemo(() => {
     const set = new Set<string>();
     products.forEach((p) => {
-      if (p.category) set.add(p.category);
+      const cat = p.categoryName || p.category;
+      if (cat) set.add(cat);
     });
     return Array.from(set);
   }, [products]);
@@ -271,8 +272,9 @@ export function TableOrderDrawer({
       const matchSearch =
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.barcode && p.barcode.includes(searchQuery));
+      const cat = p.categoryName || p.category;
       const matchCategory =
-        selectedCategory === 'all' || p.category === selectedCategory;
+        selectedCategory === 'all' || cat === selectedCategory;
       const matchDietary =
         selectedDietary === 'all' ||
         (selectedDietary === 'veg' && (p.foodType === 'veg' || p.foodType === 'vegan')) ||
@@ -971,7 +973,7 @@ export function TableOrderDrawer({
 
                                 <div className="flex items-center gap-1.5 flex-wrap mt-1">
                                   <span className="text-[10px] text-slate-400 font-medium">
-                                    {p.category || 'Kitchen'}
+                                    {p.categoryName || p.category || 'Kitchen'}
                                   </span>
                                   {p.prepTimeMinutes && (
                                     <span className="text-[9px] font-medium text-slate-400 flex items-center gap-0.5">
