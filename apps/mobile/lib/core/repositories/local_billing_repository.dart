@@ -103,7 +103,6 @@ class LocalBillingRepository {
     receiptBuffer.writeln('GRAND TOTAL:          Rs. ${(grandTotalPaisa / 100.0).toStringAsFixed(2)}');
     receiptBuffer.writeln('================================');
     receiptBuffer.writeln('   Thank You! Visit Again!');
-    receiptBuffer.writeln('  Powering Indian Retail MSMEs');
     receiptBuffer.writeln('================================');
 
     // Create PushSync payload matching server CreateSaleDto
@@ -351,8 +350,47 @@ class LocalBillingRepository {
       ),);
     }
 
+    String resolvedStore = '';
+    String resolvedAddr = '';
+    String resolvedPhone = '';
+    String resolvedGstin = '';
+    String resolvedFssai = '';
+    String resolvedTagline = '';
+    String footer1 = 'Thank You! Visit Again!';
+    String footer2 = '';
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final branchRaw = prefs.getString('cached_branch_${invoice.tenantId}_${invoice.branchId}');
+      if (branchRaw != null) {
+        final b = jsonDecode(branchRaw) as Map<String, dynamic>;
+        resolvedStore = (b['name'] as String? ?? '').trim();
+        resolvedGstin = (b['gstin'] as String? ?? '').trim();
+        resolvedAddr = [b['addressLine1'], b['city']].whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).join(', ');
+      }
+      final diningRaw = prefs.getString('cached_dining_settings_${invoice.tenantId}_${invoice.branchId}');
+      if (diningRaw != null) {
+        final d = jsonDecode(diningRaw) as Map<String, dynamic>;
+        if ((d['storeName'] as String? ?? '').trim().isNotEmpty) resolvedStore = (d['storeName'] as String).trim();
+        if ((d['storeAddress'] as String? ?? '').trim().isNotEmpty) resolvedAddr = (d['storeAddress'] as String).trim();
+        if ((d['storePhone'] as String? ?? '').trim().isNotEmpty) resolvedPhone = (d['storePhone'] as String).trim();
+        if ((d['storeGstin'] as String? ?? '').trim().isNotEmpty) resolvedGstin = (d['storeGstin'] as String).trim();
+        if ((d['storeFssai'] as String? ?? '').trim().isNotEmpty) resolvedFssai = (d['storeFssai'] as String).trim();
+        if ((d['storeTagline'] as String? ?? '').trim().isNotEmpty) resolvedTagline = (d['storeTagline'] as String).trim();
+        if (d['receiptFooterLine1'] != null) footer1 = (d['receiptFooterLine1'] as String).trim();
+        if (d['receiptFooterLine2'] != null) footer2 = (d['receiptFooterLine2'] as String).trim();
+      }
+    } catch (_) {}
+
     return ReceiptDocument(
-      header: const ReceiptHeader(),
+      header: ReceiptHeader(
+        storeName: resolvedStore,
+        address: resolvedAddr,
+        phone: resolvedPhone.isNotEmpty ? resolvedPhone : null,
+        gstin: resolvedGstin.isNotEmpty ? resolvedGstin : null,
+        fssai: resolvedFssai.isNotEmpty ? resolvedFssai : null,
+        tagline: resolvedTagline.isNotEmpty ? resolvedTagline : null,
+      ),
       meta: ReceiptInvoiceMeta(
         invoiceNumber: invoice.invoiceNumber,
         invoiceId: invoice.id,
@@ -369,6 +407,10 @@ class LocalBillingRepository {
         sgstTotalPaisa: totalSgst,
         grandTotalPaisa: invoice.grandTotalPaisa,
       ),
+      footerNotes: [
+        if (footer1.isNotEmpty) footer1,
+        if (footer2.isNotEmpty) footer2,
+      ],
     );
   }
 

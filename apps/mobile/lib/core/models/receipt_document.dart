@@ -10,12 +10,12 @@ class ReceiptHeader {
   final String? tagline;
 
   const ReceiptHeader({
-    this.storeName = 'KIRANA SUPERMART',
-    this.address = 'Shop 4, Andheri West, Mumbai',
-    this.phone = '+91 98765 43210',
-    this.gstin = '27AABCU9603R1ZM',
+    this.storeName = '',
+    this.address = '',
+    this.phone,
+    this.gstin,
     this.fssai,
-    this.tagline = 'Powering Indian Retail MSMEs',
+    this.tagline,
   });
 }
 
@@ -135,8 +135,6 @@ class ReceiptDocument {
     required this.totals,
     this.footerNotes = const [
       'Thank You! Visit Again!',
-      'Goods once sold cannot be returned after 7 days.',
-      'Powering Indian Retail MSMEs',
     ],
     this.upiQrPayload,
   });

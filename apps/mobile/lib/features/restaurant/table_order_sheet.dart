@@ -95,16 +95,41 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
   }
 
   ReceiptDocument _buildPreBillReceiptDocument(RestaurantTable currentTable) {
-    final isGstEnabled = ref.read(restaurantProvider).isGstEnabled;
+    final restState = ref.read(restaurantProvider);
+    final authState = ref.read(authProvider);
+    final isGstEnabled = restState.isGstEnabled;
     final subtotal = currentTable.subtotalPaisa;
     final cgst = isGstEnabled ? (subtotal * 0.025).round() : 0;
     final sgst = isGstEnabled ? (subtotal * 0.025).round() : 0;
     final grandTotal = subtotal + cgst + sgst;
 
+    final resolvedStoreName = restState.storeName.trim().isNotEmpty
+        ? restState.storeName.trim()
+        : (authState.storeName.trim().isNotEmpty ? authState.storeName.trim() : 'RESTAURANT BILL');
+    final resolvedAddress = restState.storeAddress.trim().isNotEmpty
+        ? restState.storeAddress.trim()
+        : [authState.storeAddress, authState.storeCity].whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty).join(', ');
+    final resolvedPhone = restState.storePhone.trim();
+    final resolvedGstin = restState.storeGstin.trim().isNotEmpty
+        ? restState.storeGstin.trim()
+        : (authState.storeGstin?.trim() ?? '');
+    final resolvedFssai = restState.storeFssai.trim();
+    final resolvedTagline = restState.storeTagline.trim();
+    final footerNotes = <String>[
+      if (restState.receiptFooterLine1.trim().isNotEmpty) restState.receiptFooterLine1.trim(),
+      if (restState.receiptFooterLine2.trim().isNotEmpty) restState.receiptFooterLine2.trim(),
+    ];
+
     return ReceiptDocument(
       header: ReceiptHeader(
-        storeName: '*** DINE-IN PRE-BILL ***',
-        address: 'Table: ${currentTable.name} (${currentTable.section})',
+        storeName: resolvedStoreName,
+        address: resolvedAddress.isNotEmpty
+            ? '$resolvedAddress\nTable: ${currentTable.name} (${currentTable.section})'
+            : 'Table: ${currentTable.name} (${currentTable.section})',
+        phone: resolvedPhone.isNotEmpty ? resolvedPhone : null,
+        gstin: resolvedGstin.isNotEmpty ? resolvedGstin : null,
+        fssai: resolvedFssai.isNotEmpty ? resolvedFssai : null,
+        tagline: resolvedTagline.isNotEmpty ? resolvedTagline : null,
       ),
       meta: ReceiptInvoiceMeta(
         invoiceNumber: 'BILL-${DateTime.now().millisecondsSinceEpoch % 10000}',
@@ -133,6 +158,10 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         sgstTotalPaisa: sgst,
         grandTotalPaisa: grandTotal,
       ),
+      footerNotes: footerNotes,
+      upiQrPayload: restState.upiId.trim().isNotEmpty
+          ? 'upi://pay?pa=${restState.upiId.trim()}&pn=${Uri.encodeComponent(resolvedStoreName)}&am=${(grandTotal / 100.0).toStringAsFixed(2)}'
+          : null,
     );
   }
 

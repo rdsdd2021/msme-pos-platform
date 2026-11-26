@@ -565,6 +565,18 @@ export function TableOrderDrawer({
 
     // Aggregate line items from order lines or kots
     const lines = activeOrder.lines || [];
+    let receiptCfg: any = null;
+    try {
+      const raw = localStorage.getItem(`msme_pos_receipt_config_${table.tenantId}_${table.branchId}`);
+      if (raw) receiptCfg = JSON.parse(raw);
+    } catch (_) {}
+    const storeName = receiptCfg?.businessName?.trim() || 'RESTAURANT BILL';
+    const storeTagline = receiptCfg?.tagline?.trim() || '';
+    const storeAddress = [receiptCfg?.addressLine1, receiptCfg?.city].map((s: any) => (s || '').trim()).filter(Boolean).join(', ');
+    const storePhone = receiptCfg?.phone?.trim() || '';
+    const storeGstin = receiptCfg?.gstin?.trim() || '';
+    const footerLine1 = receiptCfg?.thankYouMessage?.trim() || 'Thank You! Visit Again!';
+    const footerLine2 = receiptCfg?.termsAndConditions?.trim() || '';
 
     printWindow.document.write(`
       <html>
@@ -589,7 +601,11 @@ export function TableOrderDrawer({
         </head>
         <body>
           <div class="header">
-            <div class="title">*** RESTAURANT DINE-IN BILL ***</div>
+            <div class="title">${storeName}</div>
+            ${storeTagline ? `<div class="meta">${storeTagline}</div>` : ''}
+            ${storeAddress ? `<div class="meta">${storeAddress}</div>` : ''}
+            ${storePhone ? `<div class="meta">Ph: ${storePhone}</div>` : ''}
+            ${storeGstin ? `<div class="meta">GSTIN: ${storeGstin}</div>` : ''}
             <div class="subtitle">Table: ${table.tableNumber} (${table.section})</div>
             <div class="meta">Order: ${activeOrder.orderNumber} | Guests: ${activeOrder.guestCount} Pax</div>
             <div class="meta">Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</div>
@@ -638,8 +654,8 @@ export function TableOrderDrawer({
             <span>₹${grandTotal.toFixed(2)}</span>
           </div>
           <div class="footer">
-            <p>Scan UPI QR to pay or pay at cashier</p>
-            <p>Thank you for dining with us! Please visit again.</p>
+            ${footerLine1 ? `<p>${footerLine1}</p>` : ''}
+            ${footerLine2 ? `<p>${footerLine2}</p>` : ''}
           </div>
         </body>
       </html>

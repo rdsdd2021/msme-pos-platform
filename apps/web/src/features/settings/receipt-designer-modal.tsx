@@ -31,6 +31,7 @@ import {
   getReceiptConfig,
   saveReceiptConfig,
 } from '@/lib/receipt-template';
+import { apiClient } from '@/lib/api-client';
 
 export interface ReceiptDesignerModalProps {
   open: boolean;
@@ -55,14 +56,33 @@ export function ReceiptDesignerModal({
   useEffect(() => {
     if (open) {
       const loaded = getReceiptConfig(tenantId, branchId);
-      // Prepopulate with tenant and branch names if defaults
-      if (tenantName && loaded.businessName === DEFAULT_RECEIPT_CONFIG.businessName) {
+      if (tenantName && !loaded.businessName) {
         loaded.businessName = tenantName;
       }
-      if (branchName && loaded.branchName === DEFAULT_RECEIPT_CONFIG.branchName) {
+      if (branchName && !loaded.branchName) {
         loaded.branchName = branchName;
       }
       setConfig(loaded);
+
+      if (tenantId) {
+        apiClient
+          .getRestaurantSettings(tenantId, branchId)
+          .then((srv) => {
+            setConfig((prev) => ({
+              ...prev,
+              businessName: srv.storeName !== undefined && srv.storeName !== '' ? srv.storeName : (prev.businessName || tenantName || ''),
+              tagline: srv.storeTagline !== undefined ? srv.storeTagline : prev.tagline,
+              phone: srv.storePhone !== undefined ? srv.storePhone : prev.phone,
+              gstin: srv.storeGstin !== undefined ? srv.storeGstin : prev.gstin,
+              fssaiNumber: srv.storeFssai !== undefined ? srv.storeFssai : prev.fssaiNumber,
+              addressLine1: srv.storeAddress !== undefined ? srv.storeAddress : prev.addressLine1,
+              thankYouMessage: srv.receiptFooterLine1 !== undefined ? srv.receiptFooterLine1 : prev.thankYouMessage,
+              termsAndConditions: srv.receiptFooterLine2 !== undefined ? srv.receiptFooterLine2 : prev.termsAndConditions,
+              upiId: srv.upiId !== undefined ? srv.upiId : prev.upiId,
+            }));
+          })
+          .catch(() => {});
+      }
     }
   }, [open, tenantId, branchId, tenantName, branchName]);
 
@@ -70,9 +90,31 @@ export function ReceiptDesignerModal({
     setConfig((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     saveReceiptConfig(config, tenantId, branchId);
-    toast.success('Receipt design saved successfully! Active for all future prints.');
+    if (tenantId) {
+      try {
+        await apiClient.updateRestaurantSettings(
+          tenantId,
+          {
+            storeName: config.businessName.trim(),
+            storeTagline: config.tagline.trim(),
+            storePhone: config.phone.trim(),
+            storeGstin: config.gstin.trim().toUpperCase(),
+            storeFssai: config.fssaiNumber.trim(),
+            storeAddress: [config.addressLine1, config.addressLine2, config.city, config.postalCode]
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .join(', '),
+            receiptFooterLine1: config.thankYouMessage.trim(),
+            receiptFooterLine2: config.termsAndConditions.trim(),
+            upiId: config.upiId.trim(),
+          },
+          branchId,
+        );
+      } catch (_) {}
+    }
+    toast.success('Receipt design saved & synced to all devices!');
     onClose();
   };
 

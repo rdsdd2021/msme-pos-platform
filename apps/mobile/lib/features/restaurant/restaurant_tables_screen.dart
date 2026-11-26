@@ -268,6 +268,38 @@ class RestaurantTablesScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                InkWell(
+                  key: const Key('add_restaurant_table_btn'),
+                  onTap: () => _showAddEditTableDialog(context, notifier),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ShadcnColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: ShadcnColors.primary.withOpacity(0.45),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 14, color: ShadcnColors.primary),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add Table',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: ShadcnColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
             ),
@@ -323,7 +355,7 @@ class RestaurantTablesScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top Row: Table Name & Status Badge
+                      // Top Row: Table Name, Status Badge & Edit/Delete Menu
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -338,6 +370,43 @@ class RestaurantTablesScreen extends ConsumerWidget {
                           ShadcnBadge(
                             text: table.status.label,
                             variant: _getBadgeVariant(table.status),
+                          ),
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.more_vert, size: 16, color: ShadcnColors.mutedForeground),
+                              onSelected: (val) {
+                                if (val == 'edit') {
+                                  _showAddEditTableDialog(context, notifier, existing: table);
+                                } else if (val == 'delete') {
+                                  _showDeleteTableDialog(context, notifier, table);
+                                }
+                              },
+                              itemBuilder: (ctx) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit_outlined, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('Edit Table'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete_outline, size: 16, color: ShadcnColors.destructive),
+                                      SizedBox(width: 8),
+                                      Text('Delete Table', style: TextStyle(color: ShadcnColors.destructive)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -495,6 +564,192 @@ class RestaurantTablesScreen extends ConsumerWidget {
               Navigator.pop(ctx);
             },
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddEditTableDialog(
+    BuildContext context,
+    RestaurantNotifier notifier, {
+    RestaurantTable? existing,
+  }) {
+    final isEdit = existing != null;
+    final numCtrl = TextEditingController(text: existing?.tableNumber ?? existing?.id ?? '');
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final sectionCtrl = TextEditingController(text: existing?.section ?? 'Main Dining');
+    final capCtrl = TextEditingController(text: (existing?.capacity ?? 4).toString());
+    bool isSaving = false;
+    String? errorMsg;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: ShadcnColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: Text(isEdit ? 'Edit Table' : 'Add New Table', style: ShadcnTypography.h3),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (errorMsg != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Text(
+                      errorMsg!,
+                      style: const TextStyle(color: ShadcnColors.destructive, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                TextField(
+                  controller: numCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Table Code / Number *',
+                    hintText: 'e.g. T-09, AC-05, TR-03',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Display Name (Optional)',
+                    hintText: 'e.g. Table 9 (Garden)',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: sectionCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Floor / Section *',
+                    hintText: 'e.g. Main Dining, AC Hall, Terrace',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: capCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Seating Capacity *',
+                    hintText: 'e.g. 4',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ShadcnColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      final code = numCtrl.text.trim().toUpperCase();
+                      final sec = sectionCtrl.text.trim();
+                      final cap = int.tryParse(capCtrl.text.trim()) ?? 4;
+                      if (code.isEmpty) {
+                        setDialogState(() => errorMsg = 'Table code is required.');
+                        return;
+                      }
+                      setDialogState(() {
+                        isSaving = true;
+                        errorMsg = null;
+                      });
+                      try {
+                        if (isEdit) {
+                          await notifier.editTable(
+                            tableId: existing.id,
+                            tableNumber: code,
+                            tableName: nameCtrl.text.trim(),
+                            section: sec.isNotEmpty ? sec : 'Main Dining',
+                            capacity: cap > 0 ? cap : 4,
+                          );
+                        } else {
+                          await notifier.addTable(
+                            tableNumber: code,
+                            tableName: nameCtrl.text.trim(),
+                            section: sec.isNotEmpty ? sec : 'Main Dining',
+                            capacity: cap > 0 ? cap : 4,
+                          );
+                        }
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        setDialogState(() {
+                          isSaving = false;
+                          errorMsg = e.toString().replaceFirst('Exception: ', '');
+                        });
+                      }
+                    },
+              child: Text(isSaving ? 'Saving...' : (isEdit ? 'Save Changes' : 'Create Table')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteTableDialog(BuildContext context, RestaurantNotifier notifier, RestaurantTable table) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ShadcnColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_outline, color: ShadcnColors.destructive, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Delete ${table.name}?', style: ShadcnTypography.bodySemibold)),
+          ],
+        ),
+        content: Text(
+          table.status == TableStatus.vacant
+              ? 'This will remove "${table.name}" from your dining floorplan.'
+              : 'This table is currently ${table.status.label}. Clear or settle the active order before deleting.',
+          style: ShadcnTypography.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: ShadcnColors.mutedForeground)),
+          ),
+          if (table.status == TableStatus.vacant)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ShadcnColors.destructive,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                try {
+                  await notifier.deleteTable(table.id);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString().replaceFirst('Exception: ', '')),
+                        backgroundColor: ShadcnColors.destructive,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete'),
+            ),
         ],
       ),
     );

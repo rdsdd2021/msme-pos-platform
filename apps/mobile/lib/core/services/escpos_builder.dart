@@ -228,18 +228,23 @@ class EscPosBuilder {
     }
 
     // 3. Header Section
-    textCentered(doc.header.storeName, bold: true, doubleSize: true);
-    if (doc.header.address.isNotEmpty) {
-      textCentered(doc.header.address);
+    if (doc.header.storeName.trim().isNotEmpty) {
+      textCentered(doc.header.storeName.trim(), bold: true, doubleSize: true);
     }
-    if (doc.header.phone != null) {
-      textCentered('Tel: ${doc.header.phone!}');
+    if (doc.header.tagline != null && doc.header.tagline!.trim().isNotEmpty) {
+      textCentered(doc.header.tagline!.trim());
     }
-    if (doc.header.gstin != null) {
-      textCentered('GSTIN: ${doc.header.gstin!}', bold: true);
+    if (doc.header.address.trim().isNotEmpty) {
+      textCentered(doc.header.address.trim());
     }
-    if (doc.header.fssai != null) {
-      textCentered('FSSAI: ${doc.header.fssai!}');
+    if (doc.header.phone != null && doc.header.phone!.trim().isNotEmpty) {
+      textCentered('Tel: ${doc.header.phone!.trim()}');
+    }
+    if (doc.header.gstin != null && doc.header.gstin!.trim().isNotEmpty) {
+      textCentered('GSTIN: ${doc.header.gstin!.trim()}', bold: true);
+    }
+    if (doc.header.fssai != null && doc.header.fssai!.trim().isNotEmpty) {
+      textCentered('FSSAI: ${doc.header.fssai!.trim()}');
     }
     divider(char: '-');
 
@@ -361,13 +366,13 @@ class EscPosBuilder {
     }
 
     // 9. Footers
-    for (final note in doc.footerNotes) {
+    final nonEmptyNotes = doc.footerNotes.map((n) => n.trim()).where((n) => n.isNotEmpty).toList();
+    for (final note in nonEmptyNotes) {
       textCentered(note);
     }
-    if (doc.header.tagline != null) {
-      textCentered(doc.header.tagline!);
+    if (nonEmptyNotes.isNotEmpty) {
+      divider(char: '=');
     }
-    divider(char: '=');
 
     // Feed lines & cut
     feedLines(3);

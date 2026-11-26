@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -86,6 +87,18 @@ export class RestaurantController {
     @Body() dto: UpdateTableDto,
   ) {
     return this.restaurantService.updateTable(tenantId, branchId, tableId, dto);
+  }
+
+  @Delete('tables/:tableId')
+  @RequirePermissions(Permission.RESTAURANT_TABLES_MANAGE)
+  @ApiOperation({ summary: 'Delete (deactivate) a vacant dining table' })
+  @ApiQuery({ name: 'branchId', type: 'string', required: true })
+  async deleteTable(
+    @Param('tenantId', ParseUUIDPipe) tenantId: string,
+    @Param('tableId', ParseUUIDPipe) tableId: string,
+    @Query('branchId', ParseUUIDPipe) branchId: string,
+  ) {
+    return this.restaurantService.deleteTable(tenantId, branchId, tableId);
   }
 
   @Get('orders/:orderId')

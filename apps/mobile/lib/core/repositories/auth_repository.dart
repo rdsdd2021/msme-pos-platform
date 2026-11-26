@@ -561,6 +561,72 @@ class AuthRepository {
     return settings;
   }
 
+  /// Create a new restaurant dining table on backend
+  Future<Map<String, dynamic>> createRestaurantTable({
+    required String tenantId,
+    required String branchId,
+    required String tableNumber,
+    String? tableName,
+    String section = 'Main Dining',
+    int seatingCapacity = 4,
+  }) async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) throw Exception('Not authenticated');
+
+    final res = await _dio.post(
+      '$_baseUrl/api/v1/tenants/$tenantId/restaurant/tables?branchId=$branchId',
+      data: {
+        'tableNumber': tableNumber.trim().toUpperCase(),
+        if (tableName != null && tableName.trim().isNotEmpty) 'tableName': tableName.trim(),
+        'section': section.trim().isNotEmpty ? section.trim() : 'Main Dining',
+        'seatingCapacity': seatingCapacity,
+      },
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  /// Update an existing restaurant dining table on backend
+  Future<Map<String, dynamic>> updateRestaurantTable({
+    required String tenantId,
+    required String branchId,
+    required String tableId,
+    String? tableNumber,
+    String? tableName,
+    String? section,
+    int? seatingCapacity,
+  }) async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) throw Exception('Not authenticated');
+
+    final res = await _dio.patch(
+      '$_baseUrl/api/v1/tenants/$tenantId/restaurant/tables/$tableId?branchId=$branchId',
+      data: {
+        if (tableNumber != null && tableNumber.trim().isNotEmpty) 'tableNumber': tableNumber.trim().toUpperCase(),
+        if (tableName != null) 'tableName': tableName.trim(),
+        if (section != null && section.trim().isNotEmpty) 'section': section.trim(),
+        if (seatingCapacity != null) 'seatingCapacity': seatingCapacity,
+      },
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  /// Delete (deactivate) a vacant restaurant dining table on backend
+  Future<void> deleteRestaurantTable({
+    required String tenantId,
+    required String branchId,
+    required String tableId,
+  }) async {
+    final token = await getAccessToken();
+    if (token == null || token.isEmpty) throw Exception('Not authenticated');
+
+    await _dio.delete(
+      '$_baseUrl/api/v1/tenants/$tenantId/restaurant/tables/$tableId?branchId=$branchId',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+  }
+
   /// Fetch catalog categories from server with SharedPreferences offline cache fallback
   Future<List<Map<String, dynamic>>> getCategories(String tenantId) async {
     final token = await getAccessToken();

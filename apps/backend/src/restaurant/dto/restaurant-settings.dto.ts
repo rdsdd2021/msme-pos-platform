@@ -49,6 +49,42 @@ export class UpdateRestaurantSettingsDto {
   @IsOptional()
   @IsString()
   defaultKitchenStation?: string;
+
+  @IsOptional()
+  @IsString()
+  storeName?: string;
+
+  @IsOptional()
+  @IsString()
+  storeTagline?: string;
+
+  @IsOptional()
+  @IsString()
+  storePhone?: string;
+
+  @IsOptional()
+  @IsString()
+  storeGstin?: string;
+
+  @IsOptional()
+  @IsString()
+  storeFssai?: string;
+
+  @IsOptional()
+  @IsString()
+  storeAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  receiptFooterLine1?: string;
+
+  @IsOptional()
+  @IsString()
+  receiptFooterLine2?: string;
+
+  @IsOptional()
+  @IsString()
+  upiId?: string;
 }
 
 export interface RestaurantSettingsResponse {
@@ -65,4 +101,13 @@ export interface RestaurantSettingsResponse {
   autoPrintKotOnFire: boolean;
   autoPrintBillOnSettle: boolean;
   defaultKitchenStation: string;
+  storeName?: string;
+  storeTagline?: string;
+  storePhone?: string;
+  storeGstin?: string;
+  storeFssai?: string;
+  storeAddress?: string;
+  receiptFooterLine1?: string;
+  receiptFooterLine2?: string;
+  upiId?: string;
 }

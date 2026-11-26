@@ -641,6 +641,37 @@ class LocalRestaurantRepository {
     } catch (_) {}
   }
 
+  /// Upsert a restaurant table in local SQLite
+  Future<void> upsertLocalTable({
+    required String id,
+    required String tenantId,
+    required String branchId,
+    required String tableNumber,
+    required String name,
+    required String section,
+    required int seatingCapacity,
+  }) async {
+    await _db.into(_db.localRestaurantTables).insertOnConflictUpdate(
+      LocalRestaurantTablesCompanion(
+        id: Value(id),
+        tenantId: Value(tenantId),
+        branchId: Value(branchId),
+        tableNumber: Value(tableNumber),
+        name: Value(name),
+        section: Value(section),
+        seatingCapacity: Value(seatingCapacity),
+        status: const Value('vacant'),
+        currentGuestCount: const Value(0),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Delete a restaurant table from local SQLite
+  Future<void> deleteLocalTable(String tableId) async {
+    await (_db.delete(_db.localRestaurantTables)..where((t) => t.id.equals(tableId) | t.tableNumber.equals(tableId))).go();
+  }
+
   /// Purges local SQLite records for a tenant on logout or account switch
   Future<void> clearAllTenantData(String tenantId) async {
     if (tenantId.isEmpty) return;

@@ -43,18 +43,18 @@ export interface ReceiptDesignConfig {
 }
 
 export const DEFAULT_RECEIPT_CONFIG: ReceiptDesignConfig = {
-  businessName: 'Kirana Supermart',
-  tagline: 'Quality Groceries & Daily Needs',
-  branchName: 'Main Store - Andheri West',
-  addressLine1: 'Shop No. 4, Market Complex',
-  addressLine2: 'S.V. Road, Andheri West',
-  city: 'Mumbai',
-  stateCode: '27',
-  postalCode: '400058',
-  phone: '+91 98765 43210',
-  email: 'support@kiranasupermart.in',
-  gstin: '27AABCU9603R1ZM',
-  fssaiNumber: '11521000000000',
+  businessName: '',
+  tagline: '',
+  branchName: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  stateCode: '',
+  postalCode: '',
+  phone: '',
+  email: '',
+  gstin: '',
+  fssaiNumber: '',
 
   paperWidth: 58,
   fontFamily: 'monospace',
@@ -70,13 +70,13 @@ export const DEFAULT_RECEIPT_CONFIG: ReceiptDesignConfig = {
   showCashierName: true,
   showCustomerDetails: true,
   showCustomerKhataBalance: true,
-  showSavingsBanner: true,
+  showSavingsBanner: false,
 
-  showUpiQr: true,
-  upiId: 'kirana.supermart@okicici',
-  termsAndConditions: 'Goods once sold can be exchanged within 24 hours with original bill.',
-  thankYouMessage: 'Thank you for shopping with us! Please visit again.',
-  showBranding: true,
+  showUpiQr: false,
+  upiId: '',
+  termsAndConditions: '',
+  thankYouMessage: 'Thank You! Visit Again!',
+  showBranding: false,
 };
 
 const STORAGE_PREFIX = 'msme_pos_receipt_config_';

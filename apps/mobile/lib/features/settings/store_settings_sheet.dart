@@ -20,12 +20,18 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nameController;
+  late TextEditingController _taglineController;
+  late TextEditingController _phoneController;
   late TextEditingController _gstinController;
+  late TextEditingController _fssaiController;
   late TextEditingController _stateCodeController;
   late TextEditingController _address1Controller;
   late TextEditingController _address2Controller;
   late TextEditingController _cityController;
   late TextEditingController _postalCodeController;
+  late TextEditingController _footer1Controller;
+  late TextEditingController _footer2Controller;
+  late TextEditingController _upiIdController;
 
   bool _isSaving = false;
   bool _chargeGst = true;
@@ -74,19 +80,27 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
   void initState() {
     super.initState();
     final auth = ref.read(authProvider);
+    final rest = ref.read(restaurantProvider);
     final details = auth.branchDetails;
 
     _nameController = TextEditingController(
-      text: details?['name'] as String? ?? auth.activeMembership?.tenantName ?? '',
+      text: rest.storeName.isNotEmpty
+          ? rest.storeName
+          : (details?['name'] as String? ?? auth.activeMembership?.tenantName ?? ''),
     );
+    _taglineController = TextEditingController(text: rest.storeTagline);
+    _phoneController = TextEditingController(text: rest.storePhone);
     _gstinController = TextEditingController(
-      text: details?['gstin'] as String? ?? '',
+      text: rest.storeGstin.isNotEmpty ? rest.storeGstin : (details?['gstin'] as String? ?? ''),
     );
+    _fssaiController = TextEditingController(text: rest.storeFssai);
     _stateCodeController = TextEditingController(
       text: details?['stateCode'] as String? ?? '27',
     );
     _address1Controller = TextEditingController(
-      text: details?['addressLine1'] as String? ?? '',
+      text: (details?['addressLine1'] as String? ?? '').isNotEmpty
+          ? details!['addressLine1'] as String
+          : rest.storeAddress,
     );
     _address2Controller = TextEditingController(
       text: details?['addressLine2'] as String? ?? '',
@@ -97,18 +111,27 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
     _postalCodeController = TextEditingController(
       text: details?['postalCode'] as String? ?? '',
     );
-    _chargeGst = ref.read(restaurantProvider).isGstEnabled;
+    _footer1Controller = TextEditingController(text: rest.receiptFooterLine1);
+    _footer2Controller = TextEditingController(text: rest.receiptFooterLine2);
+    _upiIdController = TextEditingController(text: rest.upiId);
+    _chargeGst = rest.isGstEnabled;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _taglineController.dispose();
+    _phoneController.dispose();
     _gstinController.dispose();
+    _fssaiController.dispose();
     _stateCodeController.dispose();
     _address1Controller.dispose();
     _address2Controller.dispose();
     _cityController.dispose();
     _postalCodeController.dispose();
+    _footer1Controller.dispose();
+    _footer2Controller.dispose();
+    _upiIdController.dispose();
     super.dispose();
   }
 
@@ -167,8 +190,26 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
             postalCode: _postalCodeController.text.trim(),
           );
 
-      // Save restaurant dining GST preference
+      // Save restaurant dining GST preference & customizable receipt header/footer
       await ref.read(restaurantProvider.notifier).setGstEnabled(_chargeGst);
+      final combinedAddress = [
+        _address1Controller.text.trim(),
+        _address2Controller.text.trim(),
+        _cityController.text.trim(),
+        _postalCodeController.text.trim(),
+      ].where((s) => s.isNotEmpty).join(', ');
+
+      await ref.read(restaurantProvider.notifier).updateReceiptProfile(
+            storeName: name,
+            storeTagline: _taglineController.text.trim(),
+            storePhone: _phoneController.text.trim(),
+            storeGstin: rawGstin,
+            storeFssai: _fssaiController.text.trim(),
+            storeAddress: combinedAddress,
+            receiptFooterLine1: _footer1Controller.text.trim(),
+            receiptFooterLine2: _footer2Controller.text.trim(),
+            upiId: _upiIdController.text.trim(),
+          );
 
       // Trigger background sync to refresh state
       ref.read(syncStateProvider.notifier).syncNow();
@@ -295,9 +336,26 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                     // Store Trading Name
                     ShadcnInput(
                       controller: _nameController,
-                      label: 'Store / Business Name *',
-                      placeholder: 'e.g. Kirana Supermart',
+                      label: 'Store / Cafe Name *',
+                      placeholder: 'e.g. Spice Garden Cafe',
                       prefixIcon: const Icon(Icons.business_outlined, size: 16, color: ShadcnColors.mutedForeground),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Tagline & Phone
+                    ShadcnInput(
+                      controller: _taglineController,
+                      label: 'Tagline / Subtitle (Optional)',
+                      placeholder: 'e.g. Fresh Coffee & Snacks',
+                    ),
+                    const SizedBox(height: 16),
+
+                    ShadcnInput(
+                      controller: _phoneController,
+                      label: 'Store Phone Number (Optional)',
+                      placeholder: 'e.g. +91 98765 43210',
+                      keyboardType: TextInputType.phone,
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 16, color: ShadcnColors.mutedForeground),
                     ),
                     const SizedBox(height: 16),
 
@@ -455,6 +513,35 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    ShadcnInput(
+                      controller: _fssaiController,
+                      label: 'FSSAI License No. (Optional)',
+                      placeholder: 'Leave blank if not applicable',
+                    ),
+                    const SizedBox(height: 16),
+
+                    ShadcnInput(
+                      controller: _upiIdController,
+                      label: 'UPI ID for Bill QR (Optional)',
+                      placeholder: 'e.g. mycafe@okicici',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Customizable Bill Footer
+                    ShadcnInput(
+                      controller: _footer1Controller,
+                      label: 'Bill Footer Line 1 (Greeting)',
+                      placeholder: 'e.g. Thank You! Visit Again!',
+                    ),
+                    const SizedBox(height: 16),
+
+                    ShadcnInput(
+                      controller: _footer2Controller,
+                      label: 'Bill Footer Line 2 (Custom Note / Terms)',
+                      placeholder: 'Leave blank to hide second footer line',
                     ),
                   ],
                 ),

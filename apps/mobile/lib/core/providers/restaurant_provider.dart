@@ -258,6 +258,15 @@ class RestaurantState {
   final double defaultGstPercent;
   final bool autoPrintKotOnFire;
   final bool autoPrintBillOnSettle;
+  final String storeName;
+  final String storeTagline;
+  final String storePhone;
+  final String storeGstin;
+  final String storeFssai;
+  final String storeAddress;
+  final String receiptFooterLine1;
+  final String receiptFooterLine2;
+  final String upiId;
 
   const RestaurantState({
     required this.tables,
@@ -266,6 +275,15 @@ class RestaurantState {
     this.defaultGstPercent = 5.0,
     this.autoPrintKotOnFire = true,
     this.autoPrintBillOnSettle = true,
+    this.storeName = '',
+    this.storeTagline = '',
+    this.storePhone = '',
+    this.storeGstin = '',
+    this.storeFssai = '',
+    this.storeAddress = '',
+    this.receiptFooterLine1 = 'Thank You! Visit Again!',
+    this.receiptFooterLine2 = '',
+    this.upiId = '',
   });
 
   List<String> get sections {
@@ -294,6 +312,15 @@ class RestaurantState {
     double? defaultGstPercent,
     bool? autoPrintKotOnFire,
     bool? autoPrintBillOnSettle,
+    String? storeName,
+    String? storeTagline,
+    String? storePhone,
+    String? storeGstin,
+    String? storeFssai,
+    String? storeAddress,
+    String? receiptFooterLine1,
+    String? receiptFooterLine2,
+    String? upiId,
   }) {
     return RestaurantState(
       tables: tables ?? this.tables,
@@ -302,6 +329,15 @@ class RestaurantState {
       defaultGstPercent: defaultGstPercent ?? this.defaultGstPercent,
       autoPrintKotOnFire: autoPrintKotOnFire ?? this.autoPrintKotOnFire,
       autoPrintBillOnSettle: autoPrintBillOnSettle ?? this.autoPrintBillOnSettle,
+      storeName: storeName ?? this.storeName,
+      storeTagline: storeTagline ?? this.storeTagline,
+      storePhone: storePhone ?? this.storePhone,
+      storeGstin: storeGstin ?? this.storeGstin,
+      storeFssai: storeFssai ?? this.storeFssai,
+      storeAddress: storeAddress ?? this.storeAddress,
+      receiptFooterLine1: receiptFooterLine1 ?? this.receiptFooterLine1,
+      receiptFooterLine2: receiptFooterLine2 ?? this.receiptFooterLine2,
+      upiId: upiId ?? this.upiId,
     );
   }
 }
@@ -575,6 +611,15 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
           defaultGstPercent: rate,
           autoPrintKotOnFire: autoPrintKot,
           autoPrintBillOnSettle: autoPrintBill,
+          storeName: res['storeName'] as String? ?? state.storeName,
+          storeTagline: res['storeTagline'] as String? ?? state.storeTagline,
+          storePhone: res['storePhone'] as String? ?? state.storePhone,
+          storeGstin: res['storeGstin'] as String? ?? state.storeGstin,
+          storeFssai: res['storeFssai'] as String? ?? state.storeFssai,
+          storeAddress: res['storeAddress'] as String? ?? state.storeAddress,
+          receiptFooterLine1: res['receiptFooterLine1'] as String? ?? state.receiptFooterLine1,
+          receiptFooterLine2: res['receiptFooterLine2'] as String? ?? state.receiptFooterLine2,
+          upiId: res['upiId'] as String? ?? state.upiId,
         );
 
         final prefs = await SharedPreferences.getInstance();
@@ -961,6 +1006,191 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
     }).toList();
     state = state.copyWith(tables: updated);
     _saveToCache();
+  }
+
+  /// Update customizable store & receipt header/footer settings locally and on cloud
+  Future<void> updateReceiptProfile({
+    required String storeName,
+    required String storeTagline,
+    required String storePhone,
+    required String storeGstin,
+    required String storeFssai,
+    required String storeAddress,
+    required String receiptFooterLine1,
+    required String receiptFooterLine2,
+    required String upiId,
+  }) async {
+    state = state.copyWith(
+      storeName: storeName,
+      storeTagline: storeTagline,
+      storePhone: storePhone,
+      storeGstin: storeGstin,
+      storeFssai: storeFssai,
+      storeAddress: storeAddress,
+      receiptFooterLine1: receiptFooterLine1,
+      receiptFooterLine2: receiptFooterLine2,
+      upiId: upiId,
+    );
+
+    try {
+      final authRepo = _ref?.read(authRepositoryProvider);
+      final authState = _ref?.read(authProvider);
+      final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId;
+      final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId;
+      if (authRepo != null && tenantId != null && tenantId.isNotEmpty) {
+        await authRepo.updateRestaurantDiningSettings(
+          tenantId: tenantId,
+          branchId: branchId,
+          settings: {
+            'storeName': storeName,
+            'storeTagline': storeTagline,
+            'storePhone': storePhone,
+            'storeGstin': storeGstin,
+            'storeFssai': storeFssai,
+            'storeAddress': storeAddress,
+            'receiptFooterLine1': receiptFooterLine1,
+            'receiptFooterLine2': receiptFooterLine2,
+            'upiId': upiId,
+          },
+        );
+      }
+    } catch (_) {}
+  }
+
+  /// Add a new dining table
+  Future<void> addTable({
+    required String tableNumber,
+    String? tableName,
+    String section = 'Main Dining',
+    int capacity = 4,
+  }) async {
+    final authRepo = _ref?.read(authRepositoryProvider);
+    final authState = _ref?.read(authProvider);
+    final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId ?? '';
+    final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId ?? '';
+
+    final cleanNum = tableNumber.trim().toUpperCase();
+    final cleanName = (tableName != null && tableName.trim().isNotEmpty) ? tableName.trim() : cleanNum;
+    final cleanSection = section.trim().isNotEmpty ? section.trim() : 'Main Dining';
+
+    String resolvedId = cleanNum;
+    if (authRepo != null && tenantId.isNotEmpty && branchId.isNotEmpty) {
+      final created = await authRepo.createRestaurantTable(
+        tenantId: tenantId,
+        branchId: branchId,
+        tableNumber: cleanNum,
+        tableName: cleanName,
+        section: cleanSection,
+        seatingCapacity: capacity,
+      );
+      resolvedId = created['id'] as String? ?? cleanNum;
+    }
+
+    if (_repo != null && tenantId.isNotEmpty) {
+      await _repo!.upsertLocalTable(
+        id: resolvedId,
+        tenantId: tenantId,
+        branchId: branchId,
+        tableNumber: cleanNum,
+        name: cleanName,
+        section: cleanSection,
+        seatingCapacity: capacity,
+      );
+    }
+
+    final newTable = RestaurantTable(
+      id: resolvedId,
+      tableNumber: cleanNum,
+      name: cleanName,
+      section: cleanSection,
+      capacity: capacity,
+    );
+    state = state.copyWith(tables: [...state.tables, newTable]);
+    await _saveToCache();
+  }
+
+  /// Edit an existing dining table
+  Future<void> editTable({
+    required String tableId,
+    required String tableNumber,
+    String? tableName,
+    String section = 'Main Dining',
+    int capacity = 4,
+  }) async {
+    final authRepo = _ref?.read(authRepositoryProvider);
+    final authState = _ref?.read(authProvider);
+    final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId ?? '';
+    final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId ?? '';
+
+    final cleanNum = tableNumber.trim().toUpperCase();
+    final cleanName = (tableName != null && tableName.trim().isNotEmpty) ? tableName.trim() : cleanNum;
+    final cleanSection = section.trim().isNotEmpty ? section.trim() : 'Main Dining';
+
+    if (authRepo != null && tenantId.isNotEmpty && branchId.isNotEmpty) {
+      await authRepo.updateRestaurantTable(
+        tenantId: tenantId,
+        branchId: branchId,
+        tableId: tableId,
+        tableNumber: cleanNum,
+        tableName: cleanName,
+        section: cleanSection,
+        seatingCapacity: capacity,
+      );
+    }
+
+    if (_repo != null && tenantId.isNotEmpty) {
+      await _repo!.upsertLocalTable(
+        id: tableId,
+        tenantId: tenantId,
+        branchId: branchId,
+        tableNumber: cleanNum,
+        name: cleanName,
+        section: cleanSection,
+        seatingCapacity: capacity,
+      );
+    }
+
+    final updated = state.tables.map((t) {
+      if (t.id == tableId) {
+        return t.copyWith(
+          tableNumber: cleanNum,
+          name: cleanName,
+          section: cleanSection,
+          capacity: capacity,
+        );
+      }
+      return t;
+    }).toList();
+    state = state.copyWith(tables: updated);
+    await _saveToCache();
+  }
+
+  /// Delete a vacant dining table
+  Future<void> deleteTable(String tableId) async {
+    final target = state.tables.where((t) => t.id == tableId).firstOrNull;
+    if (target != null && target.status != TableStatus.vacant) {
+      throw Exception('Clear or settle the active order before deleting this table.');
+    }
+
+    final authRepo = _ref?.read(authRepositoryProvider);
+    final authState = _ref?.read(authProvider);
+    final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId ?? '';
+    final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId ?? '';
+
+    if (authRepo != null && tenantId.isNotEmpty && branchId.isNotEmpty) {
+      await authRepo.deleteRestaurantTable(
+        tenantId: tenantId,
+        branchId: branchId,
+        tableId: tableId,
+      );
+    }
+
+    if (_repo != null) {
+      await _repo!.deleteLocalTable(tableId);
+    }
+
+    state = state.copyWith(tables: state.tables.where((t) => t.id != tableId).toList());
+    await _saveToCache();
   }
 }
 

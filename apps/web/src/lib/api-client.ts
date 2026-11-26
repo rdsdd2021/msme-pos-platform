@@ -1153,6 +1153,15 @@ export interface RestaurantSettings {
   autoPrintKotOnFire: boolean;
   autoPrintBillOnSettle: boolean;
   defaultKitchenStation: string;
+  storeName?: string;
+  storeTagline?: string;
+  storePhone?: string;
+  storeGstin?: string;
+  storeFssai?: string;
+  storeAddress?: string;
+  receiptFooterLine1?: string;
+  receiptFooterLine2?: string;
+  upiId?: string;
 }
 
 export interface ParsedMenuDishItem {
@@ -1955,6 +1964,16 @@ class ApiClient {
     return this.request<RestaurantTable>(`/tenants/${tenantId}/restaurant/tables/${tableId}?branchId=${branchId}`, {
       method: 'PATCH',
       body: JSON.stringify(dto),
+    });
+  }
+
+  async deleteRestaurantTable(
+    tenantId: string,
+    branchId: string,
+    tableId: string,
+  ): Promise<{ deleted: boolean; id: string }> {
+    return this.request<{ deleted: boolean; id: string }>(`/tenants/${tenantId}/restaurant/tables/${tableId}?branchId=${branchId}`, {
+      method: 'DELETE',
     });
   }
 

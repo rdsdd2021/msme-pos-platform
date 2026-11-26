@@ -451,6 +451,10 @@ export class RestaurantService {
       branchId = table.branchId;
     }
 
+    if (dto.tableNumber !== undefined && dto.tableNumber.trim().length > 0) {
+      const nextNum = dto.tableNumber.trim().toUpperCase();
+      table.tableNumber = nextNum;
+    }
     if (dto.tableName !== undefined) table.tableName = dto.tableName?.trim() || null;
     if (dto.section !== undefined) table.section = dto.section?.trim() || table.section;
     if (dto.seatingCapacity !== undefined) table.seatingCapacity = dto.seatingCapacity;
@@ -491,6 +495,42 @@ export class RestaurantService {
     }
 
     return saved;
+  }
+
+  async deleteTable(
+    tenantId: string,
+    branchId: string,
+    tableId: string,
+  ): Promise<{ deleted: boolean; id: string }> {
+    const table = await this.findTableResilient(this.tableRepo, tenantId, branchId, [tableId]);
+    if (!table) {
+      throw new NotFoundException(`Table ${tableId} not found in this branch`);
+    }
+
+    const activeOrder = await this.orderRepo.findOne({
+      where: {
+        tableId: table.id,
+        tenantId,
+        status: In([RestaurantOrderStatus.OPEN, RestaurantOrderStatus.BILLED]),
+      },
+    });
+    if (activeOrder || table.status !== TableStatus.VACANT) {
+      throw new ConflictException('Cannot delete a table with an active order or guests seated. Clear/settle it first.');
+    }
+
+    table.isActive = false;
+    await this.tableRepo.save(table);
+
+    if (this.realtimeService) {
+      this.realtimeService.emit(
+        tenantId,
+        'RESTAURANT_TABLE_CHANGED',
+        { tableId: table.id, deleted: true },
+        table.branchId || branchId,
+      );
+    }
+
+    return { deleted: true, id: table.id };
   }
 
   // =========================================================================
@@ -1326,14 +1366,20 @@ export class RestaurantService {
     const tenantGstExplicitlyDisabled = (tenant.settings as any)?.enableGst === false;
 
     if (!saved) {
-      if (tenantGstExplicitlyDisabled) {
-        return {
-          ...defaults,
-          enableGst: false,
-          defaultGstPercent: '0.00',
-        };
-      }
-      return defaults;
+      return {
+        ...defaults,
+        enableGst: tenantGstExplicitlyDisabled ? false : defaults.enableGst,
+        defaultGstPercent: tenantGstExplicitlyDisabled ? '0.00' : defaults.defaultGstPercent,
+        storeName: tenant.displayName || '',
+        storeTagline: '',
+        storePhone: '',
+        storeGstin: '',
+        storeFssai: '',
+        storeAddress: '',
+        receiptFooterLine1: 'Thank You! Visit Again!',
+        receiptFooterLine2: '',
+        upiId: '',
+      };
     }
 
     const isGstEnabled = !tenantGstExplicitlyDisabled && (saved.enableGst !== undefined
@@ -1349,6 +1395,15 @@ export class RestaurantService {
       autoPrintKotOnFire: saved.autoPrintKotOnFire !== undefined ? saved.autoPrintKotOnFire : defaults.autoPrintKotOnFire,
       autoPrintBillOnSettle: saved.autoPrintBillOnSettle !== undefined ? saved.autoPrintBillOnSettle : defaults.autoPrintBillOnSettle,
       defaultKitchenStation: saved.defaultKitchenStation || defaults.defaultKitchenStation,
+      storeName: saved.storeName !== undefined ? saved.storeName : (tenant.displayName || ''),
+      storeTagline: saved.storeTagline ?? '',
+      storePhone: saved.storePhone ?? '',
+      storeGstin: saved.storeGstin ?? '',
+      storeFssai: saved.storeFssai ?? '',
+      storeAddress: saved.storeAddress ?? '',
+      receiptFooterLine1: saved.receiptFooterLine1 !== undefined ? saved.receiptFooterLine1 : 'Thank You! Visit Again!',
+      receiptFooterLine2: saved.receiptFooterLine2 ?? '',
+      upiId: saved.upiId ?? '',
     };
   }
 
@@ -1388,6 +1443,15 @@ export class RestaurantService {
       ...(dto.autoPrintKotOnFire !== undefined ? { autoPrintKotOnFire: dto.autoPrintKotOnFire } : {}),
       ...(dto.autoPrintBillOnSettle !== undefined ? { autoPrintBillOnSettle: dto.autoPrintBillOnSettle } : {}),
       ...(dto.defaultKitchenStation !== undefined ? { defaultKitchenStation: dto.defaultKitchenStation } : {}),
+      ...(dto.storeName !== undefined ? { storeName: dto.storeName } : {}),
+      ...(dto.storeTagline !== undefined ? { storeTagline: dto.storeTagline } : {}),
+      ...(dto.storePhone !== undefined ? { storePhone: dto.storePhone } : {}),
+      ...(dto.storeGstin !== undefined ? { storeGstin: dto.storeGstin } : {}),
+      ...(dto.storeFssai !== undefined ? { storeFssai: dto.storeFssai } : {}),
+      ...(dto.storeAddress !== undefined ? { storeAddress: dto.storeAddress } : {}),
+      ...(dto.receiptFooterLine1 !== undefined ? { receiptFooterLine1: dto.receiptFooterLine1 } : {}),
+      ...(dto.receiptFooterLine2 !== undefined ? { receiptFooterLine2: dto.receiptFooterLine2 } : {}),
+      ...(dto.upiId !== undefined ? { upiId: dto.upiId } : {}),
     };
 
     const currentSettings = tenant.settings || {};

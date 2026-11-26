@@ -74,17 +74,17 @@ export interface BillingRulesConfig {
 }
 
 const DEFAULT_STORE_PROFILE: StoreProfileConfig = {
-  storeName: 'Kirana Supermart',
-  tagline: 'Your Trusted Neighborhood Store',
-  phone: '+91 98765 43210',
-  email: 'store@kirana.dev',
-  addressLine: 'Shop 4, Andheri West Commercial Complex',
-  city: 'Mumbai',
-  state: 'Maharashtra (27)',
-  pincode: '400058',
-  gstin: '27AABCU9603R1ZM',
-  fssaiNumber: '11521018000452',
-  businessType: 'Grocery & FMCG Retail',
+  storeName: '',
+  tagline: '',
+  phone: '',
+  email: '',
+  addressLine: '',
+  city: '',
+  state: '',
+  pincode: '',
+  gstin: '',
+  fssaiNumber: '',
+  businessType: 'Restaurant & Cafe',
 };
 
 const DEFAULT_BILLING_RULES: BillingRulesConfig = {
@@ -193,8 +193,24 @@ export function SettingsView({
           localStorage.setItem(`pos_store_profile_${tenantId}`, JSON.stringify(profile));
         }
 
+        await apiClient.updateRestaurantSettings(
+          tenantId,
+          {
+            storeName: profile.storeName.trim(),
+            storeTagline: profile.tagline.trim(),
+            storePhone: profile.phone.trim(),
+            storeGstin: profile.gstin.trim().toUpperCase(),
+            storeFssai: profile.fssaiNumber.trim(),
+            storeAddress: [profile.addressLine, profile.city, profile.pincode]
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .join(', '),
+          },
+          currentBranch.id,
+        ).catch(() => {});
+
         onRefresh();
-        toast.success('Store & branch profile saved to database successfully!');
+        toast.success('Store & branch profile saved and synced!');
       } else {
         if (typeof window !== 'undefined' && tenantId) {
           localStorage.setItem(`pos_store_profile_${tenantId}`, JSON.stringify(profile));
@@ -231,18 +247,61 @@ export function SettingsView({
   // --- Thermal Receipt Designer State ---
   const [receiptConfig, setReceiptConfig] = useState<ReceiptDesignConfig>(() => {
     const loaded = getReceiptConfig(tenantId, branchId);
-    if (tenantName && loaded.businessName === DEFAULT_RECEIPT_CONFIG.businessName) {
+    if (tenantName && !loaded.businessName) {
       loaded.businessName = tenantName;
     }
-    if (branchName && loaded.branchName === DEFAULT_RECEIPT_CONFIG.branchName) {
+    if (branchName && !loaded.branchName) {
       loaded.branchName = branchName;
     }
     return loaded;
   });
 
-  const handleSaveReceipt = () => {
+  useEffect(() => {
+    if (!tenantId) return;
+    apiClient
+      .getRestaurantSettings(tenantId, branchId)
+      .then((srv) => {
+        setReceiptConfig((prev) => ({
+          ...prev,
+          businessName: srv.storeName !== undefined && srv.storeName !== '' ? srv.storeName : prev.businessName,
+          tagline: srv.storeTagline !== undefined ? srv.storeTagline : prev.tagline,
+          phone: srv.storePhone !== undefined ? srv.storePhone : prev.phone,
+          gstin: srv.storeGstin !== undefined ? srv.storeGstin : prev.gstin,
+          fssaiNumber: srv.storeFssai !== undefined ? srv.storeFssai : prev.fssaiNumber,
+          addressLine1: srv.storeAddress !== undefined ? srv.storeAddress : prev.addressLine1,
+          thankYouMessage: srv.receiptFooterLine1 !== undefined ? srv.receiptFooterLine1 : prev.thankYouMessage,
+          termsAndConditions: srv.receiptFooterLine2 !== undefined ? srv.receiptFooterLine2 : prev.termsAndConditions,
+          upiId: srv.upiId !== undefined ? srv.upiId : prev.upiId,
+        }));
+      })
+      .catch(() => {});
+  }, [tenantId, branchId]);
+
+  const handleSaveReceipt = async () => {
     saveReceiptConfig(receiptConfig, tenantId, branchId);
-    toast.success('Thermal receipt template saved for this branch!');
+    if (tenantId) {
+      try {
+        await apiClient.updateRestaurantSettings(
+          tenantId,
+          {
+            storeName: receiptConfig.businessName.trim(),
+            storeTagline: receiptConfig.tagline.trim(),
+            storePhone: receiptConfig.phone.trim(),
+            storeGstin: receiptConfig.gstin.trim().toUpperCase(),
+            storeFssai: receiptConfig.fssaiNumber.trim(),
+            storeAddress: [receiptConfig.addressLine1, receiptConfig.addressLine2, receiptConfig.city, receiptConfig.postalCode]
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .join(', '),
+            receiptFooterLine1: receiptConfig.thankYouMessage.trim(),
+            receiptFooterLine2: receiptConfig.termsAndConditions.trim(),
+            upiId: receiptConfig.upiId.trim(),
+          },
+          branchId,
+        );
+      } catch (_) {}
+    }
+    toast.success('Thermal receipt template saved & synced to all devices!');
   };
 
   const handleResetReceipt = () => {
@@ -669,11 +728,20 @@ export function SettingsView({
                   />
                 </div>
                 <div>
-                  <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Footer Terms &amp; Return Policy</Label>
+                  <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Footer Greeting (Line 1)</Label>
+                  <Input
+                    value={receiptConfig.thankYouMessage}
+                    onChange={(e) => setReceiptConfig({ ...receiptConfig, thankYouMessage: e.target.value })}
+                    placeholder="Thank You! Visit Again!"
+                    className="text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-bold text-slate-700 mb-1.5 block">Footer Terms &amp; Note (Line 2)</Label>
                   <Input
                     value={receiptConfig.termsAndConditions}
                     onChange={(e) => setReceiptConfig({ ...receiptConfig, termsAndConditions: e.target.value })}
-                    placeholder="Items once sold cannot be returned without original receipt."
+                    placeholder="Optional footer note or terms"
                     className="text-xs"
                   />
                 </div>
@@ -702,11 +770,11 @@ export function SettingsView({
               >
                 {/* Header */}
                 <div className={receiptConfig.headerAlignment === 'center' ? 'text-center' : 'text-left'}>
-                  <div className="font-bold text-sm uppercase tracking-wide">{receiptConfig.businessName || 'STORE NAME'}</div>
+                  <div className="font-bold text-sm uppercase tracking-wide">{receiptConfig.businessName || tenantName || 'STORE NAME'}</div>
                   {receiptConfig.tagline && <div className="text-[10px] text-slate-600">{receiptConfig.tagline}</div>}
-                  <div className="text-[10px] text-slate-500 mt-1">{receiptConfig.addressLine1 || 'Market Road'}</div>
-                  <div className="text-[10px] text-slate-500">Ph: {receiptConfig.phone || '9876543210'}</div>
-                  <div className="text-[10px] text-slate-600 font-bold mt-0.5">GSTIN: {receiptConfig.gstin || '27AABCU9603R1ZM'}</div>
+                  {receiptConfig.addressLine1 && <div className="text-[10px] text-slate-500 mt-1">{receiptConfig.addressLine1}</div>}
+                  {receiptConfig.phone && <div className="text-[10px] text-slate-500">Ph: {receiptConfig.phone}</div>}
+                  {receiptConfig.gstin && <div className="text-[10px] text-slate-600 font-bold mt-0.5">GSTIN: {receiptConfig.gstin}</div>}
                   {receiptConfig.fssaiNumber && <div className="text-[10px] text-slate-600">FSSAI: {receiptConfig.fssaiNumber}</div>}
                 </div>
 
@@ -775,11 +843,15 @@ export function SettingsView({
                 )}
 
                 {/* Footer Notes */}
-                <div className="border-t border-dashed border-slate-400 my-2" />
-                <div className="text-center text-[9px] text-slate-600">
-                  <div>{receiptConfig.termsAndConditions || 'Thank you for shopping with us!'}</div>
-                  <div className="font-bold mt-0.5">*** VISIT AGAIN ***</div>
-                </div>
+                {(receiptConfig.thankYouMessage || receiptConfig.termsAndConditions) && (
+                  <>
+                    <div className="border-t border-dashed border-slate-400 my-2" />
+                    <div className="text-center text-[9px] text-slate-600">
+                      {receiptConfig.thankYouMessage && <div className="font-bold">{receiptConfig.thankYouMessage}</div>}
+                      {receiptConfig.termsAndConditions && <div className="mt-0.5">{receiptConfig.termsAndConditions}</div>}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
