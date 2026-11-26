@@ -120,12 +120,17 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
       if (restState.receiptFooterLine2.trim().isNotEmpty) restState.receiptFooterLine2.trim(),
     ];
 
+    final isTakeaway = currentTable.section == 'Takeaway' || (currentTable.tableNumber ?? '').startsWith('TK-');
+    final locationLabel = isTakeaway
+        ? 'Takeaway: ${currentTable.name}'
+        : 'Table: ${currentTable.name} (${currentTable.section})';
+
     return ReceiptDocument(
       header: ReceiptHeader(
         storeName: resolvedStoreName,
         address: resolvedAddress.isNotEmpty
-            ? '$resolvedAddress\nTable: ${currentTable.name} (${currentTable.section})'
-            : 'Table: ${currentTable.name} (${currentTable.section})',
+            ? '$resolvedAddress\n$locationLabel'
+            : locationLabel,
         phone: resolvedPhone.isNotEmpty ? resolvedPhone : null,
         gstin: resolvedGstin.isNotEmpty ? resolvedGstin : null,
         fssai: resolvedFssai.isNotEmpty ? resolvedFssai : null,
@@ -136,7 +141,7 @@ class _TableOrderSheetState extends ConsumerState<TableOrderSheet> {
         invoiceId: 'bill-${currentTable.id}',
         date: DateTime.now(),
         paymentMethod: 'PENDING_SETTLEMENT',
-        customerName: '${currentTable.name} (${currentTable.currentGuestCount} guests)',
+        customerName: isTakeaway ? currentTable.name : '${currentTable.name} (${currentTable.currentGuestCount} guests)',
       ),
       lines: currentTable.activeOrderLines.map((i) {
         final lineTax = isGstEnabled ? i.taxPaisa : 0;

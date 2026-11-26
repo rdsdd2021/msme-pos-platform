@@ -990,9 +990,7 @@ export class SyncService implements OnModuleInit {
     if (this.restaurantService && resolvedBranchId) {
       try {
         const tables = await this.restaurantService.getTables(tenantId, resolvedBranchId);
-        if (tables.length === 0) {
-          restaurantTables = await this.restaurantService.seedDefaultTables(tenantId, resolvedBranchId);
-        } else if (isIncremental) {
+        if (isIncremental) {
           restaurantTables = tables.filter(
             (t: any) => !t.updatedAt || new Date(t.updatedAt).getTime() > cursorDate.getTime(),
           );

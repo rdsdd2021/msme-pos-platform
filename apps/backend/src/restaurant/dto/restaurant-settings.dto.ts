@@ -27,6 +27,10 @@ export class UpdateRestaurantSettingsDto {
   enableGst?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  hasDiningTables?: boolean;
+
+  @IsOptional()
   @IsString()
   defaultGstPercent?: string; // '5.00' | '18.00' | '0.00'
 
@@ -95,6 +99,7 @@ export interface RestaurantSettingsResponse {
     tableCount: number;
   }>;
   enableGst: boolean;
+  hasDiningTables: boolean;
   defaultGstPercent: string;
   serviceChargePercent: string;
   packagingCharge: string;

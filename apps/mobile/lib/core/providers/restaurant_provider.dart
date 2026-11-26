@@ -255,6 +255,7 @@ class RestaurantState {
   final List<RestaurantTable> tables;
   final String selectedSection;
   final bool isGstEnabled;
+  final bool hasDiningTables;
   final double defaultGstPercent;
   final bool autoPrintKotOnFire;
   final bool autoPrintBillOnSettle;
@@ -272,6 +273,7 @@ class RestaurantState {
     required this.tables,
     this.selectedSection = 'All',
     this.isGstEnabled = true,
+    this.hasDiningTables = true,
     this.defaultGstPercent = 5.0,
     this.autoPrintKotOnFire = true,
     this.autoPrintBillOnSettle = true,
@@ -309,6 +311,7 @@ class RestaurantState {
     List<RestaurantTable>? tables,
     String? selectedSection,
     bool? isGstEnabled,
+    bool? hasDiningTables,
     double? defaultGstPercent,
     bool? autoPrintKotOnFire,
     bool? autoPrintBillOnSettle,
@@ -326,6 +329,7 @@ class RestaurantState {
       tables: tables ?? this.tables,
       selectedSection: selectedSection ?? this.selectedSection,
       isGstEnabled: isGstEnabled ?? this.isGstEnabled,
+      hasDiningTables: hasDiningTables ?? this.hasDiningTables,
       defaultGstPercent: defaultGstPercent ?? this.defaultGstPercent,
       autoPrintKotOnFire: autoPrintKotOnFire ?? this.autoPrintKotOnFire,
       autoPrintBillOnSettle: autoPrintBillOnSettle ?? this.autoPrintBillOnSettle,
@@ -545,13 +549,18 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       final gstPercentKey = '${key}_gst_percent';
       final cachedGst = prefs.getBool(gstKey);
       final cachedGstPercent = prefs.getDouble(gstPercentKey);
+      final cachedHasTables = prefs.getBool('${key}_has_dining_tables');
       bool isGst = true;
+      bool hasTables = cachedHasTables ?? true;
       if (cachedGst != null) {
         isGst = cachedGst;
         state = state.copyWith(
           isGstEnabled: cachedGst,
+          hasDiningTables: hasTables,
           defaultGstPercent: cachedGstPercent ?? (cachedGst ? 5.0 : 0.0),
         );
+      } else if (cachedHasTables != null) {
+        state = state.copyWith(hasDiningTables: hasTables);
       }
 
       final cachedJson = prefs.getString(key);
@@ -569,11 +578,13 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
             }
             loadedCodes.add(t.name);
           }
-          final missing = _defaultTables.where((t) {
-            return !loadedCodes.contains(t.id) &&
-                   !loadedCodes.contains(t.tableNumber ?? '') &&
-                   !loadedCodes.contains(t.name);
-          }).toList();
+          final missing = hasTables
+              ? _defaultTables.where((t) {
+                  return !loadedCodes.contains(t.id) &&
+                         !loadedCodes.contains(t.tableNumber ?? '') &&
+                         !loadedCodes.contains(t.name);
+                }).toList()
+              : <RestaurantTable>[];
 
           final allTables = [...validLoaded, ...missing];
           final sanitizedTables = !isGst
@@ -602,12 +613,14 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
       final res = await authRepo.getRestaurantDiningSettings(tenantId, branchId);
       if (res != null) {
         final enableGst = res['enableGst'] as bool? ?? (res['defaultGstPercent'] != '0.00');
+        final hasTables = res['hasDiningTables'] as bool? ?? true;
         final percentStr = res['defaultGstPercent'] as String? ?? (enableGst ? '5.00' : '0.00');
         final rate = double.tryParse(percentStr) ?? (enableGst ? 5.0 : 0.0);
         final autoPrintKot = res['autoPrintKotOnFire'] as bool? ?? true;
         final autoPrintBill = res['autoPrintBillOnSettle'] as bool? ?? true;
         state = state.copyWith(
           isGstEnabled: enableGst,
+          hasDiningTables: hasTables,
           defaultGstPercent: rate,
           autoPrintKotOnFire: autoPrintKot,
           autoPrintBillOnSettle: autoPrintBill,
@@ -1191,6 +1204,76 @@ class RestaurantNotifier extends StateNotifier<RestaurantState> {
 
     state = state.copyWith(tables: state.tables.where((t) => t.id != tableId).toList());
     await _saveToCache();
+  }
+
+  /// Toggle Dining Tables ON/OFF (when OFF, client operates in Takeaway / Counter Token mode)
+  Future<void> setHasDiningTables(bool enabled) async {
+    final filtered = enabled
+        ? state.tables
+        : state.tables.where((t) => t.status != TableStatus.vacant || t.section == 'Takeaway').toList();
+    state = state.copyWith(
+      hasDiningTables: enabled,
+      tables: filtered,
+      selectedSection: 'All',
+    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _getStorageKey();
+      await prefs.setBool('${key}_has_dining_tables', enabled);
+      await _saveToCache();
+    } catch (_) {}
+
+    try {
+      final authRepo = _ref?.read(authRepositoryProvider);
+      final authState = _ref?.read(authProvider);
+      final tenantId = authState?.activeMembership?.tenantId ?? authState?.user?.primaryMembership?.tenantId;
+      final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId;
+      if (authRepo != null && tenantId != null && tenantId.isNotEmpty) {
+        await authRepo.updateRestaurantDiningSettings(
+          tenantId: tenantId,
+          branchId: branchId,
+          settings: {'hasDiningTables': enabled},
+        );
+      }
+    } catch (_) {}
+  }
+
+  /// Create a quick Takeaway / Counter Token order slot (works even with zero dining tables)
+  Future<RestaurantTable> createTakeawayToken() async {
+    final existingTokens = state.tables.where((t) => (t.tableNumber ?? t.id).startsWith('TK-')).length;
+    final tokenNum = existingTokens + 1;
+    final code = 'TK-${tokenNum.toString().padLeft(2, '0')}';
+    final name = 'Token #$tokenNum (Takeaway)';
+    final id = 'tk-${DateTime.now().millisecondsSinceEpoch}';
+
+    final tokenTable = RestaurantTable(
+      id: id,
+      tableNumber: code,
+      name: name,
+      section: 'Takeaway',
+      capacity: 1,
+      currentGuestCount: 1,
+      status: TableStatus.vacant,
+    );
+
+    final authState = _ref?.read(authProvider);
+    final tenantId = authState?.activeMembership?.tenantId ?? '';
+    final branchId = authState?.activeBranchId ?? authState?.activeMembership?.branchId ?? '';
+    if (_repo != null && tenantId.isNotEmpty) {
+      await _repo!.upsertLocalTable(
+        id: id,
+        tenantId: tenantId,
+        branchId: branchId,
+        tableNumber: code,
+        name: name,
+        section: 'Takeaway',
+        seatingCapacity: 1,
+      );
+    }
+
+    state = state.copyWith(tables: [tokenTable, ...state.tables]);
+    await _saveToCache();
+    return tokenTable;
   }
 }
 

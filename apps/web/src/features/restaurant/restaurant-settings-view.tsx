@@ -40,6 +40,7 @@ export function RestaurantSettingsView() {
   // Settings State
   const [floorSections, setFloorSections] = useState<FloorSectionConfig[]>(DEFAULT_SECTIONS);
   const [enableGst, setEnableGst] = useState(true);
+  const [hasDiningTables, setHasDiningTables] = useState(true);
   const [defaultGstPercent, setDefaultGstPercent] = useState('5.00');
   const [serviceChargePercent, setServiceChargePercent] = useState('0.00');
   const [packagingCharge, setPackagingCharge] = useState('0.00');
@@ -64,6 +65,9 @@ export function RestaurantSettingsView() {
           setEnableGst(data.enableGst);
         } else if (data.defaultGstPercent !== undefined) {
           setEnableGst(data.defaultGstPercent !== '0.00');
+        }
+        if (data.hasDiningTables !== undefined) {
+          setHasDiningTables(data.hasDiningTables);
         }
         if (data.defaultGstPercent) setDefaultGstPercent(data.defaultGstPercent);
         if (data.serviceChargePercent) setServiceChargePercent(data.serviceChargePercent);
@@ -120,6 +124,7 @@ export function RestaurantSettingsView() {
         {
           floorSections,
           enableGst,
+          hasDiningTables,
           defaultGstPercent: effectiveGstPercent,
           serviceChargePercent,
           packagingCharge,
@@ -269,6 +274,27 @@ export function RestaurantSettingsView() {
               Configure whether this restaurant charges GST. Standalone food service is taxed at 5% GST without ITC.
             </p>
           </div>
+        </div>
+
+        {/* Dining Tables Toggle (ON/OFF for Counter/Takeaway-only setups) */}
+        <div className="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-bold text-slate-900">Dining Tables Enabled</div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Turn OFF for takeaway counters, cloud kitchens, or cafes without dine-in tables.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setHasDiningTables((v) => !v)}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors ${
+              hasDiningTables
+                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+            }`}
+          >
+            {hasDiningTables ? 'Tables ON (Dine-In + Takeaway)' : 'Tables OFF (Takeaway Only)'}
+          </button>
         </div>
 
         {/* Prominent GST ON / OFF Toggle */}

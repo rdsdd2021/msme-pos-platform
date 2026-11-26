@@ -35,6 +35,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
 
   bool _isSaving = false;
   bool _chargeGst = true;
+  bool _hasDiningTables = true;
   String? _errorMessage;
 
   static const Map<String, String> _indianStates = {
@@ -115,6 +116,7 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
     _footer2Controller = TextEditingController(text: rest.receiptFooterLine2);
     _upiIdController = TextEditingController(text: rest.upiId);
     _chargeGst = rest.isGstEnabled;
+    _hasDiningTables = rest.hasDiningTables;
   }
 
   @override
@@ -190,8 +192,9 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
             postalCode: _postalCodeController.text.trim(),
           );
 
-      // Save restaurant dining GST preference & customizable receipt header/footer
+      // Save restaurant dining GST preference, table mode & customizable receipt header/footer
       await ref.read(restaurantProvider.notifier).setGstEnabled(_chargeGst);
+      await ref.read(restaurantProvider.notifier).setHasDiningTables(_hasDiningTables);
       final combinedAddress = [
         _address1Controller.text.trim(),
         _address2Controller.text.trim(),
@@ -469,6 +472,54 @@ class _StoreSettingsSheetState extends ConsumerState<StoreSettingsSheet> {
                                 _chargeGst = val;
                               });
                               ref.read(restaurantProvider.notifier).setGstEnabled(val);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Dining Tables Mode Toggle Switch
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: ShadcnColors.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: ShadcnColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text('Dining Tables Enabled', style: ShadcnTypography.bodySemibold),
+                                    const SizedBox(width: 8),
+                                    ShadcnBadge(
+                                      text: _hasDiningTables ? 'Tables ON' : 'Takeaway Only',
+                                      variant: _hasDiningTables ? ShadcnBadgeVariant.success : ShadcnBadgeVariant.secondary,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _hasDiningTables
+                                      ? 'Show dine-in table floorplan alongside takeaway orders.'
+                                      : 'Turn OFF for takeaway counters, cloud kitchens, or cafes without tables.',
+                                  style: ShadcnTypography.caption,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _hasDiningTables,
+                            activeColor: ShadcnColors.primary,
+                            onChanged: (val) {
+                              setState(() {
+                                _hasDiningTables = val;
+                              });
                             },
                           ),
                         ],

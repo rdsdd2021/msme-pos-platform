@@ -9,6 +9,7 @@ import '../../core/widgets/shadcn_badge.dart';
 import '../../core/widgets/shadcn_button.dart';
 import '../../core/widgets/shadcn_card.dart';
 import 'table_order_sheet.dart';
+import '../settings/store_settings_sheet.dart';
 import 'widgets/restaurant_menu_sheet.dart';
 
 class RestaurantTablesScreen extends ConsumerWidget {
@@ -193,6 +194,103 @@ class RestaurantTablesScreen extends ConsumerWidget {
             ),
           ),
 
+          // Always-visible Quick Action Bar (Add Table, New Takeaway, Bill & Store Settings)
+          Container(
+            color: ShadcnColors.surface,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    key: const Key('new_takeaway_order_btn'),
+                    onTap: () async {
+                      final tk = await notifier.createTakeawayToken();
+                      if (context.mounted) {
+                        _openTableOrder(context, tk);
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: ShadcnColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.takeout_dining, size: 15, color: Colors.white),
+                          SizedBox(width: 6),
+                          Text(
+                            'New Takeaway',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  key: const Key('add_restaurant_table_top_btn'),
+                  onTap: () => _showAddEditTableDialog(context, notifier),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: ShadcnColors.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: ShadcnColors.border),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 15, color: ShadcnColors.primary),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add Table',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ShadcnColors.foreground),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  key: const Key('open_bill_settings_btn'),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (ctx) => const StoreSettingsSheet(),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: ShadcnColors.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: ShadcnColors.border),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.receipt_long_outlined, size: 15, color: ShadcnColors.mutedForeground),
+                        SizedBox(width: 4),
+                        Text(
+                          'Bill Setup',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ShadcnColors.foreground),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Section Chips Filter
           Container(
             color: ShadcnColors.surface,
@@ -315,7 +413,45 @@ class RestaurantTablesScreen extends ConsumerWidget {
                 await ref.read(syncStateProvider.notifier).syncNow();
                 await notifier.refreshFromDb();
               },
-              child: GridView.builder(
+              child: restState.filteredTables.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(24),
+                      children: [
+                        const SizedBox(height: 36),
+                        Center(
+                          child: Column(
+                            children: [
+                              const Icon(Icons.takeout_dining_outlined, size: 48, color: ShadcnColors.mutedForeground),
+                              const SizedBox(height: 12),
+                              Text(
+                                restState.hasDiningTables ? 'No tables in this section' : 'Takeaway / Counter Mode',
+                                style: ShadcnTypography.h3,
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                restState.hasDiningTables
+                                    ? 'Tap "+ Add Table" above or switch sections.'
+                                    : 'Dining tables are turned OFF. Tap "New Takeaway" to create a token order.',
+                                textAlign: TextAlign.center,
+                                style: ShadcnTypography.caption,
+                              ),
+                              const SizedBox(height: 16),
+                              ShadcnButton(
+                                text: '+ New Takeaway Order',
+                                onPressed: () async {
+                                  final tk = await notifier.createTakeawayToken();
+                                  if (context.mounted) {
+                                    _openTableOrder(context, tk);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : GridView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

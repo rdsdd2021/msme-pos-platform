@@ -83,7 +83,12 @@ export class RestaurantService {
   ): Promise<Array<RestaurantTableEntity & { activeOrder?: RestaurantOrderEntity | null }>> {
     const totalCount = await this.tableRepo.count({ where: { tenantId, branchId } });
     if (totalCount === 0) {
-      await this.seedDefaultTables(tenantId, branchId);
+      const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+      const diningSettings = await this.getRestaurantSettings(tenantId, branchId);
+      const alreadyInitialized = (tenant?.settings as any)?.tablesInitialized === true;
+      if (diningSettings.hasDiningTables !== false && !alreadyInitialized) {
+        await this.seedDefaultTables(tenantId, branchId);
+      }
     }
 
     const qb = this.tableRepo
@@ -520,6 +525,14 @@ export class RestaurantService {
 
     table.isActive = false;
     await this.tableRepo.save(table);
+
+    try {
+      const tenant = await this.tenantRepo.findOne({ where: { id: tenantId } });
+      if (tenant) {
+        tenant.settings = { ...(tenant.settings || {}), tablesInitialized: true };
+        await this.tenantRepo.save(tenant);
+      }
+    } catch (_) {}
 
     if (this.realtimeService) {
       this.realtimeService.emit(
@@ -1346,6 +1359,7 @@ export class RestaurantService {
         { id: 'terrace', name: 'Terrace & Outdoor', defaultCapacity: 4, tableCount: 2 },
       ],
       enableGst: true,
+      hasDiningTables: true,
       defaultGstPercent: '5.00',
       serviceChargePercent: '0.00',
       packagingCharge: '0.00',
@@ -1389,6 +1403,7 @@ export class RestaurantService {
     return {
       floorSections: saved.floorSections || defaults.floorSections,
       enableGst: isGstEnabled,
+      hasDiningTables: saved.hasDiningTables !== undefined ? saved.hasDiningTables : true,
       defaultGstPercent: !isGstEnabled ? '0.00' : (saved.defaultGstPercent || defaults.defaultGstPercent),
       serviceChargePercent: saved.serviceChargePercent || defaults.serviceChargePercent,
       packagingCharge: saved.packagingCharge || defaults.packagingCharge,
@@ -1437,6 +1452,7 @@ export class RestaurantService {
       ...current,
       ...(dto.floorSections ? { floorSections: dto.floorSections } : {}),
       enableGst: newEnableGst,
+      ...(dto.hasDiningTables !== undefined ? { hasDiningTables: dto.hasDiningTables } : {}),
       defaultGstPercent: newDefaultGstPercent,
       ...(dto.serviceChargePercent !== undefined ? { serviceChargePercent: dto.serviceChargePercent } : {}),
       ...(dto.packagingCharge !== undefined ? { packagingCharge: dto.packagingCharge } : {}),
