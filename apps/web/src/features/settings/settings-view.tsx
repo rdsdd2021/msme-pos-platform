@@ -138,7 +138,7 @@ export function SettingsView({
             pincode: currentBranch?.postalCode || parsed.pincode || DEFAULT_STORE_PROFILE.pincode,
           };
         }
-      } catch {}
+      } catch { }
     }
     return {
       ...DEFAULT_STORE_PROFILE,
@@ -207,7 +207,7 @@ export function SettingsView({
               .join(', '),
           },
           currentBranch.id,
-        ).catch(() => {});
+        ).catch(() => { });
 
         onRefresh();
         toast.success('Store & branch profile saved and synced!');
@@ -230,7 +230,7 @@ export function SettingsView({
       try {
         const saved = localStorage.getItem(`pos_billing_rules_${tenantId}`);
         if (saved) return JSON.parse(saved);
-      } catch {}
+      } catch { }
     }
     return DEFAULT_BILLING_RULES;
   });
@@ -239,7 +239,7 @@ export function SettingsView({
     if (typeof window !== 'undefined' && tenantId) {
       try {
         localStorage.setItem(`pos_billing_rules_${tenantId}`, JSON.stringify(billingRules));
-      } catch {}
+      } catch { }
     }
     toast.success('Billing and invoicing rules updated successfully!');
   };
@@ -274,7 +274,7 @@ export function SettingsView({
           upiId: srv.upiId !== undefined ? srv.upiId : prev.upiId,
         }));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [tenantId, branchId]);
 
   const handleSaveReceipt = async () => {
@@ -299,7 +299,7 @@ export function SettingsView({
           },
           branchId,
         );
-      } catch (_) {}
+      } catch (_) { }
     }
     toast.success('Thermal receipt template saved & synced to all devices!');
   };
@@ -334,89 +334,89 @@ export function SettingsView({
           <span>Store Profile</span>
         </button>
 
-          <button
-            onClick={() => setActiveTab('receipt')}
-            data-testid="settings-tab-receipt"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'receipt'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <Printer className="h-3.5 w-3.5" />
-            <span>Thermal Receipt Designer</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('receipt')}
+          data-testid="settings-tab-receipt"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'receipt'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <Printer className="h-3.5 w-3.5" />
+          <span>Thermal Receipt Designer</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('billing')}
-            data-testid="settings-tab-billing"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'billing'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <Receipt className="h-3.5 w-3.5" />
-            <span>Billing &amp; Invoicing</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('billing')}
+          data-testid="settings-tab-billing"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'billing'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <Receipt className="h-3.5 w-3.5" />
+          <span>Billing &amp; Invoicing</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('dining')}
-            data-testid="settings-tab-dining"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'dining'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <Utensils className="h-3.5 w-3.5" />
-            <span>Dining &amp; KOT</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('dining')}
+          data-testid="settings-tab-dining"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'dining'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <Utensils className="h-3.5 w-3.5" />
+          <span>Dining &amp; KOT</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('branches')}
-            data-testid="settings-tab-branches"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'branches'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <Building2 className="h-3.5 w-3.5" />
-            <span>Branches &amp; GSTIN ({branches.length})</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('branches')}
+          data-testid="settings-tab-branches"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'branches'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <Building2 className="h-3.5 w-3.5" />
+          <span>Branches &amp; GSTIN ({branches.length})</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('devices')}
-            data-testid="settings-tab-devices"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'devices'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            <span>POS Hardware ({devices.length})</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('devices')}
+          data-testid="settings-tab-devices"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'devices'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <Smartphone className="h-3.5 w-3.5" />
+          <span>POS Hardware ({devices.length})</span>
+        </button>
 
-          <button
-            onClick={() => setActiveTab('subscription')}
-            data-testid="settings-tab-subscription"
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
-              activeTab === 'subscription'
-                ? 'bg-blue-600 text-white shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            )}
-          >
-            <CreditCard className="h-3.5 w-3.5" />
-            <span>Plan &amp; Subscription</span>
-          </button>
+        <button
+          onClick={() => setActiveTab('subscription')}
+          data-testid="settings-tab-subscription"
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap',
+            activeTab === 'subscription'
+              ? 'bg-blue-600 text-white shadow-2xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          )}
+        >
+          <CreditCard className="h-3.5 w-3.5" />
+          <span>Plan &amp; Subscription</span>
+        </button>
       </div>
 
       {/* --- SUB-TAB 1: STORE PROFILE --- */}
@@ -971,7 +971,7 @@ export function SettingsView({
         <BranchesView
           branches={branches}
           onRefresh={onRefresh}
-          onEditBranch={onEditBranch || (() => {})}
+          onEditBranch={onEditBranch || (() => { })}
         />
       )}
 

@@ -489,7 +489,7 @@ export function LandingPage() {
           {/* Right Action CTA Buttons */}
           <div className="flex items-center gap-2.5">
             <a
-              href="/downloads/kirana-pos.apk?v=1.0.18-24"
+              href="/downloads/kirana-pos.apk?v=1.0.29-35"
               download="kirana-pos.apk"
               title="Download Android Mobile POS APK"
               className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50/70 hover:bg-amber-100 text-amber-800 text-xs font-bold cursor-pointer shadow-xs transition"
@@ -555,7 +555,7 @@ export function LandingPage() {
               <ArrowRight className="w-4 h-4" />
             </Button>
             <a
-              href="/downloads/kirana-pos.apk?v=1.0.18-24"
+              href="/downloads/kirana-pos.apk?v=1.0.29-35"
               download="kirana-pos.apk"
               className="w-full sm:w-auto h-12 px-6 rounded-xl border border-amber-300/80 bg-amber-50/80 hover:bg-amber-100 text-amber-900 text-sm font-bold cursor-pointer flex items-center justify-center gap-2 shadow-xs transition-all hover:scale-[1.02]"
             >
