@@ -106,7 +106,7 @@ class Product {
   double get sellingPriceRupees => sellingPricePaisa / 100.0;
   double get purchaseCostRupees => purchaseCostPaisa / 100.0;
 
-  bool get isLowStock => currentStock < 5.0;
+  bool get isLowStock => !isMadeToOrder && currentStock < 5.0;
 
   bool get isVeg => foodType == 'veg' || foodType == 'vegan';
   bool get isNonVeg => foodType == 'non_veg';

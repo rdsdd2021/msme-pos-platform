@@ -86,7 +86,11 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
         activeTenant.tenantId,
         activeBranch.id,
       );
-      setTables(data || []);
+      const nextTables = data || [];
+      setTables((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(nextTables)) return prev;
+        return nextTables;
+      });
       // If a table is currently selected in drawer, update its reference
       if (selectedTableRef.current) {
         const updated = data.find((t) => t.id === selectedTableRef.current?.id);
@@ -131,7 +135,7 @@ export function RestaurantFloorplanView({ onSwitchToKds }: RestaurantFloorplanVi
     onPoll: () => {
       fetchTables(true);
     },
-    pollIntervalMs: 5000,
+    pollIntervalMs: 30000,
   });
 
   // Seed default 12 tables

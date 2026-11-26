@@ -692,6 +692,7 @@ export default function AdminDashboard({
     let outOfStockCount = 0;
 
     products.forEach((p) => {
+      if (p.isMadeToOrder || p.trackInventory === false) return;
       const stock = parseFloat(stockMap.get(p.id) || '0');
       const cost = parseFloat(p.purchaseCost || '0');
       totalValuation += stock * cost;

@@ -96,6 +96,7 @@ export function useRealtimeEvents({
   const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
   const isDestroyedRef = useRef(false);
   const onPollRef = useRef(onPoll);
   const callbacksRef = useRef({
@@ -168,32 +169,39 @@ export function useRealtimeEvents({
           const cb = callbacksRef.current;
           cb.onEvent?.(payload);
 
-          switch (payload.type) {
-            case 'ORDER_CREATED':
-              cb.onOrderCreated?.(payload.data);
-              break;
-            case 'STOCK_CHANGED':
-              cb.onStockChanged?.(payload.data);
-              break;
-            case 'CATALOG_CHANGED':
-              cb.onCatalogChanged?.(payload.data);
-              break;
-            case 'CUSTOMER_UPDATED':
-              cb.onCustomerUpdated?.(payload.data);
-              break;
-            case 'RESTAURANT_TABLE_CHANGED':
-              cb.onRestaurantTableChanged?.(payload.data);
-              break;
-            case 'KOT_CREATED':
-              cb.onKotCreated?.(payload.data);
-              break;
-            case 'KOT_STATUS_CHANGED':
-              cb.onKotStatusChanged?.(payload.data);
-              break;
-            case 'RESTAURANT_SETTINGS_CHANGED':
-              cb.onRestaurantSettingsChanged?.(payload.data);
-              break;
-          }
+          // Debounce per event type (400ms) so multi-op batch bursts trigger only one UI refresh
+          const existingTimer = debounceTimersRef.current[payload.type];
+          if (existingTimer) clearTimeout(existingTimer);
+          debounceTimersRef.current[payload.type] = setTimeout(() => {
+            if (isDestroyedRef.current) return;
+            const latestCb = callbacksRef.current;
+            switch (payload.type) {
+              case 'ORDER_CREATED':
+                latestCb.onOrderCreated?.(payload.data);
+                break;
+              case 'STOCK_CHANGED':
+                latestCb.onStockChanged?.(payload.data);
+                break;
+              case 'CATALOG_CHANGED':
+                latestCb.onCatalogChanged?.(payload.data);
+                break;
+              case 'CUSTOMER_UPDATED':
+                latestCb.onCustomerUpdated?.(payload.data);
+                break;
+              case 'RESTAURANT_TABLE_CHANGED':
+                latestCb.onRestaurantTableChanged?.(payload.data);
+                break;
+              case 'KOT_CREATED':
+                latestCb.onKotCreated?.(payload.data);
+                break;
+              case 'KOT_STATUS_CHANGED':
+                latestCb.onKotStatusChanged?.(payload.data);
+                break;
+              case 'RESTAURANT_SETTINGS_CHANGED':
+                latestCb.onRestaurantSettingsChanged?.(payload.data);
+                break;
+            }
+          }, 400);
         } catch {
           // ignore non-json messages
         }
@@ -260,6 +268,8 @@ export function useRealtimeEvents({
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
+      Object.values(debounceTimersRef.current).forEach(clearTimeout);
+      debounceTimersRef.current = {};
       setIsConnected(false);
     };
   }, [connect]);

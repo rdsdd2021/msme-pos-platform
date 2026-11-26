@@ -324,11 +324,13 @@ class CatalogNotifier extends StateNotifier<CatalogState> {
     _ref?.read(syncStateProvider.notifier).syncNow();
   }
 
-  Future<void> reload([String? tenantId]) async {
+  Future<void> reload([String? tenantId, bool fetchRemoteCategories = false]) async {
     final tid = tenantId ?? activeTenantId;
     final items = await _repo.getAllProducts(tenantId: tid);
     state = state.copyWith(allProducts: items);
-    await fetchCategories();
+    if (fetchRemoteCategories || state.categories.isEmpty) {
+      await fetchCategories();
+    }
   }
 }
 

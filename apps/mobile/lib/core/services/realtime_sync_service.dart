@@ -16,6 +16,7 @@ class RealtimeSyncService {
   StreamSubscription? _subscription;
   Timer? _reconnectTimer;
   Timer? _watchdogTimer;
+  Timer? _sseDebounceTimer;
   bool _isDisposed = false;
   bool _isConnecting = false;
 
@@ -36,6 +37,7 @@ class RealtimeSyncService {
     _isDisposed = true;
     _watchdogTimer?.cancel();
     _reconnectTimer?.cancel();
+    _sseDebounceTimer?.cancel();
     _subscription?.cancel();
     _subscription = null;
   }
@@ -154,21 +156,14 @@ class RealtimeSyncService {
 
       debugPrint('[RealtimeSync] Received server event: $type');
 
-      // Trigger instantaneous UI refresh and silent background delta sync
-      if (type == 'CATALOG_CHANGED' || type == 'STOCK_CHANGED') {
-        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
-      } else if (type == 'RESTAURANT_TABLE_CHANGED' ||
-          type == 'KOT_CREATED' ||
-          type == 'KOT_STATUS_CHANGED' ||
-          type == 'ORDER_CREATED') {
-        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
-      } else if (type == 'CUSTOMER_UPDATED') {
-        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
-      } else if (type == 'RESTAURANT_SETTINGS_CHANGED') {
-        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
-      } else {
-        _ref.read(syncStateProvider.notifier).syncNow(silent: true);
-      }
+      // Coalesce burst SSE events (e.g. multi-item batch pushes) with a 1.5s debounce
+      // so we never trigger multiple back-to-back syncs per second.
+      _sseDebounceTimer?.cancel();
+      _sseDebounceTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (!_isDisposed) {
+          _ref.read(syncStateProvider.notifier).syncNow(silent: true);
+        }
+      });
     } catch (e) {
       debugPrint('[RealtimeSync] JSON parse error: $e');
     }

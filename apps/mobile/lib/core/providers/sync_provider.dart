@@ -62,6 +62,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
   Timer? _autoSyncTimer;
   bool _pendingSyncRequested = false;
   bool _isSyncInFlight = false;
+  DateTime? _lastSyncCompletedAt;
 
   SyncNotifier(this._worker, this._ref) : super(const SyncState()) {
     refreshStatus();
@@ -70,7 +71,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   void _startAutoSync() {
     _autoSyncTimer?.cancel();
-    _autoSyncTimer = Timer.periodic(const Duration(seconds: 6), (_) async {
+    _autoSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
       final hasPending = await _worker.getPendingCount() > 0;
       if (hasPending || !_isSyncInFlight) {
         await syncNow(silent: true);
@@ -96,8 +97,20 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
   Future<bool> syncNow({String? deviceId, bool silent = false}) async {
     if (_isSyncInFlight || state.isSyncing) {
-      _pendingSyncRequested = true;
+      if (!silent) {
+        _pendingSyncRequested = true;
+      }
       return false;
+    }
+
+    // Cooldown: ignore silent echo-triggered syncs within 3s of previous completion when nothing is pending
+    if (silent &&
+        _lastSyncCompletedAt != null &&
+        DateTime.now().difference(_lastSyncCompletedAt!) < const Duration(seconds: 3)) {
+      final pending = await _worker.getPendingCount();
+      if (pending == 0) {
+        return true;
+      }
     }
 
     _isSyncInFlight = true;
@@ -149,7 +162,10 @@ class SyncNotifier extends StateNotifier<SyncState> {
 
         // Only reload local providers when relevant delta data actually changed
         if (hasCatalogChanges) {
-          await _ref.read(catalogProvider.notifier).reload();
+          await _ref.read(catalogProvider.notifier).reload(
+                tenantId,
+                result.pulledCategoriesCount > 0,
+              );
         }
         if (result.pulledCustomersCount > 0) {
           await _ref.read(customerProvider.notifier).reload();
@@ -158,6 +174,7 @@ class SyncNotifier extends StateNotifier<SyncState> {
           await _ref.read(restaurantProvider.notifier).refreshFromDb();
         }
 
+        _lastSyncCompletedAt = DateTime.now();
         return true;
       } else {
         state = state.copyWith(

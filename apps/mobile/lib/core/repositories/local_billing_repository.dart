@@ -498,7 +498,7 @@ class LocalBillingRepository {
     final totalKhataDuePaisa = allCustomers.fold<int>(0, (sum, c) => sum + c.currentBalancePaisa);
 
     final lowStockRows = await (_db.select(_db.localProducts)
-          ..where((p) => p.stockQuantity.isSmallerOrEqualValue(5.0)))
+          ..where((p) => p.isMadeToOrder.equals(false) & p.stockQuantity.isSmallerOrEqualValue(5.0)))
         .get();
 
     return {
