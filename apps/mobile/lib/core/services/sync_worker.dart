@@ -367,6 +367,12 @@ class SyncWorker {
           final tblId = tbl['id'] as String? ?? '';
           if (tblId.isEmpty) continue;
 
+          if (tbl['isActive'] == false) {
+            await (_db.delete(_db.localRestaurantTables)..where((t) => t.id.equals(tblId))).go();
+            pulledRestaurantTables++;
+            continue;
+          }
+
           final status = tbl['status'] as String? ?? 'vacant';
 
           await _db.into(_db.localRestaurantTables).insertOnConflictUpdate(

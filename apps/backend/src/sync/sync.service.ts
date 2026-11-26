@@ -986,18 +986,24 @@ export class SyncService implements OnModuleInit {
 
     let restaurantTables: any[] = [];
     let restaurantOrders: any[] = [];
+    const isIncremental = cursorDate.getTime() > 0;
     if (this.restaurantService && resolvedBranchId) {
       try {
         const tables = await this.restaurantService.getTables(tenantId, resolvedBranchId);
         if (tables.length === 0) {
           restaurantTables = await this.restaurantService.seedDefaultTables(tenantId, resolvedBranchId);
+        } else if (isIncremental) {
+          restaurantTables = tables.filter(
+            (t: any) => !t.updatedAt || new Date(t.updatedAt).getTime() > cursorDate.getTime(),
+          );
         } else {
           restaurantTables = tables;
         }
 
         const activeOrders = tables
           .map((t: any) => t.activeOrder)
-          .filter((o: any) => Boolean(o));
+          .filter((o: any) => Boolean(o))
+          .filter((o: any) => !isIncremental || !o.updatedAt || new Date(o.updatedAt).getTime() > cursorDate.getTime());
 
         let recentlyUpdated: any[] = [];
         if (typeof this.dataSource?.getRepository === 'function') {
